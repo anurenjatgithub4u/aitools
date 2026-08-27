@@ -1,0 +1,115 @@
+{
+  "id": "chatgpt-prompts-for-freelance-writers",
+  "slug": "chatgpt-prompts-for-freelance-writers",
+  "title": "10 Best ChatGPT Prompts for Freelance Writers (2026)",
+  "description": "A ten-step prompt sequence that covers every stage of a freelance writing project — from understanding the brief and researching angles to drafting, self-editing, pitching, and invoicing — so you spend less time on admin and more time writing.",
+  "benefit": "Go from cold brief to polished draft (and invoice) without switching tools.",
+  "roleTags": ["writer"],
+  "toolTags": ["chatgpt"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "GPT-4o",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "chatgpt",
+      "title": "Decode the brief",
+      "promptText": "You are a senior editor at a top-tier [INDUSTRY] publication. A client has sent me this brief:\n\n[PASTE BRIEF]\n\nBreak it down for me: (1) What is the real goal the client wants to achieve — not just what they said? (2) What audience are they writing for and what does that audience already believe? (3) What three angles would make this piece genuinely interesting rather than generic? (4) What information would I need to gather before writing?",
+      "whyThisTool": "ChatGPT's broad training across editorial styles lets it reverse-engineer client intent fast — saving the back-and-forth email cycle.",
+      "outputExpected": "A crisp breakdown: real goal, audience belief system, 3 fresh angles, and a research checklist."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "chatgpt",
+      "title": "Generate a targeted outline",
+      "promptText": "Using angle #[N] from your previous answer, write a detailed outline for a [WORD COUNT]-word article targeting [TARGET AUDIENCE]. Format: H2s and H3s only — no prose yet. Each heading should be a specific claim or question, not a topic label. Flag which sections need original research vs. which can be written from existing knowledge.",
+      "whyThisTool": "Claim-based headings (not topic labels) produce better SEO structure and force sharper thinking before you write a word.",
+      "outputExpected": "A 6–10 heading outline where every H2 is a real claim a reader could agree or disagree with."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "chatgpt",
+      "title": "Research the key claims",
+      "promptText": "For each section that needs research in the outline, give me: (1) the specific question I need to answer with a source, (2) the search query I should use to find it, (3) what type of source would be most credible (peer-reviewed, industry report, expert quote, case study). Format as a table: Section | Research question | Search query | Source type.",
+      "whyThisTool": "Turning vague 'research this' notes into specific search queries cuts research time by half.",
+      "outputExpected": "A research brief table I can work through methodically before writing."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "chatgpt",
+      "title": "Write the intro hook",
+      "promptText": "Write 3 different opening paragraphs for this article. Each should be under 80 words and use a different hook type:\n- Hook A: a counterintuitive statistic or fact\n- Hook B: a specific scene or anecdote (fictional but realistic)\n- Hook C: a direct challenge to a belief the reader holds\n\nDo NOT start with 'In today's...' or any generic opener. Each hook should make the reader feel they'd be missing something if they stopped reading.",
+      "whyThisTool": "Testing three hook types before committing prevents the most common freelance mistake: picking the first opening that sounds fine.",
+      "outputExpected": "Three distinct openers, each genuinely different in approach — not three versions of the same strategy."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "chatgpt",
+      "title": "Draft a full section",
+      "promptText": "Write the section '[H2 HEADING FROM OUTLINE]' for a [WORD COUNT]-word article. Style: [PUBLICATION NAME OR DESCRIBE TONE: e.g. 'The Atlantic — literary but accessible', 'HubSpot blog — practical, no fluff']. Use:\n- Short paragraphs (3 sentences max)\n- One concrete example per claim\n- No passive voice\n- No filler transitions ('Additionally', 'Furthermore', 'In conclusion')\nTarget length for this section: [SECTION WORD COUNT].",
+      "whyThisTool": "Section-by-section drafting with explicit style constraints produces cleaner copy than asking for a full article at once.",
+      "outputExpected": "A publishable-quality draft section that matches the publication's voice without generic connective tissue."
+    },
+    {
+      "stepNumber": 6,
+      "tool": "chatgpt",
+      "title": "Self-edit for tightness",
+      "promptText": "Edit this draft section ruthlessly:\n\n[PASTE DRAFT SECTION]\n\nRules: (1) Cut every word that doesn't earn its place — target 20% fewer words. (2) Replace any passive construction with active. (3) Flag any claim that needs a source but doesn't have one. (4) Identify the weakest sentence and rewrite it. Return the edited version followed by a bullet list of what you changed and why.",
+      "whyThisTool": "Editing in a separate pass, with explicit rules and a word-count target, catches the lazy phrasing you skip over in drafting mode.",
+      "outputExpected": "A tightened draft (~20% shorter) plus a changelog showing every structural decision."
+    },
+    {
+      "stepNumber": 7,
+      "tool": "chatgpt",
+      "title": "Write a magnetic headline set",
+      "promptText": "Write 10 headline options for this article. Include at least one of each: number-led ('7 ways...'), how-to, question, 'The truth about...', and a bold declarative claim. For each headline, rate it 1–5 on: clarity, curiosity, and SEO-friendliness. Bold the one you'd actually publish and explain why in one sentence.",
+      "whyThisTool": "Ten options forces variety; the rating system gives you a decision framework instead of gut feel.",
+      "outputExpected": "Ten headlines across five formats, rated on three axes, with one clear recommendation."
+    },
+    {
+      "stepNumber": 8,
+      "tool": "chatgpt",
+      "title": "Write a client-ready pitch",
+      "promptText": "Write a 150-word pitch email for this article idea to [CLIENT/EDITOR NAME] at [PUBLICATION]. The pitch should: (1) open with the specific reader problem this piece solves, (2) state the angle and what makes it different from existing coverage, (3) mention one piece of evidence that proves the angle, (4) close with a clear ask (commission, feedback, etc.). Match the tone to: [FORMAL / CONVERSATIONAL]. Do not use 'I hope this finds you well' or any similar opener.",
+      "whyThisTool": "Editors read hundreds of pitches; a pitch that leads with reader value (not writer credentials) stands out immediately.",
+      "outputExpected": "A 150-word pitch email that could be sent without editing — clear ask, specific angle, concrete evidence."
+    },
+    {
+      "stepNumber": 9,
+      "tool": "chatgpt",
+      "title": "Generate a meta description + SEO summary",
+      "promptText": "For this article, write: (1) a 155-character meta description that includes the primary keyword '[KEYWORD]' and ends with a clear benefit, (2) a 50-word excerpt for social media that doesn't duplicate the intro, (3) five hashtags for LinkedIn, (4) the primary keyword and three LSI keywords I should use naturally throughout the piece.",
+      "whyThisTool": "SEO metadata is most accurate after the piece is drafted — writing it first leads to over-optimized copy.",
+      "outputExpected": "Meta description at exactly 155 chars, a non-duplicative social excerpt, 5 hashtags, and a keyword list."
+    },
+    {
+      "stepNumber": 10,
+      "tool": "chatgpt",
+      "title": "Draft a professional invoice note",
+      "promptText": "Write a short, professional payment-request message (3 sentences max) to include with an invoice for this project:\n- Project: [PROJECT NAME]\n- Amount: [AMOUNT]\n- Due date: [DATE]\n- Payment terms: [NET-15 / NET-30 / on receipt]\n\nTone: friendly but firm — makes it easy to pay, not easy to delay. Include one polite next-step for if payment is late.",
+      "whyThisTool": "A pre-written, professionally worded invoice note removes the social awkwardness of chasing payment and sets expectations upfront.",
+      "outputExpected": "A 3-sentence invoice note plus one firm-but-polite late-payment follow-up line."
+    }
+  ],
+  "faq": [
+    {
+      "q": "Can I use these prompts with Claude instead of ChatGPT?",
+      "a": "Yes — every prompt in this pack works in Claude or Gemini without changes. We verified it against ChatGPT GPT-4o because that's where most freelance writers start, but the underlying prompt structure is tool-agnostic."
+    },
+    {
+      "q": "Are these prompts useful for content writers at agencies, or just solo freelancers?",
+      "a": "Both. Steps 1–6 (brief → draft → edit) apply to any writing project. Steps 8–10 (pitch, SEO, invoice) are more freelance-specific, but agency writers can skip those and still get value from the drafting sequence."
+    },
+    {
+      "q": "What should I put in the [PLACEHOLDERS]?",
+      "a": "Every placeholder in square brackets is yours to fill with your specific project details. The prompts are written so each placeholder is obvious from context — [BRIEF] means paste the actual brief text, [PUBLICATION] means the outlet you're writing for, and so on."
+    },
+    {
+      "q": "How do I handle the research steps if ChatGPT gives me hallucinated sources?",
+      "a": "Step 3 intentionally asks for search queries, not direct answers — you do the actual research yourself. This avoids hallucinated citations entirely. Never cite a source ChatGPT gave you without verifying it exists and says what it claims."
+    }
+  ],
+  "techniques": ["rctf", "constraint-prompting", "chain-of-thought"],
+  "concept": "writing-workflow"
+}

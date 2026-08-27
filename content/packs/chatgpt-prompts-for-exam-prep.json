@@ -1,0 +1,87 @@
+{
+  "id": "chatgpt-prompts-for-exam-prep",
+  "slug": "chatgpt-prompts-for-exam-prep",
+  "title": "7 ChatGPT Prompts for Exam Prep & Study Plans (2026)",
+  "description": "Seven exam-prep prompts that turn your study sessions into active retrieval practice — diagnosing knowledge gaps, generating graded practice questions, simulating past paper-style questions, and building a focused revision schedule — instead of passive re-reading that doesn't stick.",
+  "benefit": "Walk into your exam knowing what you know — and exactly what you don't.",
+  "roleTags": ["student"],
+  "toolTags": ["chatgpt"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "GPT-4o",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "chatgpt",
+      "title": "Diagnose your knowledge gaps",
+      "promptText": "I have an exam in [SUBJECT] in [N DAYS]. Here's what I need to cover:\n\n[PASTE SYLLABUS TOPICS OR MODULE LIST]\n\nAsk me 10 diagnostic questions across these topics — a mix of recall, application, and explanation questions. Don't give me the answers yet.\n\nAfter I answer all 10, score me: identify which topics I answered confidently and correctly, which I answered incorrectly or partially, and which I couldn't answer at all. Create a 'gap map' showing: Strong / Shaky / Not covered — for each topic area.",
+      "whyThisTool": "Diagnostic testing before studying (not after) shows you where to spend your limited time — most students re-study what they already know because it feels productive.",
+      "outputExpected": "10 diagnostic questions across the syllabus, then a Gap Map with three categories per topic: Strong / Shaky / Not covered."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "chatgpt",
+      "title": "Build a prioritized revision schedule",
+      "promptText": "Based on my gap map from Step 1, and given that my exam is in [N DAYS] and I have [HOURS PER DAY] to study, build a day-by-day revision schedule.\n\nPrioritization rules:\n- 'Not covered' topics that are likely high-exam-weight: 40% of my time\n- 'Shaky' topics: 40% of my time\n- 'Strong' topics: 20% of my time (just light review, not re-learning)\n- Reserve the last 2 days for full past-paper practice only\n- Rotate between active recall, practice problems, and written summary — no more than 90 minutes of the same activity\n\nFormat as a table: Day | Time block | Topic | Activity type | Goal for session",
+      "whyThisTool": "The 40/40/20 split is evidence-based: over-studying strong areas is the most common study-time mistake because it provides false reassurance without improving exam performance.",
+      "outputExpected": "A day-by-day table with topic, activity type, and session goal — weighted toward gaps, not comfortable topics."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "chatgpt",
+      "title": "Generate practice questions for weak areas",
+      "promptText": "I'm weak on: [SPECIFIC TOPIC FROM GAP MAP]\n\nGenerate 12 practice questions on this topic at three levels:\n- Level 1 (4 questions): define, list, state — pure recall\n- Level 2 (4 questions): apply, calculate, analyze — give me a scenario and ask me to work through it\n- Level 3 (4 questions): evaluate, compare, justify — exam-style questions requiring a reasoned argument\n\nPresent the questions one at a time. After I answer each one, tell me: (1) whether I'm right, (2) the correct answer or reasoning, (3) the concept I need to revisit if I got it wrong. Move to the next question only when I say 'next'.",
+      "whyThisTool": "Active retrieval (attempting to answer before seeing the answer) produces stronger memory encoding than re-reading — this is the most well-validated study technique in cognitive psychology.",
+      "outputExpected": "12 questions across 3 levels, delivered one at a time, with immediate feedback on each answer and a concept-to-revisit flag for wrong answers."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "chatgpt",
+      "title": "Simulate an exam question",
+      "promptText": "Simulate an [EXAM TYPE: essay / multiple choice / short answer / problem-set] exam question on [TOPIC], at the difficulty level of [YOUR EXAM: first-year undergraduate / A-level / professional certification / etc.].\n\nPresent the question as it would appear in the actual exam. Give me [TIME LIMIT] to answer — I'll tell you when I'm done.\n\nWhen I submit my answer, evaluate it as an examiner would:\n- Mark it against the likely marking criteria\n- Identify which marks I'd earn and which I'd lose, and why\n- Show me a model answer\n- Point out the 1–2 things that would most improve my exam technique on this question type",
+      "whyThisTool": "Examiner-style marking (not just 'good job, you got the main ideas') shows you how marks are actually allocated — which is different from whether your answer sounds knowledgeable.",
+      "outputExpected": "A realistic exam question, examiner-style marking of your answer with marks earned/lost, a model answer, and 1–2 technique improvements."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "chatgpt",
+      "title": "Create a memory aid for complex content",
+      "promptText": "I need to memorize: [LIST OF FACTS / PROCESSES / CONCEPTS / EQUATIONS]\n\nCreate memory aids that are easy to recall under exam stress:\n1. A mnemonic or acronym for any list or sequence that's 4+ items\n2. A simple analogy that makes each concept feel intuitive (not just memorable)\n3. A 'why does this matter' hook for each item — connecting it to something real-world makes it stickier\n4. A 1-sentence summary of each item I could write from memory in 10 seconds\n\nThen quiz me: give me the first letter of each mnemonic and see if I can recall the full list.",
+      "whyThisTool": "Analogies beat mnemonics for long-term retention because they create meaning, not just a memory hook — you can reconstruct them from first principles even if you forget the mnemonic.",
+      "outputExpected": "Mnemonics, analogies, real-world hooks, and 10-second summaries for each item — plus a retrieval quiz at the end."
+    },
+    {
+      "stepNumber": 6,
+      "tool": "chatgpt",
+      "title": "Teach the concept back",
+      "promptText": "I'm going to teach you [CONCEPT] as if you're a student who has never heard of it. Interrupt me, ask follow-up questions, and push back if I say something vague or incorrect — act like a curious but skeptical student.\n\nAfter I finish explaining, give me feedback:\n1. What did I explain accurately and clearly?\n2. What did I miss or get wrong?\n3. Where was I vague — a sign I don't fully understand it yet?\n4. What would a top student add that I didn't mention?\n\nI'll start: [START YOUR EXPLANATION]",
+      "whyThisTool": "The Feynman technique — teaching a concept to expose gaps — is one of the strongest known study methods. Having ChatGPT actively push back (not just listen) makes the gaps visible in real time.",
+      "outputExpected": "An interactive teaching session where the model plays skeptical student, followed by structured feedback on accuracy, completeness, and conceptual gaps."
+    },
+    {
+      "stepNumber": 7,
+      "tool": "chatgpt",
+      "title": "Last-day rapid review",
+      "promptText": "It's the day before my exam. I don't have time to re-study anything deeply. For [SUBJECT / TOPICS LIST], give me:\n1. The 10 most likely exam topics or question types (based on common exam patterns for this subject)\n2. A 1-sentence definition or rule for each\n3. The 3 most common mistakes students make in this exam, and how to avoid them\n4. A 5-minute active recall drill: ask me 5 rapid-fire questions, I answer from memory, you tell me immediately if I'm right\n5. A confidence-calibration check: ask me to rate my confidence (1–5) on each topic — flag any I rated high but might be overconfident on",
+      "whyThisTool": "Last-day review should be recall activation, not learning — this prompt uses everything you already know rather than trying to add new knowledge, which consolidates better overnight.",
+      "outputExpected": "10 likely exam topics + 1-sentence rules, 3 common-mistake warnings, a 5-question rapid recall drill, and a confidence calibration check."
+    }
+  ],
+  "faq": [
+    {
+      "q": "How early before an exam should I start this sequence?",
+      "a": "Step 1 (diagnostic) works best 2–3 weeks before the exam, giving you time to address real gaps. Steps 2–6 can run continuously through your revision period. Step 7 is designed for the final 24 hours."
+    },
+    {
+      "q": "What subjects do these prompts work best for?",
+      "a": "Steps 1, 2, 3, and 4 work for any subject where the exam has structured questions. Step 5 works best for content-heavy subjects (history, biology, law, business). Step 6 works best for concepts that can be explained, not just recalled. Step 7 is universal."
+    },
+    {
+      "q": "Is ChatGPT's content always accurate for my specific course?",
+      "a": "Not always — the questions and model answers it generates reflect common academic knowledge, which may not exactly match your course's syllabus or your lecturer's specific terminology. Always cross-reference with your course notes. Use ChatGPT for the practice format and feedback process, not as your primary source of content."
+    }
+  ],
+  "techniques": ["active-recall", "spaced-repetition", "feynman-technique", "bloom-taxonomy"],
+  "concept": "studying"
+}

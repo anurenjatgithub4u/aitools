@@ -1,0 +1,91 @@
+{
+  "id": "claude-prompts-for-blog-writing",
+  "slug": "claude-prompts-for-blog-writing",
+  "title": "7 Claude Prompts for Blog Writing That Actually Ranks (2026)",
+  "description": "A seven-step sequence that uses Claude's long-context reasoning to take a blog post from keyword and audience research through first draft, on-page SEO, and a shareable conclusion — optimized for both Google ranking and AI answer-engine citation.",
+  "benefit": "Produce a fully-structured, SEO-ready blog post in one sitting — not a patchwork of fragmented AI outputs.",
+  "roleTags": ["writer", "marketer"],
+  "toolTags": ["claude"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "Claude Sonnet 4.5",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "claude",
+      "title": "Map search intent before writing",
+      "promptText": "You are an SEO strategist and content director. My target keyword is: [KEYWORD]\n\nBefore I write a single word, tell me:\n1. What is the dominant search intent behind this keyword (informational / navigational / commercial / transactional)? Explain your reasoning.\n2. What does someone who searches this keyword already believe or know? What do they NOT know?\n3. What type of content (listicle, guide, comparison, tutorial, opinion) best matches this intent?\n4. What would make a post on this topic genuinely better than the current top-ranking results — not just longer or more comprehensive?",
+      "whyThisTool": "Claude's extended context lets it hold a nuanced picture of intent, existing knowledge, and competitive landscape simultaneously — most AI tools rush to outlining before this is clear.",
+      "outputExpected": "A clear intent classification, audience knowledge map, content type recommendation, and one genuine differentiation idea."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "claude",
+      "title": "Build a search-optimized outline",
+      "promptText": "Using the intent analysis above, write a detailed outline for a [WORD COUNT]-word blog post targeting the keyword '[KEYWORD]'. Audience: [DESCRIBE READER].\n\nRequirements:\n- Each H2 should be a phrase a real person would type into Google (People-Also-Ask style)\n- Include one 'direct answer' section at the top that could be pulled as a featured snippet (under 50 words, plain English)\n- Flag which sections are most likely to be cited by AI answer engines (ChatGPT, Perplexity) and why\n- Note the target word count per section",
+      "whyThisTool": "Structuring headings as real search queries — not topic labels — improves both featured snippet capture and AI-engine citation rates.",
+      "outputExpected": "A full outline with PAA-style headings, a featured snippet target section, AI-citation flags, and per-section word counts."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "claude",
+      "title": "Write the featured-snippet intro",
+      "promptText": "Write the introduction and featured-snippet section for this blog post.\n\nThe intro (150–200 words) should:\n- Open with the most direct answer to the search query in the first 2 sentences\n- Establish why this post is different from generic advice\n- Preview what the reader will know by the end\n\nThe featured snippet (under 50 words, immediately after the intro) should:\n- Be a self-contained definition or answer that makes sense without reading anything else\n- Use plain English, no jargon\n- Start with the keyword phrase\n\nDo not use 'In today's digital age', 'Are you looking for', or any similar opener.",
+      "whyThisTool": "Writing the direct-answer block first — before the rest of the post — forces clarity and dramatically improves Google snippet capture.",
+      "outputExpected": "A 150–200 word intro plus a standalone ≤50-word snippet that could be extracted by a search engine without context."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "claude",
+      "title": "Draft the core sections",
+      "promptText": "Write sections [LIST H2s FROM OUTLINE] of this blog post. For each section:\n- Stay within the word-count target from the outline\n- Include at least one specific, concrete example (not 'for example, some companies...' — name a real scenario, tool, or technique)\n- Use bullet points only when items are genuinely list-like, not as a way to avoid writing prose\n- Write at Flesch reading ease 60–70 (clear, not dumbed-down)\n\nAfter each section, add a ✓ confidence note: which claims in this section are verifiable, and which are your inference?",
+      "whyThisTool": "The confidence note is the key — Claude reliably distinguishes between verifiable facts and plausible inference, which protects you from publishing things that need a source but don't have one.",
+      "outputExpected": "Drafted sections with word counts near targets, concrete examples, and a post-section confidence flag on every claim."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "claude",
+      "title": "Write a FAQ block",
+      "promptText": "Generate a FAQ section for this blog post with 5–7 questions. Each question should:\n- Be phrased exactly as someone would type it into Google or ask ChatGPT\n- Have a concise answer under 80 words\n- Address a genuine point of confusion or a common mistake, not just a summary of the article\n\nFormat as Q: / A: pairs. After the FAQ, list any question you couldn't answer confidently — these are research gaps I should fill before publishing.",
+      "whyThisTool": "FAQs structured as real queries improve both PAA ranking and the probability of being cited inside AI chat answers. Flagging research gaps is more useful than a confident-sounding wrong answer.",
+      "outputExpected": "5–7 Q&A pairs in real-query language, plus a short list of genuine knowledge gaps."
+    },
+    {
+      "stepNumber": 6,
+      "tool": "claude",
+      "title": "Optimize internal and external linking",
+      "promptText": "I have the following blog posts on my site (paste URLs or titles): [PASTE YOUR EXISTING POST LIST]\n\nFor this new post on '[KEYWORD]':\n1. Which of my existing posts should I link to internally, and at what natural anchor text opportunities in the draft?\n2. What types of external sources would strengthen the most important claims? List the claim, the ideal source type, and the search query I should use to find it.\n3. Are there any claims in the draft that are strong enough to cite this post FROM other sites (i.e., link-worthy data points or original insights)?",
+      "whyThisTool": "Internal linking from draft stage (not as an afterthought) creates genuinely useful contextual links rather than footer spam.",
+      "outputExpected": "Internal link opportunities with suggested anchor text, external source types per key claim, and link-worthy hook identification."
+    },
+    {
+      "stepNumber": 7,
+      "tool": "claude",
+      "title": "Write a shareable conclusion + social assets",
+      "promptText": "Write: (1) A conclusion for this post (150 words max) that ends with one clear, memorable takeaway — a single sentence the reader could screenshot and share. (2) A LinkedIn post (200 words) that promotes this article without summarizing it — hook with a contrarian observation or surprising stat, then link to the article. (3) An X/Twitter thread opener (3 tweets, 280 chars each) that builds curiosity without giving away the whole post.",
+      "whyThisTool": "Writing social assets immediately after the conclusion — while the content is in active memory — produces sharper, more authentic promotion copy than doing it days later.",
+      "outputExpected": "A 150-word conclusion with a one-sentence screenshot moment, a 200-word LinkedIn post, and a 3-tweet thread opener."
+    }
+  ],
+  "faq": [
+    {
+      "q": "Why use Claude for blog writing instead of ChatGPT?",
+      "a": "Claude's longer context window lets it hold the full outline, previous sections, and your style instructions simultaneously — reducing drift between sections. For long-form (1500+ words), this produces more consistent posts. For shorter posts, either tool works well."
+    },
+    {
+      "q": "Will Claude hallucinate statistics or sources?",
+      "a": "Sometimes — which is why Step 4 includes a confidence flag. Every claim marked as 'inference' should be verified before publishing. Never publish a statistic from any AI tool without checking the original source."
+    },
+    {
+      "q": "How long does this 7-step sequence take?",
+      "a": "For a 1500-word post: about 45–60 minutes including the prompting time, light editing, and source verification. For a 3000-word post: 90–120 minutes. The sequence is faster than it looks because each step feeds directly into the next."
+    },
+    {
+      "q": "Do I need to use all 7 steps?",
+      "a": "Steps 1–4 are the core writing sequence. Steps 5–7 (FAQ, linking, social) are high-leverage additions that most writers skip — and that's exactly why doing them gives you a consistent edge."
+    }
+  ],
+  "techniques": ["rctf", "chain-of-thought", "featured-snippet-targeting"],
+  "concept": "content-strategy"
+}

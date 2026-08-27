@@ -1,0 +1,71 @@
+{
+  "id": "chatgpt-prompts-for-email-newsletters",
+  "slug": "chatgpt-prompts-for-email-newsletters",
+  "title": "5 ChatGPT Prompts for Email Newsletters That Get Opens (2026)",
+  "description": "A five-step newsletter workflow that handles the parts writers dread most — coming up with angles, writing subject lines that beat 40% open rates, drafting the body without padding, and building a consistent send schedule — using ChatGPT as your editorial partner.",
+  "benefit": "Never stare at a blank newsletter draft again — go from idea to send-ready in under an hour.",
+  "roleTags": ["writer", "marketer"],
+  "toolTags": ["chatgpt"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "GPT-4o",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "chatgpt",
+      "title": "Generate a month of newsletter angles",
+      "promptText": "You are an editorial director for a newsletter about [YOUR TOPIC] with an audience of [DESCRIBE READERS: e.g. 'early-career product managers who are learning to work with AI tools']. My sending cadence: [WEEKLY / BI-WEEKLY / MONTHLY].\n\nGenerate a month of newsletter angles (4 or 8, depending on cadence). For each angle:\n- A working title (not the final subject line)\n- The specific insight, tension, or question this edition would explore\n- The emotional payoff: why would a reader forward this to someone?\n- The format this works best as (story, how-to, list, analysis, personal essay)\n\nDo not suggest anything generic. Each angle should be specific enough that I can start writing without additional brainstorming.",
+      "whyThisTool": "Planning a month of angles at once (not edition by edition) creates editorial coherence and prevents the panic-send of weak content because a deadline arrived.",
+      "outputExpected": "4 or 8 newsletter angles with working title, core insight, emotional payoff, and recommended format."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "chatgpt",
+      "title": "Write 10 subject lines with preview text",
+      "promptText": "I'm writing a newsletter edition about: [YOUR ANGLE FROM STEP 1]\nAudience: [DESCRIBE]\n\nWrite 10 subject line options + matching preview text for each. Subject line rules:\n- Max 50 characters (shows fully on mobile)\n- No clickbait — it must accurately represent the content\n- At least 2 must use the reader's specific pain or desire (not the topic)\n- At least 2 must be a question a reader would actually ask themselves\n- No exclamation marks\n\nPreview text: 90 characters, must add information not in the subject line (not a repeat or ellipsis).\n\nAfter the list, bold your top 2 picks and explain the tradeoff between them (curiosity vs. clarity).",
+      "whyThisTool": "The subject line is 50% of your open rate. Writing 10 options and picking with a curiosity-vs-clarity tradeoff framework beats gut-feeling selection every time.",
+      "outputExpected": "10 subject + preview text pairs, top 2 bolded, with a one-paragraph analysis of the tradeoff."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "chatgpt",
+      "title": "Draft the newsletter body",
+      "promptText": "Write the body of this newsletter edition. Angle: [FROM STEP 1]\nFormat: [FROM STEP 1: story / how-to / list / analysis / essay]\nWord count target: [300–600 words — longer emails get fewer reads]\n\nRules:\n- First sentence must be the most interesting thing in the email — not a warm-up\n- Write in first person, past or present tense (never 'one should...' or 'readers will find...')\n- Every paragraph must earn its place — delete anything that doesn't move the reader toward the payoff\n- No bullet lists in the first half of the email — they break the reading flow before the reader is invested\n- End with exactly one action or takeaway the reader can do today\n\nLeave [brackets] for anything that should be personalized to my voice or experience.",
+      "whyThisTool": "The first-sentence rule is the most important writing constraint here — newsletters that open with a 'warm welcome' lose 30–40% of readers before the second paragraph.",
+      "outputExpected": "A draft newsletter body (300–600 words) in first person, with a strong opening sentence, no padding, and one clear takeaway at the end."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "chatgpt",
+      "title": "Add the recommendation and CTA",
+      "promptText": "Add two sections to the newsletter:\n\n1. 'This week's rec' section (3–4 sentences): recommend one tool, article, podcast episode, or book related to [YOUR TOPIC]. Write as if you're telling a friend — why you used it this week, what surprised you, and who it's for. Do NOT say 'I think you'll love this' or 'I highly recommend'.\n\n2. CTA section (2 sentences max): one thing I want the reader to do — reply, click, share, or visit a link. Make the ask specific and low-friction. The reader should know exactly what to do and why.\n\nIf I have a paid product or service, insert an optional 3-sentence sponsor section after the recommendation — honest, direct, no pressure language: [OPTIONAL: PASTE PRODUCT DETAILS, OR SKIP]",
+      "whyThisTool": "Framing a recommendation as 'what I used this week' (not 'you should try') signals authenticity — which is the only reason newsletter recommendations work at all.",
+      "outputExpected": "A 3–4 sentence rec section, a 2-sentence CTA, and (optional) a 3-sentence sponsor section."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "chatgpt",
+      "title": "Build a 12-week editorial calendar",
+      "promptText": "Using the angle generation process from Step 1 as a template, build a 12-week editorial calendar for my newsletter. Newsletter topic: [TOPIC]. Audience: [DESCRIBE].\n\nFor each of the 12 editions, provide:\n- Week number and working title\n- The core tension or insight\n- One specific data point, example, or hook I should research before writing\n- The format (story / how-to / list / analysis / essay)\n\nOrganize the 12 editions into a content arc: weeks 1–4 build authority, weeks 5–8 go deeper on one specific sub-topic, weeks 9–12 expand to adjacent topics or challenges. Flag any edition that could anchor a paid product or partnership CTA.",
+      "whyThisTool": "A 12-week arc prevents the randomness that kills newsletter consistency. Knowing 3 months of angles eliminates the blank-page panic that causes skip weeks — which kill subscriber retention.",
+      "outputExpected": "A 12-week calendar with title, insight, research hook, and format — organized into a 3-phase content arc with monetization flags."
+    }
+  ],
+  "faq": [
+    {
+      "q": "How do I avoid the newsletter sounding like ChatGPT wrote it?",
+      "a": "Steps 1 and 3 include [bracket] markers for personal details. The newsletter will read like you if you fill those brackets with real experiences, opinions, and specific examples. Generic = you left the brackets empty."
+    },
+    {
+      "q": "What open rate should I expect from these subject lines?",
+      "a": "No prompt pack can guarantee an open rate — that depends on your list quality, sending frequency, and how long you've been publishing. What the subject line process in Step 2 does is eliminate the two most common mistakes: generic topics and curiosity gaps that don't match the content."
+    },
+    {
+      "q": "Can I use these prompts for a paid newsletter on Substack or Beehiiv?",
+      "a": "Yes — the prompts are platform-agnostic. Step 4 optionally includes a sponsor/product section for monetized newsletters. The 300–600 word target in Step 3 is also appropriate for most paid newsletter formats."
+    }
+  ],
+  "techniques": ["rctf", "editorial-planning", "constraint-prompting"],
+  "concept": "newsletter-writing"
+}

@@ -1,0 +1,71 @@
+{
+  "id": "chatgpt-prompts-for-note-taking",
+  "slug": "chatgpt-prompts-for-note-taking",
+  "title": "5 ChatGPT Prompts to Supercharge Your Note-Taking (2026)",
+  "description": "Five prompts that turn passive note-taking into an active learning system — using ChatGPT to process lecture notes, extract key concepts, create connection maps between topics, generate review questions, and convert messy highlights into a structured knowledge base you can actually use later.",
+  "benefit": "Transform a folder of raw notes into a searchable, connected knowledge system you'll actually use.",
+  "roleTags": ["student"],
+  "toolTags": ["chatgpt"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "GPT-4o",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "chatgpt",
+      "title": "Process raw lecture notes",
+      "promptText": "Here are my raw notes from a lecture on [TOPIC]:\n\n[PASTE YOUR NOTES]\n\nProcess these notes into a structured format:\n1. Identify the 3–5 core concepts the lecturer emphasized (not just mentioned — actually emphasized)\n2. For each core concept: a 2-sentence explanation in plain English, and how it connects to the course's broader themes\n3. Flag anything in my notes that seems unclear, incomplete, or potentially wrong — these are things I should clarify before the exam\n4. What is the single most important idea from this lecture that I need to deeply understand?\n5. Suggest 2 follow-up questions I should explore to deepen my understanding beyond what was covered",
+      "whyThisTool": "Processing notes within 24 hours of a lecture — before memory fades — dramatically improves retention. This prompt forces active processing rather than just re-reading.",
+      "outputExpected": "3–5 core concepts with plain-English explanations, unclear/incomplete flags, the single most important idea, and 2 follow-up questions."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "chatgpt",
+      "title": "Build a concept connection map",
+      "promptText": "Here are the key concepts from [COURSE NAME] so far this semester:\n\n[LIST YOUR TOPICS/CONCEPTS FROM NOTES]\n\nCreate a concept map showing how these ideas connect:\n1. Identify 3–5 parent concepts that most of the other concepts are sub-categories or examples of\n2. For each pair of concepts that are related, explain the relationship in one sentence ('X causes Y', 'X is a type of Y', 'X and Y are in tension because...')\n3. Which concept is the most central — if I deeply understand this one, which others become easier?\n4. Which concepts are currently 'orphaned' in my notes — things I learned but haven't connected to anything else?\n5. Produce a text-based mind map I can paste into my notes app",
+      "whyThisTool": "Understanding how concepts connect (not just what they mean in isolation) is the difference between being able to answer application questions and only being able to answer recall questions.",
+      "outputExpected": "A concept connection map: parent categories, pairwise relationships, the central concept, orphaned concepts, and a text-format mind map."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "chatgpt",
+      "title": "Generate a smart question bank",
+      "promptText": "I want to create a question bank from my notes on [TOPIC]. Here are my notes:\n\n[PASTE NOTES]\n\nGenerate 20 questions across four types:\n- 5 recall questions: 'Define...' / 'List the...' / 'What is...'\n- 5 comprehension questions: 'Explain why...' / 'In your own words...'\n- 5 application questions: 'Given [scenario], what would...' / 'How would you use [concept] to...'\n- 5 analysis questions: 'Compare X and Y...' / 'What are the implications of...' / 'Evaluate whether...'\n\nFor each question, add: (a) the correct answer, (b) the difficulty (easy / medium / hard), (c) which concept from my notes it tests. Format so I can export it to a flashcard app (front / back).",
+      "whyThisTool": "A question bank you build yourself from your own notes is far more exam-effective than downloading someone else's flashcards — because the act of generating questions is itself a retrieval practice exercise.",
+      "outputExpected": "20 questions across 4 types, with answers, difficulty ratings, and concept tags — formatted for flashcard export (front / back)."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "chatgpt",
+      "title": "Summarize a reading into a usable one-pager",
+      "promptText": "I need to process this reading for [CLASS]. Here's the full text (or what I've highlighted):\n\n[PASTE TEXT OR HIGHLIGHTS]\n\nCreate a one-page summary I can use as a reference during open-book exams or as a study aid:\n- Title and bibliographic info at the top\n- Central argument: 2 sentences\n- Key claims: 3–5 bullet points with page references where possible [format: 'Claim (p. X)']\n- Key terms defined: glossary format\n- One thing the author gets right and one limitation or criticism\n- Connection to course: how does this reading relate to the course's central themes?\n\nKeep the entire summary under 400 words.",
+      "whyThisTool": "A one-page reference beats highlighting and re-reading the original — you can review 10 readings in the time it would take to re-read 2.",
+      "outputExpected": "A structured one-pager under 400 words: central argument, key claims with page refs, glossary, one strength + one criticism, and course connection."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "chatgpt",
+      "title": "Build a revision master document",
+      "promptText": "I have notes from [N] lectures and [N] readings in [SUBJECT]. I'm going to paste them all — your job is to synthesize them into a master revision document.\n\n[PASTE ALL NOTES]\n\nStructure the master document as:\n1. Overview: what is this course fundamentally about? (3 sentences)\n2. Core concepts: a condensed definition of each major concept (1–2 sentences each)\n3. Key debates: 3–5 debates or tensions in the field this course covers\n4. What I need to be able to do: list the key analytical or practical skills the course expects, not just knowledge\n5. High-priority revision areas: based on how much coverage the notes give each topic, flag the 3 areas with the thinnest coverage (these are likely my biggest gaps)",
+      "whyThisTool": "A master revision document created from your own notes is more valuable than any study guide because it reflects the specific emphasis of your course, not a generic curriculum.",
+      "outputExpected": "A full master revision document: course overview, concept glossary, key debates, skill requirements, and a thin-coverage flag list."
+    }
+  ],
+  "faq": [
+    {
+      "q": "How long should I spend on Step 1 (processing lecture notes)?",
+      "a": "10–15 minutes per lecture, ideally within 24 hours. The goal is to process quickly and actively, not to create perfect notes. Speed matters more than thoroughness at this stage."
+    },
+    {
+      "q": "My notes are messy and incomplete — will these prompts still work?",
+      "a": "Yes — the prompts are designed to work with messy, informal notes. Step 1 specifically flags incomplete or unclear sections, which turns your gaps into a to-do list rather than a liability."
+    },
+    {
+      "q": "Should I worry about ChatGPT adding wrong information to my notes?",
+      "a": "These prompts are designed to process information you give it, not add to it. The risk is misinterpretation of your notes, not hallucination. Always sanity-check the core concepts output in Step 1 against your course materials before treating it as authoritative."
+    }
+  ],
+  "techniques": ["active-recall", "spaced-repetition", "concept-mapping"],
+  "concept": "studying"
+}

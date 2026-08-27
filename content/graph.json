@@ -1,0 +1,92 @@
+{
+  "techniques": [
+    {
+      "slug": "rctf",
+      "label": "Role–Context–Task–Format (RCTF)",
+      "short": "Structure every prompt as role, context, task, and output format.",
+      "body": "RCTF is the foundational prompt structure: tell the model WHO to be (Role: \"You are a senior Postgres engineer\"), WHAT it's working with (Context: your schema, your error, your constraints), WHAT to do (Task: one clear instruction), and HOW to answer (Format: a table, a diff, a ranked list).\n\nIt works because each element removes a class of failure. Role removes generic-audience hedging. Context removes guessing. Task removes rambling. Format removes unusable output. Most \"the AI gave me garbage\" complaints trace back to one missing element — usually context.\n\nStart every serious prompt with RCTF, then add the advanced techniques on top. If a prompt in any pack feels like it works unusually well, look closely: it's almost always RCTF underneath.",
+      "prerequisiteOf": ["constraint-prompting", "adversarial-simulation"]
+    },
+    {
+      "slug": "constraint-prompting",
+      "label": "Constraint Prompting",
+      "short": "Tell the model what NOT to do — bans, budgets, and rules that prevent default failure modes.",
+      "body": "AI models have default behaviors: they rewrite everything when asked to fix one line, pad answers with marketing adjectives, and mock every dependency in tests. Constraint prompting counters the defaults explicitly: \"keep the public API unchanged,\" \"no new dependencies,\" \"ban the phrase 'blazingly fast',\" \"one behavior per test.\"\n\nThe skill is knowing the failure mode before it happens and pre-blocking it in the prompt. Every constraint costs a few words and saves an editing round-trip.\n\nA good rule: after any disappointing AI answer, don't just rephrase — add the constraint that would have prevented that exact disappointment, and keep it in your saved prompt forever."
+    },
+    {
+      "slug": "behavior-mapping",
+      "label": "Behavior Mapping",
+      "short": "Enumerate what code does for its callers before writing tests — not what its functions are named.",
+      "body": "Most test suites test functions. Good test suites test behaviors — the promises code makes to its callers: inputs to outputs, side effects, errors thrown, ordering guarantees.\n\nBehavior mapping is a pre-test step: before generating any test code, have the AI list every observable behavior with how likely a refactor is to break it. Two things happen: you discover promises you didn't know your code was making, and the tests that follow protect things that matter instead of padding coverage.\n\nThe litmus test: if a refactor changes internals but keeps promises, a behavior-mapped suite stays green. A function-mapped suite breaks — and trains everyone to ignore test failures."
+    },
+    {
+      "slug": "mutation-thinking",
+      "label": "Mutation Thinking",
+      "short": "Ask which specific bugs your tests would actually catch — then close the gaps.",
+      "body": "Coverage tells you which lines ran. Mutation thinking tells you which bugs would be caught: imagine small realistic mutations (flip a comparison, off-by-one a boundary, swallow an error) and check whether any test fails for each.\n\nAs a prompt technique, you ask the AI to play the saboteur: \"list 5 small bugs you could introduce, and for each, name the test that catches it — or admit none would.\" The 'admit none would' clause is the important part; it converts vague confidence into a concrete gap list.\n\nIt's the cheapest possible version of mutation testing — no tooling, one prompt, and it routinely finds that a 90%-coverage suite catches 3 of 5 mutants."
+    },
+    {
+      "slug": "characterization-tests",
+      "label": "Characterization Tests",
+      "short": "Pin down what legacy code CURRENTLY does — bugs included — before changing anything.",
+      "body": "Characterization tests assert present behavior, not desired behavior. They're the safety harness for refactoring: write tests that pass against the untouched legacy code (marking suspicious behaviors KNOWN-ODD rather than fixing them), and any later change that flips a test is a behavior change you chose consciously instead of caused accidentally.\n\nThe discipline matters most with AI doing the refactoring — models love to 'improve' behavior mid-refactor. A green characterization suite is how you catch the helpful-but-wrong fix before production does.\n\nCorollary: never fix a bug during characterization. Log it, pin it, fix it later as its own change with its own test."
+    },
+    {
+      "slug": "adversarial-simulation",
+      "label": "Adversarial Simulation",
+      "short": "Make the AI attack the work — hostile inputs, skeptical reviewers, flaky clients — before reality does.",
+      "body": "The same model that wrote something can stress-test it, but only if you flip its role explicitly: \"you are a skeptical VC — attack this pitch,\" \"invent the 10 rows that break this query,\" \"simulate a flaky client that retries every request.\"\n\nThe roleplay matters because it licenses criticism. By default, models are agreeable about work in the conversation. An assigned adversarial role removes the agreeableness and often surfaces the exact failure a production incident would have found.\n\nUse it as a standard final step for anything with real stakes: queries, API contracts, pitches, plans. Cheap, fast, and it converts 'looks right' into 'survived an attack.'"
+    },
+    {
+      "slug": "socratic-drilling",
+      "label": "One-Question-at-a-Time (Socratic Drilling)",
+      "short": "Force interactive back-and-forth — one question per turn — instead of info-dump answers.",
+      "body": "For learning and interview prep, a wall of AI text is nearly useless — real skill forms under question-answer pressure. The fix is a single instruction: \"ask me ONE question at a time, wait for my answer, then follow up.\"\n\nAdd depth rules (\"follow up twice more before moving on\") and honesty rules (\"push back when my answer is vague\") and the model becomes a drill partner instead of a textbook. This is the backbone of every good AI mock-interview setup.\n\nIt also works outside interviews: requirements gathering, incident retros, and decision-making all improve when the AI interrogates instead of lectures."
+    },
+    {
+      "slug": "schema-grounding",
+      "label": "Schema Grounding",
+      "short": "Teach the AI your actual data model once, and make it state its assumptions back.",
+      "body": "Generic SQL prompts produce generic SQL — plausible queries against tables you don't have. Schema grounding fixes it: paste your real schema first, and crucially, make the model confirm its understanding back (\"list each table's purpose and tell me what you're assuming ambiguous columns mean\").\n\nThe confirmation step is the technique. It surfaces wrong assumptions while they're still cheap — before they're embedded in a query that runs and returns confidently wrong numbers.\n\nThe same pattern generalizes: ground the model in your API spec, your config format, your codebase conventions — then ask what it's assuming. Correct the assumptions once; benefit for the whole session.",
+      "prerequisiteOf": []
+    },
+    {
+      "slug": "minimal-reproduction",
+      "label": "Minimal Reproduction",
+      "short": "Shrink a bug to the smallest script that still shows it — turning guesses into experiments.",
+      "body": "A minimal repro is the debugging power move, and AI makes it cheap: \"write the smallest standalone script that should reproduce this error.\" If the repro fails the same way, you've confirmed the cause. If it doesn't, you've eliminated a theory — either result is progress.\n\nRepros convert debugging from narrative (\"I think it's the cache\") to experiment (\"the 12-line script proves it's the cache\"). They also make every later step better: fixes are testable, bug reports are answerable, and regression tests practically write themselves from the repro.\n\nHabit to build: no fix attempts until a repro exists. It feels slower; it's reliably faster."
+    },
+    {
+      "slug": "separated-passes",
+      "label": "Separated Review Passes",
+      "short": "Review for one concern at a time — correctness, then security, then style — never all at once.",
+      "body": "Ask an AI to \"review this code\" and you get a blend: two real bugs buried under fifteen naming nitpicks. Separated passes fix the signal-to-noise: one pass for correctness only, one for security only (with an explicit attacker model), one for readability — each with its own prompt and its own standards.\n\nThis mirrors how strong human reviewers actually work, and it compounds with AI because each pass can carry pass-specific instructions: severity scales for correctness, exploitability ratings for security, a single prioritized simplification for style.\n\nBonus: separated passes produce naturally structured review summaries, because the grouping already happened during analysis.",
+      "prerequisiteOf": []
+    },
+    {
+      "slug": "stepwise-decomposition",
+      "label": "Stepwise Decomposition",
+      "short": "Demand big changes as small, individually-safe numbered steps — never one giant diff.",
+      "body": "AI will happily emit a 400-line rewrite. Stepwise decomposition refuses it: \"deliver this as numbered steps where every step keeps tests green, is independently commit-able, and is describable in one sentence — show the code after each step.\"\n\nSmall steps aren't just safer; they're auditable. You can review each one in minutes, stop at any point with working code, and bisect trivially when something goes wrong. The one-sentence-describable rule is the quality gate: a step you can't describe simply is two steps.\n\nThis is the same discipline behind good agent planning — decompose until every leaf is verifiable — applied to code changes."
+    }
+  ],
+  "concepts": [
+    { "slug": "debugging", "label": "Debugging" },
+    { "slug": "code-review", "label": "Code Review" },
+    { "slug": "api-design", "label": "API Design" },
+    { "slug": "testing", "label": "Testing" },
+    { "slug": "refactoring", "label": "Refactoring" },
+    { "slug": "sql", "label": "SQL & Data" },
+    { "slug": "documentation", "label": "Documentation" },
+    { "slug": "interview-prep", "label": "Interview Prep" }
+  ],
+  "relatedPacks": [
+    ["chatgpt-prompts-for-debugging", "ai-prompts-for-unit-testing"],
+    ["ai-prompts-for-unit-testing", "claude-prompts-for-refactoring"],
+    ["claude-prompts-for-code-review", "claude-prompts-for-refactoring"],
+    ["chatgpt-prompts-for-api-design", "ai-prompts-for-system-design-interviews"],
+    ["chatgpt-prompts-for-api-design", "claude-prompts-for-documentation"],
+    ["chatgpt-prompts-for-sql", "chatgpt-prompts-for-debugging"],
+    ["claude-prompts-for-code-review", "chatgpt-prompts-for-debugging"]
+  ]
+}

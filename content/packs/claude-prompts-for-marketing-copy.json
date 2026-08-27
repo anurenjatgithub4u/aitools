@@ -1,0 +1,79 @@
+{
+  "id": "claude-prompts-for-marketing-copy",
+  "slug": "claude-prompts-for-marketing-copy",
+  "title": "6 Claude Prompts for Marketing Copy & Campaigns (2026)",
+  "description": "A six-step marketing copy workflow that uses Claude to develop campaign positioning, write ad copy variants, build email sequences, and create a cohesive message hierarchy — so every piece of your campaign tells the same story in the language that actually motivates your audience.",
+  "benefit": "Build a full marketing campaign from positioning to copy — without the message falling apart across channels.",
+  "roleTags": ["marketer", "founder"],
+  "toolTags": ["claude"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "Claude Sonnet 4.5",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "claude",
+      "title": "Develop campaign positioning",
+      "promptText": "I'm planning a marketing campaign for: [PRODUCT/SERVICE]\nTarget audience: [DESCRIBE SPECIFICALLY — job title, situation, what they're trying to accomplish]\nCampaign goal: [AWARENESS / LEAD GEN / CONVERSION / RETENTION]\nTimeframe: [DATE RANGE]\n\nHelp me develop the campaign positioning:\n1. What is the single most important thing my audience needs to believe for them to take action? (Not a feature — a belief)\n2. What does my audience believe right now that is getting in the way of that action?\n3. What is the most compelling proof point that shifts that belief — a case study, stat, or demonstration?\n4. Write a one-sentence campaign theme ('We help [audience] [achieve outcome] by [mechanism]') — not a tagline, a strategic stake in the ground\n5. Name 3 competing messages in my space and explain how mine is different (not just better — differentiated)",
+      "whyThisTool": "Positioning before copy is the most skipped step in marketing — and the one that determines whether your copy persuades or just communicates. Claude's ability to hold complex audience psychology makes it effective for this analysis.",
+      "outputExpected": "The belief to shift, the current blocking belief, the best proof point, a campaign theme sentence, and a 3-competitor differentiation map."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "claude",
+      "title": "Write ad copy variants",
+      "promptText": "Campaign positioning: [PASTE POSITIONING FROM STEP 1]\nPlatform: [GOOGLE / META / LINKEDIN / DISPLAY]\nAd format: [SEARCH / IMAGE / VIDEO SCRIPT / CAROUSEL]\n\nWrite 5 ad copy variants. For each:\n- Headline (30 chars for Google / 40 chars for Meta / 70 chars for LinkedIn)\n- Primary text (125 chars for Meta / 150 chars for LinkedIn)\n- Description / CTA (90 chars)\n- The audience psychology it targets: [PAIN / DESIRE / SOCIAL PROOF / URGENCY / CURIOSITY]\n\nLabel each variant by psychological trigger. Do not use exclamation marks in the headline. Do not use ALL CAPS. Do not use 'Best', 'Top', 'Amazing', or superlatives.\n\nAfter the 5 variants, recommend which 2 to A/B test first and why.",
+      "whyThisTool": "Five variants across different psychological triggers is the minimum for meaningful A/B testing — and labeling by trigger tells you what hypothesis you're testing, not just which version won.",
+      "outputExpected": "5 ad copy sets with character counts, psychological trigger labels, and a recommendation for the first A/B test with rationale."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "claude",
+      "title": "Write a 5-email nurture sequence",
+      "promptText": "Campaign positioning: [PASTE FROM STEP 1]\nSequence purpose: [WELCOME / POST-DOWNLOAD / POST-TRIAL / RE-ENGAGEMENT]\nSending interval: [e.g. Day 0, Day 3, Day 7, Day 14, Day 21]\n\nWrite a 5-email nurture sequence. For each email:\n- Subject line (3 options per email)\n- Preview text (90 chars)\n- Body (300 words max, first-person, plain text format)\n- One CTA (specific, low-friction — not 'Buy now' for early emails)\n- The email's job in the sequence: [build trust / demonstrate value / overcome objection / create urgency / convert]\n\nEmail 1: welcome and value delivery\nEmail 2: educational — one specific insight\nEmail 3: social proof — one real use case or result\nEmail 4: objection handling — address the #1 reason they haven't acted\nEmail 5: conversion — clearest CTA with any urgency element (only if real)\n\nDo not use 'Just following up' or 'Quick question' as subject lines.",
+      "whyThisTool": "A purpose-labeled sequence (build trust → demonstrate value → overcome objection → convert) produces better conversion than 5 independent emails because each one sets up the next.",
+      "outputExpected": "5 fully drafted emails with 3 subject line options each, preview text, body, CTA, and a stated job in the sequence."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "claude",
+      "title": "Build a message hierarchy",
+      "promptText": "I'm running a campaign across multiple channels (ads, email, social, landing page). Here's my core positioning:\n\n[PASTE FROM STEP 1]\n\nCreate a message hierarchy that keeps every channel telling the same story:\n1. Core message (1 sentence — appears in some form in every piece of content)\n2. Primary supporting message (1 sentence — appears in most pieces)\n3. Secondary supporting messages (3–5 one-liners — use in relevant contexts)\n4. Proof points (3–5 statistics, case studies, or claims — match each to the message it supports)\n5. Channel-specific emphasis: for each channel I use ([LIST YOUR CHANNELS]), which message in the hierarchy should lead?\n\nFormat as a hierarchy table I can share with my team.",
+      "whyThisTool": "Message hierarchy is what makes campaigns feel coherent across channels instead of like disconnected pieces made by different people — and it scales to any team size.",
+      "outputExpected": "A message hierarchy table: core → primary → secondary → proof points, with per-channel emphasis guidance."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "claude",
+      "title": "Write landing page copy",
+      "promptText": "Campaign positioning: [PASTE FROM STEP 1]\nLanding page goal: [LEAD GEN / FREE TRIAL / DEMO REQUEST / PURCHASE]\nAudience arriving from: [ADS / EMAIL / ORGANIC / REFERRAL]\n\nWrite the core landing page copy sections:\n1. Hero headline + subheadline (must match the ad message that sent them here — no bait and switch)\n2. Above-the-fold value proposition (3 bullet points: outcome, not features)\n3. How it works (3 steps max — simple enough to understand in 30 seconds)\n4. Social proof block (write placeholder text for: testimonial, logo bar, stat — I'll fill in real data)\n5. CTA section: headline + button text + risk-reversal line (guarantee, trial terms, or no-commitment language)\n\nAll copy should feel continuous from the ad they clicked — same voice, same promise, extended.",
+      "whyThisTool": "Message match between ad and landing page is the single biggest driver of conversion rate improvement — higher than design changes, page speed, or almost anything else.",
+      "outputExpected": "5 complete landing page copy sections with message-matched hero, outcome bullets, 3-step how-it-works, social proof placeholders, and a CTA section with risk-reversal."
+    },
+    {
+      "stepNumber": 6,
+      "tool": "claude",
+      "title": "Write a post-campaign analysis brief",
+      "promptText": "My campaign ran for [TIMEFRAME]. Here are the results:\n\n[PASTE METRICS: impressions, clicks, CTR, conversions, cost-per-acquisition, email open rates, etc.]\n\nWrite a post-campaign analysis brief I can share with stakeholders:\n1. Performance summary: did we hit the goal? (Yes / Partially / No) — with one clear reason why\n2. What worked: top 2 findings with the data behind them\n3. What didn't work: top 2 learnings (honest, specific — not 'more testing needed')\n4. The single most important insight for the next campaign\n5. Recommended next steps: 3 specific changes (not 'improve targeting' — actual changes to test or implement)\n\nTone: clear and honest — this is an internal brief, not a client presentation that needs to look good.",
+      "whyThisTool": "Honest post-campaign analysis (written before the next brief) is what compounds marketing skill over time — most teams skip it and repeat the same errors.",
+      "outputExpected": "A 5-section campaign brief: performance verdict, 2 wins, 2 learnings, 1 key insight, 3 specific next steps."
+    }
+  ],
+  "faq": [
+    {
+      "q": "I'm a solo marketer — is this pack too complex for a small team?",
+      "a": "No — it scales down well. Steps 1 and 4 (positioning and message hierarchy) are the highest-leverage steps for a solo marketer and take 45–60 minutes total. Steps 2, 3, and 5 can each be run independently when you need that specific asset."
+    },
+    {
+      "q": "Can I use these prompts for B2C campaigns, not just B2B?",
+      "a": "Yes — Steps 1, 2, and 5 work equally well for B2C. Step 3 (email nurture) may need shorter sequences for B2C (3 emails is often more appropriate than 5). Step 4 (message hierarchy) is actually more important for B2C, where consistent brand messaging across high-volume touchpoints matters more."
+    },
+    {
+      "q": "Should I run all 6 steps for every campaign?",
+      "a": "Run Steps 1 and 4 once per campaign — they're the strategic foundation. Steps 2, 3, and 5 are execution steps you run as needed for each asset. Step 6 runs at the end. A typical campaign uses Step 1 → 4 → 2 → 3 → 5 → 6 in that order."
+    }
+  ],
+  "techniques": ["rctf", "voice-matching", "message-hierarchy", "constraint-prompting"],
+  "concept": "marketing-campaigns"
+}

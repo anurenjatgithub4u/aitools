@@ -1,0 +1,764 @@
+[
+  {
+    "id": "exa-ai",
+    "slug": "exa-ai",
+    "name": "Exa AI",
+    "description": "Exa AI is a semantic search engine and API built specifically for AI applications and LLM-powered search.",
+    "website": "https://exa.ai",
+    "logo": "https://www.google.com/s2/favicons?domain=exa.ai&sz=64",
+    "category": "Search",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": false,
+    "rating": 9.4,
+    "best_for": "Semantic web search for AI applications",
+    "difficulty": "Professional",
+    "pros": [
+      "LLM optimized search",
+      "Fast API",
+      "High quality results",
+      "Developer friendly"
+    ],
+    "cons": [
+      "Usage limits on free tier",
+      "API focused",
+      "Requires integration"
+    ],
+    "tags": [
+      "search",
+      "semantic",
+      "api",
+      "llm",
+      "developer"
+    ],
+    "features": [
+      "Semantic search",
+      "Web crawling",
+      "REST API",
+      "Neural ranking"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Does it provide an API?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Is it optimized for LLMs?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 9100,
+    "developer": "Exa",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2023,
+    "pricingModel": "Freemium",
+    "startingPrice": "$20/month",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "tavily-ai",
+    "slug": "tavily-ai",
+    "name": "Tavily AI",
+    "description": "Tavily AI provides a search API designed specifically for AI agents and retrieval-augmented generation systems.",
+    "website": "https://tavily.com",
+    "logo": "https://www.google.com/s2/favicons?domain=tavily.com&sz=64",
+    "category": "Search",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": false,
+    "rating": 9.3,
+    "best_for": "AI agent web search",
+    "difficulty": "Intermediate",
+    "pros": [
+      "Optimized for RAG",
+      "Simple API",
+      "Fast responses",
+      "Accurate results"
+    ],
+    "cons": [
+      "Cloud only",
+      "Usage limits",
+      "Developer oriented"
+    ],
+    "tags": [
+      "search",
+      "rag",
+      "agents",
+      "api",
+      "developer"
+    ],
+    "features": [
+      "Search API",
+      "Context extraction",
+      "AI optimization",
+      "Real-time results"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Can AI agents use it?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Does it support RAG?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 8700,
+    "developer": "Tavily",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2023,
+    "pricingModel": "Freemium",
+    "startingPrice": "$25/month",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "livekit-ai",
+    "slug": "livekit-ai",
+    "name": "LiveKit AI",
+    "description": "LiveKit AI enables developers to build real-time voice AI agents with low-latency communication.",
+    "website": "https://livekit.io",
+    "logo": "https://www.google.com/s2/favicons?domain=livekit.io&sz=64",
+    "category": "Voice AI",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": true,
+    "opensource": true,
+    "rating": 9.2,
+    "best_for": "Real-time AI voice assistants",
+    "difficulty": "Professional",
+    "pros": [
+      "Low latency",
+      "Open source",
+      "Scalable",
+      "Developer friendly"
+    ],
+    "cons": [
+      "Technical setup",
+      "Requires coding",
+      "Cloud infrastructure"
+    ],
+    "tags": [
+      "voice",
+      "webrtc",
+      "assistant",
+      "api",
+      "opensource"
+    ],
+    "features": [
+      "Voice streaming",
+      "AI agents",
+      "WebRTC",
+      "SDK support"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Can it build voice assistants?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Is it open source?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 8600,
+    "developer": "LiveKit",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2021,
+    "pricingModel": "Freemium",
+    "startingPrice": "$15/month",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "vapi-ai",
+    "slug": "vapi-ai",
+    "name": "Vapi AI",
+    "description": "Vapi AI helps developers create AI phone agents and voice assistants with simple APIs.",
+    "website": "https://vapi.ai",
+    "logo": "https://www.google.com/s2/favicons?domain=vapi.ai&sz=64",
+    "category": "Voice AI",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": false,
+    "rating": 9.3,
+    "best_for": "Building AI calling agents",
+    "difficulty": "Intermediate",
+    "pros": [
+      "Simple API",
+      "Phone integrations",
+      "Real-time voice",
+      "Fast deployment"
+    ],
+    "cons": [
+      "Paid usage",
+      "Cloud only",
+      "API knowledge needed"
+    ],
+    "tags": [
+      "voice",
+      "phone",
+      "agents",
+      "api",
+      "assistant"
+    ],
+    "features": [
+      "Voice API",
+      "Phone calls",
+      "Streaming",
+      "LLM integration"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Can it make AI phone calls?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Does it provide APIs?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 9200,
+    "developer": "Vapi",
+    "enterprise": true,
+    "featured": true,
+    "launchYear": 2024,
+    "pricingModel": "Usage Based",
+    "startingPrice": "",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "modal-ai",
+    "slug": "modal-ai",
+    "name": "Modal",
+    "description": "Modal is a cloud platform for running AI inference jobs, GPU workloads, and serverless Python applications.",
+    "website": "https://modal.com",
+    "logo": "https://www.google.com/s2/favicons?domain=modal.com&sz=64",
+    "category": "Developer Tools",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": false,
+    "rating": 9.5,
+    "best_for": "Serverless GPU computing",
+    "difficulty": "Professional",
+    "pros": [
+      "GPU infrastructure",
+      "Auto scaling",
+      "Simple deployment",
+      "Python native"
+    ],
+    "cons": [
+      "Developer focused",
+      "Cloud only",
+      "Usage pricing"
+    ],
+    "tags": [
+      "gpu",
+      "cloud",
+      "python",
+      "serverless",
+      "developer"
+    ],
+    "features": [
+      "GPU hosting",
+      "Autoscaling",
+      "Python SDK",
+      "Inference API"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Does it support GPUs?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Can it deploy AI models?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 8900,
+    "developer": "Modal Labs",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2021,
+    "pricingModel": "Freemium",
+    "startingPrice": "",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "inngest-ai",
+    "slug": "inngest-ai",
+    "name": "Inngest",
+    "description": "Inngest is an event-driven workflow platform for building reliable AI automations and background jobs.",
+    "website": "https://inngest.com",
+    "logo": "https://www.google.com/s2/favicons?domain=inngest.com&sz=64",
+    "category": "Automation",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": false,
+    "rating": 8.9,
+    "best_for": "Event-driven AI workflows",
+    "difficulty": "Professional",
+    "pros": [
+      "Reliable execution",
+      "Developer friendly",
+      "Retry support",
+      "Workflow automation"
+    ],
+    "cons": [
+      "Coding required",
+      "Cloud platform",
+      "Advanced features paid"
+    ],
+    "tags": [
+      "workflow",
+      "automation",
+      "events",
+      "developer",
+      "serverless"
+    ],
+    "features": [
+      "Event triggers",
+      "Retries",
+      "Scheduling",
+      "Workflow orchestration"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Can it automate workflows?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Is it event driven?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 6900,
+    "developer": "Inngest",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2021,
+    "pricingModel": "Freemium",
+    "startingPrice": "$20/month",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "coze-ai",
+    "slug": "coze-ai",
+    "name": "Coze AI",
+    "description": "Coze AI is a no-code platform for creating AI chatbots and intelligent assistants with plugins and workflows.",
+    "website": "https://www.coze.com",
+    "logo": "https://www.google.com/s2/favicons?domain=coze.com&sz=64",
+    "category": "Chatbots",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": true,
+    "opensource": false,
+    "rating": 9.1,
+    "best_for": "Building AI chatbots without coding",
+    "difficulty": "Beginner",
+    "pros": [
+      "No-code builder",
+      "Plugin ecosystem",
+      "Easy deployment",
+      "Modern UI"
+    ],
+    "cons": [
+      "Cloud based",
+      "Limited free usage",
+      "Advanced customization limited"
+    ],
+    "tags": [
+      "chatbot",
+      "assistant",
+      "nocode",
+      "workflow",
+      "ai"
+    ],
+    "features": [
+      "Bot builder",
+      "Plugin support",
+      "Knowledge base",
+      "Workflow editor"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Can beginners use it?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Can it build chatbots?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 8500,
+    "developer": "ByteDance",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2024,
+    "pricingModel": "Freemium",
+    "startingPrice": "",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "eden-ai",
+    "slug": "eden-ai",
+    "name": "Eden AI",
+    "description": "Eden AI provides unified access to multiple AI providers through a single API for developers.",
+    "website": "https://www.edenai.co",
+    "logo": "https://www.google.com/s2/favicons?domain=edenai.co&sz=64",
+    "category": "Developer Tools",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": false,
+    "rating": 9.0,
+    "best_for": "Unified AI API integration",
+    "difficulty": "Intermediate",
+    "pros": [
+      "Single API",
+      "Multiple providers",
+      "Easy switching",
+      "Good documentation"
+    ],
+    "cons": [
+      "Usage pricing",
+      "Internet required",
+      "Developer focused"
+    ],
+    "tags": [
+      "api",
+      "developer",
+      "llm",
+      "integration",
+      "automation"
+    ],
+    "features": [
+      "Unified API",
+      "Multiple providers",
+      "Analytics",
+      "Model comparison"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Can it access multiple AI providers?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Does it have one API?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 7600,
+    "developer": "Eden AI",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2020,
+    "pricingModel": "Freemium",
+    "startingPrice": "",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "agentops",
+    "slug": "agentops",
+    "name": "AgentOps",
+    "description": "AgentOps helps developers monitor, debug, and evaluate AI agents in production environments.",
+    "website": "https://agentops.ai",
+    "logo": "https://www.google.com/s2/favicons?domain=agentops.ai&sz=64",
+    "category": "Developer Tools",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": false,
+    "rating": 9.2,
+    "best_for": "Observability for AI agents",
+    "difficulty": "Professional",
+    "pros": [
+      "Agent monitoring",
+      "Debugging tools",
+      "Analytics",
+      "Easy SDK"
+    ],
+    "cons": [
+      "Developer oriented",
+      "Cloud service",
+      "Premium analytics"
+    ],
+    "tags": [
+      "agents",
+      "monitoring",
+      "analytics",
+      "developer",
+      "observability"
+    ],
+    "features": [
+      "Tracing",
+      "Session replay",
+      "Analytics",
+      "Agent debugging"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Can it monitor AI agents?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Does it provide analytics?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 8100,
+    "developer": "AgentOps",
+    "enterprise": true,
+    "featured": false,
+    "launchYear": 2024,
+    "pricingModel": "Freemium",
+    "startingPrice": "$40/month",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "aisdk-vercel",
+    "slug": "aisdk-vercel",
+    "name": "Vercel AI SDK",
+    "description": "Vercel AI SDK is an open-source toolkit for building AI-powered web applications with React, Next.js, and multiple LLM providers.",
+    "website": "https://sdk.vercel.ai",
+    "logo": "https://www.google.com/s2/favicons?domain=vercel.ai&sz=64",
+    "category": "Developer Tools",
+    "pricing": "Free",
+    "free_plan": true,
+    "api": true,
+    "mobile": false,
+    "opensource": true,
+    "rating": 9.7,
+    "best_for": "Building AI web applications",
+    "difficulty": "Intermediate",
+    "pros": [
+      "Open source",
+      "React optimized",
+      "Supports many LLMs",
+      "Excellent documentation"
+    ],
+    "cons": [
+      "Requires JavaScript knowledge",
+      "Frontend focused",
+      "Needs developer experience"
+    ],
+    "tags": [
+      "react",
+      "nextjs",
+      "sdk",
+      "opensource",
+      "developer"
+    ],
+    "features": [
+      "Streaming UI",
+      "LLM integration",
+      "Chat components",
+      "Tool calling"
+    ],
+    "alternatives": [],
+    "faq": [
+      {
+        "question": "Is it open source?",
+        "answer": "Yes."
+      },
+      {
+        "question": "Does it support multiple AI providers?",
+        "answer": "Yes."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 9800,
+    "developer": "Vercel",
+    "enterprise": true,
+    "featured": true,
+    "launchYear": 2023,
+    "pricingModel": "Free",
+    "startingPrice": "",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "chatgpt",
+    "slug": "chatgpt",
+    "name": "ChatGPT",
+    "description": "ChatGPT is a conversational AI developed by OpenAI, capable of natural language understanding, generation, translation, coding support, and general task automation.",
+    "website": "https://chatgpt.com",
+    "logo": "https://www.google.com/s2/favicons?domain=chatgpt.com&sz=64",
+    "category": "AI Chatbot",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": true,
+    "opensource": false,
+    "rating": 9.8,
+    "best_for": "General knowledge, coding, writing, and conversational assistance",
+    "difficulty": "Beginner",
+    "pros": [
+      "Extremely versatile",
+      "Excellent natural language understanding",
+      "Large active ecosystem",
+      "Advanced model selection (GPT-4o)"
+    ],
+    "cons": [
+      "Can hallucinate facts",
+      "Free version uses less capable models",
+      "Privacy concerns with training data"
+    ],
+    "tags": [
+      "chatbot",
+      "writing",
+      "coding",
+      "openai",
+      "productivity",
+      "email writing",
+      "resume building",
+      "editing",
+      "image generation",
+      "story writing",
+      "debugging",
+      "email",
+      "resume",
+      "story"
+    ],
+    "features": [
+      "Text generation",
+      "Web browsing",
+      "DALL-E image generation",
+      "Custom GPTs"
+    ],
+    "alternatives": ["gemini", "claude"],
+    "faq": [
+      {
+        "question": "Is there a free version?",
+        "answer": "Yes, ChatGPT offers a free tier using the GPT-4o mini model."
+      },
+      {
+        "question": "Does it have a mobile app?",
+        "answer": "Yes, official apps are available for iOS and Android."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 9999,
+    "developer": "OpenAI",
+    "enterprise": true,
+    "featured": true,
+    "launchYear": 2022,
+    "pricingModel": "Freemium",
+    "startingPrice": "$20/month",
+    "useCases": [],
+    "verified": true
+  },
+  {
+    "id": "gemini",
+    "slug": "gemini",
+    "name": "Gemini",
+    "description": "Gemini is Google's multimodal AI assistant, capable of understanding and reasoning across text, code, images, audio, and video seamlessly.",
+    "website": "https://gemini.google.com",
+    "logo": "https://www.google.com/s2/favicons?domain=gemini.google.com&sz=64",
+    "category": "AI Chatbot",
+    "pricing": "Freemium",
+    "free_plan": true,
+    "api": true,
+    "mobile": true,
+    "opensource": false,
+    "rating": 9.6,
+    "best_for": "Multimodal tasks, Google ecosystem integration, and code generation",
+    "difficulty": "Beginner",
+    "pros": [
+      "Native multimodal capabilities",
+      "Deep integration with Google Workspace",
+      "Huge context window (Gemini 1.5 Pro)",
+      "Excellent performance in coding tasks"
+    ],
+    "cons": [
+      "Integration outside Google ecosystem is limited",
+      "Occasional creative styling issues"
+    ],
+    "tags": [
+      "chatbot",
+      "multimodal",
+      "google",
+      "coding",
+      "productivity",
+      "writing",
+      "email writing",
+      "resume building",
+      "editing",
+      "image generation",
+      "story writing",
+      "debugging",
+      "email",
+      "resume",
+      "story"
+    ],
+    "features": [
+      "Google workspace integration",
+      "Multimodal input analysis",
+      "Python sandbox integration",
+      "Ultra-long context window support"
+    ],
+    "alternatives": ["chatgpt", "claude"],
+    "faq": [
+      {
+        "question": "Does Gemini support file uploads?",
+        "answer": "Yes, you can upload documents, images, audio, and video files directly."
+      },
+      {
+        "question": "Is Gemini available on mobile?",
+        "answer": "Yes, it is available via the Gemini app on Android and the Google app on iOS."
+      }
+    ],
+    "addedDate": "2024-01-02",
+    "trendingScore": 9700,
+    "developer": "Google",
+    "enterprise": true,
+    "featured": true,
+    "launchYear": 2023,
+    "pricingModel": "Freemium",
+    "startingPrice": "$20/month",
+    "useCases": [],
+    "verified": true
+  }
+]

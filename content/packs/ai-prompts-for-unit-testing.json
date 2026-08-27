@@ -1,0 +1,72 @@
+{
+  "id": "ai-prompts-for-unit-testing",
+  "slug": "ai-prompts-for-unit-testing",
+  "title": "4 Best AI Prompts for Writing Unit Tests (2026)",
+  "description": "Generate tests that actually catch bugs — behavior mapping, edge-case tables, implementation, and a mutation check — not just coverage padding.",
+  "roleTags": [
+    "developer"
+  ],
+  "toolTags": [
+    "chatgpt",
+    "claude"
+  ],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "GPT-5.1",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "chatgpt",
+      "title": "Map the behaviors, not the functions",
+      "promptText": "Here is the code to test:\n[PASTE CODE]\n\nBefore writing any tests, list every observable behavior a caller relies on: inputs → outputs, side effects, thrown errors, and ordering guarantees. Format: behavior | trigger | expected result | how likely a refactor breaks it (high/med/low). Include behaviors that are implied but not obvious from signatures.",
+      "whyThisTool": "Testing behaviors instead of functions is the difference between a safety net and coverage theater.",
+      "outputExpected": "A behavior inventory — usually 2-3 behaviors you hadn't consciously registered."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "chatgpt",
+      "title": "Build the edge-case table",
+      "promptText": "For each high-risk behavior above, enumerate edge cases: empty/null/undefined, boundaries (0, 1, max, max+1), unicode and whitespace strings, concurrent calls, and invalid types. Output a table: case | input | expected. Mark which cases the current code probably FAILS — be honest.",
+      "whyThisTool": "The 'probably fails' column turns test writing into bug hunting.",
+      "outputExpected": "An edge-case table with predicted failures worth checking first."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "chatgpt",
+      "title": "Write the tests",
+      "promptText": "Write the tests in [FRAMEWORK] covering every behavior and edge case above. Rules: one behavior per test, names that describe the scenario (\"rejects_expired_token_with_401\" not \"test_auth_2\"), arrange-act-assert structure, no mocking anything you don't own, and no testing private internals.",
+      "whyThisTool": "Explicit test-quality rules stop AI from generating the brittle mock-everything suites it defaults to.",
+      "outputExpected": "A test file you'd approve in review — readable names, real assertions, minimal mocks."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "chatgpt",
+      "title": "Mutation-check your suite",
+      "promptText": "Now act as a mutation tester: list 5 specific small bugs you could introduce into the original code (flip a comparison, off-by-one a boundary, swallow an error) and for EACH one say which test would catch it — or admit none would. Write the missing tests for any survivors.",
+      "whyThisTool": "Mutation thinking is the cheapest way to measure whether tests actually protect anything.",
+      "outputExpected": "Either 'all mutants caught' or the exact tests you were missing."
+    }
+  ],
+  "faq": [
+    {
+      "q": "Will AI-generated tests be flaky?",
+      "a": "The main flakiness sources are over-mocking and timing assumptions — step 3's rules ban the first and surface the second. Still review anything involving time, network, or randomness."
+    },
+    {
+      "q": "What frameworks does this work with?",
+      "a": "Any — Jest, Vitest, pytest, JUnit, go test. Name yours in step 3 and the conventions adapt."
+    },
+    {
+      "q": "Is 100% coverage the goal?",
+      "a": "No. The goal is that the mutation check in step 4 comes back 'caught'. Coverage is a side effect, not the target."
+    }
+  ],
+  "benefit": "Catch the edge-case bugs your current tests silently miss.",
+  "techniques": [
+    "behavior-mapping",
+    "mutation-thinking",
+    "constraint-prompting"
+  ],
+  "concept": "testing"
+}

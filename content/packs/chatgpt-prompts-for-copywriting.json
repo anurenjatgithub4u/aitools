@@ -1,0 +1,99 @@
+{
+  "id": "chatgpt-prompts-for-copywriting",
+  "slug": "chatgpt-prompts-for-copywriting",
+  "title": "8 ChatGPT Prompts for Copywriting & Sales Pages (2026)",
+  "description": "An eight-step copywriting sequence that builds high-converting sales page sections from scratch — covering headline testing, voice-of-customer research, benefit framing, objection handling, and CTA writing — using proven direct-response frameworks adapted for AI-assisted copy.",
+  "benefit": "Write sales page copy that converts without hiring a $5k copywriter.",
+  "roleTags": ["writer", "marketer"],
+  "toolTags": ["chatgpt"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "GPT-4o",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "chatgpt",
+      "title": "Extract voice-of-customer language",
+      "promptText": "You are a direct-response copywriter. I'm writing copy for: [PRODUCT/SERVICE DESCRIPTION]\n\nHere are real customer reviews, testimonials, or forum posts about this product/problem (paste 3–10 examples below):\n\n[PASTE REVIEWS/COMMENTS]\n\nAnalyze this language and extract:\n1. The exact phrases customers use to describe their problem (not my marketing language — their words)\n2. The emotional state they're in before buying\n3. The outcome they actually want (not just what they say they want)\n4. The #1 objection or fear that would stop them buying\n5. Any surprising or counterintuitive things they say about the problem or solution\n\nFormat as a 'Customer Voice Map' table.",
+      "whyThisTool": "The best copy is always written in the customer's language, not the marketer's. Voice-of-customer extraction is the highest-leverage first step in any copy project.",
+      "outputExpected": "A Customer Voice Map table with real language (their phrases, not yours) across 5 dimensions — ready to seed into every other prompt in this sequence."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "chatgpt",
+      "title": "Write a headline matrix",
+      "promptText": "Using the Voice Map from Step 1, write 15 headline options for this sales page. Include at least 2 of each:\n- Outcome-led ('Get [result] in [timeframe]')\n- Problem-first ('Tired of [pain]? Here's...')\n- Social proof-led ('How [N] [people] did [thing]')\n- Curiosity/secret ('The [unusual thing] that [outcome]')\n- Direct promise ('The only [thing] you need to [result]')\n\nFor each headline, score 1–5 on: specificity, believability, and emotional pull. Bold the top 3. Do not use superlatives ('best ever', 'ultimate', 'revolutionary').",
+      "whyThisTool": "Fifteen options across five formulas forces you out of the first-idea trap. The scoring prevents you from picking the flashiest headline over the most credible one.",
+      "outputExpected": "15 scored headlines, top 3 bolded, no superlatives — ready for A/B testing."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "chatgpt",
+      "title": "Write the above-the-fold section",
+      "promptText": "Using headline #[N] from Step 2, write the full above-the-fold section of the sales page:\n- Headline (already chosen)\n- Subheadline (1 sentence, amplifies the headline promise, adds specificity)\n- Hero paragraph (3 sentences max: problem, solution, who it's for)\n- 3 bullet points (each a concrete outcome, not a feature — use 'So you can...' format)\n- Primary CTA button text (5 words max, action + outcome: not 'Buy Now', something like 'Start my 14-day trial')\n\nTone: [PASTE YOUR BRAND VOICE: e.g. 'confident and direct, like a knowledgeable friend, no corporate speak']",
+      "whyThisTool": "Above-the-fold copy determines whether 80% of visitors read further. Getting this section right — especially the hero paragraph — is worth more than perfecting any other part of the page.",
+      "outputExpected": "A complete above-the-fold section: headline + subheadline + hero para + 3 outcome bullets + CTA text."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "chatgpt",
+      "title": "Write a features-to-benefits section",
+      "promptText": "Here are the features of my product/service:\n\n[PASTE FEATURES LIST]\n\nConvert each feature into a benefit statement using this format:\n'[FEATURE] — which means you [CONCRETE OUTCOME], even if [COMMON OBSTACLE].'\n\nThen group the benefits into 3 themes that match the customer pain points from Step 1. Write a short section header for each theme (not 'Features', 'Benefits', or 'What's included' — something specific to the outcome).",
+      "whyThisTool": "The 'which means you... even if...' formula handles features, benefits, and objections in one sentence. Themed grouping replaces generic feature lists with a narrative.",
+      "outputExpected": "Every feature converted to an outcome benefit, grouped under 3 outcome-themed headers."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "chatgpt",
+      "title": "Write an objection-handling section",
+      "promptText": "Based on the #1 objection from Step 1 (and the secondary ones), write a 'You might be wondering...' objection section that addresses the 5 most common reasons someone wouldn't buy.\n\nFormat: conversational Q&A, not bullet points. Each answer should:\n- Validate the concern first ('That's a fair question...' or 'Most people ask this because...')\n- Address it directly with a specific answer\n- End with a reframe that points back to the primary benefit\n\nDo not be defensive. Never say 'Actually...' or 'But wait...'",
+      "whyThisTool": "Handling objections proactively on the page reduces refund rates and increases conversion — most copywriters underprioritize this section.",
+      "outputExpected": "5 Q&A objection-handlers in a conversational tone, each ending with a benefit reframe."
+    },
+    {
+      "stepNumber": 6,
+      "tool": "chatgpt",
+      "title": "Write social proof placements",
+      "promptText": "Here are my existing testimonials/reviews:\n\n[PASTE 5–10 TESTIMONIALS]\n\nFor each testimonial: (1) identify which objection or benefit it best addresses, (2) write a 5-word 'pull quote' headline that captures the key moment. Then arrange them in an order that maps to the sales page flow: awareness → interest → desire → action. Flag any objection from Step 5 that has no testimonial coverage — these are gaps I need to fill.",
+      "whyThisTool": "Placing testimonials by objection (not randomly) makes social proof do real persuasion work instead of just looking credible.",
+      "outputExpected": "Each testimonial mapped to an objection/benefit + a pull quote + a recommended placement in the page flow + a gap list."
+    },
+    {
+      "stepNumber": 7,
+      "tool": "chatgpt",
+      "title": "Write the offer stack section",
+      "promptText": "My offer includes: [LIST EVERYTHING IN THE PACKAGE/PRODUCT]\nPrice: [PRICE]\n\nWrite a 'Here's everything you get' section that:\n1. Lists each component with its standalone value (if applicable)\n2. Shows the total value stack vs. the price (optional — only include if the numbers are genuinely credible)\n3. Includes a 'The real value is...' paragraph that frames the outcome value, not the feature list value\n4. Ends with 1 urgency or scarcity element — only if it's real (a deadline, a limit, a bonus). Do not fabricate urgency.",
+      "whyThisTool": "The offer stack section is where most conversion happens on long-form sales pages. The 'real value' paragraph shifts the comparison from price to outcome — which is the frame you want.",
+      "outputExpected": "A complete offer section: component list + value stack + outcome-value paragraph + (real) urgency element."
+    },
+    {
+      "stepNumber": 8,
+      "tool": "chatgpt",
+      "title": "Write a closing CTA section",
+      "promptText": "Write the closing call-to-action section of this sales page (the last thing a visitor sees before the buy button). It should:\n- Re-state the primary outcome in one punchy sentence (different wording from the headline)\n- Make the decision feel low-risk: 30-word statement about guarantee/refund/trial\n- Include a 2-sentence 'Picture yourself' future-pacing paragraph — what their life looks like after buying\n- End with the CTA button text (same as Step 3 for consistency)\n- Add a P.S. line that re-states the most powerful benefit or adds one final urgency element\n\nTotal: 150 words max.",
+      "whyThisTool": "Visitors who scroll to the bottom are warm — they just need permission to say yes. This section gives it: low risk, clear outcome, one last emotional hook.",
+      "outputExpected": "A complete ≤150-word closing section: outcome restate + risk-reversal + future-pacing + CTA + P.S."
+    }
+  ],
+  "faq": [
+    {
+      "q": "I don't have real customer reviews yet — can I still use these prompts?",
+      "a": "For Step 1, you can substitute competitor reviews from Amazon, G2, Trustpilot, or Reddit threads about the problem your product solves. Real voice-of-customer language from a similar audience is far better than inventing it yourself."
+    },
+    {
+      "q": "Should I use all 8 steps for a short landing page?",
+      "a": "For a short landing page (under 600 words), use Steps 1, 2, 3, and 8 — that covers VoC research, headlines, above-the-fold, and the closing CTA. Steps 4–7 are more relevant to long-form sales pages."
+    },
+    {
+      "q": "Will ChatGPT write copy that's actually persuasive, or will it be generic?",
+      "a": "Generic output comes from generic inputs. The reason Step 1 is the most important step in this pack is that feeding real customer language into every subsequent prompt is what produces specific, persuasive copy. Feed it generic product descriptions and you'll get generic copy."
+    },
+    {
+      "q": "What about legal claims — can I use AI-written copy for regulated products?",
+      "a": "No AI copy should be published for regulated industries (health, finance, legal) without legal review. These prompts are designed for general product/service copy and don't account for compliance requirements."
+    }
+  ],
+  "techniques": ["rctf", "voice-of-customer", "constraint-prompting"],
+  "concept": "copywriting"
+}

@@ -1,0 +1,79 @@
+{
+  "id": "claude-prompts-for-content-repurposing",
+  "slug": "claude-prompts-for-content-repurposing",
+  "title": "6 Claude Prompts to Repurpose Content Across Platforms (2026)",
+  "description": "A six-step repurposing sequence that takes one long-form piece (blog post, podcast transcript, or video script) and systematically turns it into platform-native content for LinkedIn, X, email, YouTube, and short-form video — without the copy feeling copy-pasted.",
+  "benefit": "Turn one piece of content into a week of platform-native posts without repeating yourself.",
+  "roleTags": ["writer", "marketer"],
+  "toolTags": ["claude"],
+  "isPublic": true,
+  "createdBy": "official",
+  "lastVerifiedModel": "Claude Sonnet 4.5",
+  "lastVerifiedDate": "2026-07-12",
+  "steps": [
+    {
+      "stepNumber": 1,
+      "tool": "claude",
+      "title": "Extract the core ideas",
+      "promptText": "I'm going to paste my original content below. Read it and identify:\n1. The 5–7 most standalone, shareable ideas (each should make sense without the rest of the piece)\n2. The single most counterintuitive or surprising claim\n3. The 3 most actionable moments (steps, techniques, or decisions a reader can use immediately)\n4. Any data points, statistics, or specific examples that would work as standalone posts\n5. The emotional hook — what's the underlying frustration, desire, or belief this content speaks to?\n\nDo not summarize the content — extract ideas that could each independently anchor a platform post.\n\n[PASTE YOUR FULL CONTENT HERE]",
+      "whyThisTool": "Claude's long context handles transcripts and long-form articles without truncating — letting it find connections across the full piece that a shorter context window would miss.",
+      "outputExpected": "A structured breakdown: 5–7 standalone ideas, 1 counterintuitive claim, 3 actionable moments, data points, and the emotional hook."
+    },
+    {
+      "stepNumber": 2,
+      "tool": "claude",
+      "title": "Write a LinkedIn article",
+      "promptText": "Using the core ideas from Step 1, write a LinkedIn article (600–800 words) based on the counterintuitive claim you identified. LinkedIn format:\n- Open with a 1–2 sentence hook that stops the scroll (bold, specific, slightly controversial)\n- No preamble, no 'In my experience...' opener\n- Use line breaks every 2–3 sentences (LinkedIn readers skim)\n- Include a clear narrative arc: problem → insight → implication\n- End with a question that invites a specific, easy answer in the comments\n- Do NOT just summarize the original content — take the counterintuitive claim and make a strong argument for it",
+      "whyThisTool": "LinkedIn's algorithm favors articles that generate comments — ending with a specific question outperforms 'what do you think?' by a wide margin.",
+      "outputExpected": "A 600–800 word LinkedIn article with a scroll-stopping hook, short paragraphs, a clear argument, and a comment-inviting question."
+    },
+    {
+      "stepNumber": 3,
+      "tool": "claude",
+      "title": "Write a Twitter/X thread",
+      "promptText": "Using the most actionable moments from Step 1, write a Twitter/X thread (8–12 tweets). Rules:\n- Tweet 1: the hook — a bold claim or counterintuitive statement that makes them read the rest (not 'A thread on [topic]:')\n- Tweets 2–10: each one standalone, each a specific technique or insight — no tweet should require reading the previous one to make sense\n- Tweet 11: the summary tweet — 'TL;DR:' followed by 3 bullet points\n- Final tweet: CTA — link to the original content or a related resource\n\nEach tweet max 240 characters. Number each tweet. No emojis unless they add meaning.",
+      "whyThisTool": "A thread where every tweet is standalone — not a sentence fragment that requires context — gets far more retweets because any tweet can be the entry point.",
+      "outputExpected": "8–12 numbered tweets, each standalone, hook + insights + TL;DR + CTA — ready to post as a thread."
+    },
+    {
+      "stepNumber": 4,
+      "tool": "claude",
+      "title": "Write an email newsletter edition",
+      "promptText": "Write an email newsletter edition based on this content for my list of [DESCRIBE AUDIENCE: e.g. 'B2B marketers who already know the basics']. Format:\n- Subject line: 5 options, each using a different format (question / number / 'The [thing] that...' / direct claim / 'Why I [action]')\n- Preview text: 90 characters that adds intrigue, doesn't repeat the subject line\n- Email body (400 words max): conversational, first-person, picks ONE idea from the source content and goes deeper — not a summary\n- Ends with 1 recommendation (tool, article, or resource) + 1 question to reply to\n\nTone: [DESCRIBE YOUR EMAIL VOICE: e.g. 'like a smart friend sharing something interesting, not a brand newsletter']",
+      "whyThisTool": "Newsletters that go deeper on one idea outperform roundups — and Claude excels at developing a single idea with enough texture to feel original, not summarized.",
+      "outputExpected": "5 subject line options, preview text, a 400-word email body centered on one idea, and a reply prompt."
+    },
+    {
+      "stepNumber": 5,
+      "tool": "claude",
+      "title": "Write a YouTube video script outline",
+      "promptText": "Using the data points and actionable moments from Step 1, write a YouTube video script outline (not a full script) for a [LENGTH: e.g. 8–12 minute] video on this topic. Include:\n- Hook (first 30 seconds): exactly what I say, word for word — must create a loop (raise a question) that only closes by watching\n- Chapter timestamps with a 1-sentence description of each\n- The 3 key visual/demonstration moments (what should appear on screen that makes this more valuable than reading the article)\n- The call-to-action at the end: specific, not just 'like and subscribe'\n- Pattern interrupts: 2–3 moments where the pacing or format changes to re-engage a skimming viewer",
+      "whyThisTool": "Video scripts need to be built around visual moments and retention hooks — structuring these explicitly before scripting prevents the #1 YouTube mistake: talking without showing.",
+      "outputExpected": "A complete video outline: word-for-word hook, timestamped chapters, 3 visual moments, a specific CTA, and 2–3 pattern interrupt suggestions."
+    },
+    {
+      "stepNumber": 6,
+      "tool": "claude",
+      "title": "Write short-form video scripts (Reels/TikTok/Shorts)",
+      "promptText": "Write 3 short-form video scripts (45–60 seconds each) based on 3 different ideas from Step 1. For each:\n- Opening line: says exactly what the video is about in the first 2 seconds (no slow intro)\n- Content: one idea, one technique, or one reveal — nothing more\n- Closing line: either a CTA ('follow for more on [topic]') or a reframe ('that's why [original misconception] is wrong')\n\nFormat each script as:\n[Script 1 — TOPIC NAME]\nSPOKEN: [what you say]\nB-ROLL: [what appears on screen]\n\nMake each script work without ANY prior context — a viewer who has never heard of you should understand it.",
+      "whyThisTool": "Short-form video is won or lost in the first 2 seconds. Scripts that name the topic immediately — rather than building to it — retain viewers through the hook.",
+      "outputExpected": "3 complete 45–60 second scripts with spoken lines + B-roll descriptions, each self-contained and hook-first."
+    }
+  ],
+  "faq": [
+    {
+      "q": "Does this work with podcast transcripts and video transcripts too?",
+      "a": "Yes — paste the transcript directly into Step 1. Claude handles long transcripts well. For video, auto-generated transcripts (from YouTube Studio or Otter.ai) work fine, even with minor errors, since Step 1 extracts ideas rather than quoting verbatim."
+    },
+    {
+      "q": "Should I run all 6 steps from one piece of content?",
+      "a": "You don't have to — the steps are independent after Step 1. Run Step 1 once, then pick the platforms you need. A single long article realistically produces 2–3 weeks of content if you run all 6 steps."
+    },
+    {
+      "q": "Will the repurposed content sound like the same post repeated everywhere?",
+      "a": "Only if you skip the platform-specific instructions in each prompt. Each step is designed for the native format and norms of its platform — LinkedIn's rhythm is different from X threads, which is different from email. The key is that each version takes a different angle from Step 1, not a paraphrase of the same one."
+    }
+  ],
+  "techniques": ["chain-of-thought", "format-adaption", "constraint-prompting"],
+  "concept": "content-strategy"
+}

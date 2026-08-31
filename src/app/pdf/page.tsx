@@ -1,5 +1,5 @@
 import { Metadata } from "next"
-import { FileArchive, Scissors, Combine, FileImage, Images, FileCode, FileType, Wrench, ShieldCheck } from "lucide-react"
+import { FileArchive, Scissors, Combine, FileImage, Images, FileCode, FileType, Wrench, ShieldCheck, Hash, RotateCw, Lock } from "lucide-react"
 import { PdfToolCard } from "@/components/pdf-tools/pdf-tool-card"
 import { PdfHeroVisual } from "@/components/pdf-tools/pdf-hero-visual"
 
@@ -116,6 +116,33 @@ export default function PdfUtilitiesPage() {
             supportedInfo="Runs in your browser · never uploaded"
             href="/pdf/word-to-pdf"
             ctaLabel="Convert to PDF"
+          />
+          <PdfToolCard
+            icon={Hash}
+            tint="orange"
+            title="Add Page Numbers"
+            description="Stamp page numbers onto every page"
+            supportedInfo="Runs in your browser · never uploaded"
+            href="/pdf/page-numbers"
+            ctaLabel="Number PDF"
+          />
+          <PdfToolCard
+            icon={RotateCw}
+            tint="teal"
+            title="Rotate PDF"
+            description="Fix sideways pages — rotate all or individual pages"
+            supportedInfo="Runs in your browser · never uploaded"
+            href="/pdf/rotate"
+            ctaLabel="Rotate PDF"
+          />
+          <PdfToolCard
+            icon={Lock}
+            tint="fuchsia"
+            title="Protect PDF"
+            description="Password-lock your PDF with encryption"
+            supportedInfo="Single PDF · up to 25 MB"
+            href="/pdf/protect"
+            ctaLabel="Protect PDF"
           />
         </div>
 

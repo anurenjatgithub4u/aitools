@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   // breaks that path resolution ("Setting up fake worker failed: Cannot
   // find module '.../pdf.worker.mjs'") — excluding it from bundling lets
   // it resolve normally through node_modules at request time instead.
-  serverExternalPackages: ["pdfjs-dist", "pdf-parse"],
+  serverExternalPackages: ["pdfjs-dist", "pdf-parse", "mupdf"],
 
   // Permanent redirects for renamed routes. Kept even for URLs that were never
   // widely shared: a 301 costs nothing, and a slug that 404s after a rename is

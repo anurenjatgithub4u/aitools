@@ -22,7 +22,10 @@ export interface PdfAnalyticsPayload {
     | "pdf_to_image"
     | "image_to_pdf"
     | "html_to_pdf"
-    | "word_to_pdf";
+    | "word_to_pdf"
+    | "pdf_page_numbers"
+    | "pdf_rotator"
+    | "pdf_protect";
   file_size?: number;
   page_count?: number;
   compression_level?: string;

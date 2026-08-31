@@ -17,6 +17,9 @@ const TINTS = {
   cyan: "bg-cyan-500/10 border-cyan-500/20 text-cyan-500",
   rose: "bg-rose-500/10 border-rose-500/20 text-rose-500",
   indigo: "bg-indigo-500/10 border-indigo-500/20 text-indigo-500",
+  orange: "bg-orange-500/10 border-orange-500/20 text-orange-500",
+  teal: "bg-teal-500/10 border-teal-500/20 text-teal-500",
+  fuchsia: "bg-fuchsia-500/10 border-fuchsia-500/20 text-fuchsia-500",
 } as const
 
 export type PdfToolTint = keyof typeof TINTS

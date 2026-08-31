@@ -85,6 +85,22 @@ export interface MergeResultMeta {
 }
 
 // ---------------------------------------------------------------------------
+// Protector
+// ---------------------------------------------------------------------------
+
+export interface ProtectRequestOptions {
+  /** Password required to open the PDF */
+  userPassword: string;
+  /** Owner password for print/copy permissions; defaults to userPassword if omitted */
+  ownerPassword?: string;
+}
+
+export interface ProtectResultMeta {
+  pageCount: number;
+  resultBytes: number;
+}
+
+// ---------------------------------------------------------------------------
 // Errors — a fixed vocabulary so the UI can show the exact copy the spec
 // requires instead of a generic "Something went wrong."
 // ---------------------------------------------------------------------------

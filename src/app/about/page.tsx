@@ -90,14 +90,14 @@ export default function AboutPage() {
           <Users className="h-10 w-10 text-primary mx-auto mb-4" />
           <h2 className="text-2xl md:text-3xl font-bold mb-4">Start Finding Your Next AI Tool</h2>
           <p className="text-muted-foreground max-w-lg mx-auto mb-6">
-            Ready to turn your own material into something you can actually study? Open your workspace or browse the free utilities.
+            Built something? Put it on the leaderboard for free — or browse the free tools while you&apos;re here.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
-              href="/workspace"
+              href="/submit"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow-md shadow-primary/10 hover:shadow-primary/20"
             >
-              Open Workspace
+              Submit your product
             </Link>
             <Link
               href="/utilities"

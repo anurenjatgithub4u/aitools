@@ -5,6 +5,7 @@ import { getBlogPosts } from "@/lib/blog"
 import { getAllPacks } from "@/lib/packs"
 import { SITE_URL, slugify } from "@/lib/seo"
 import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config"
+import { PRODUCTS_ENABLED } from "@/lib/products/config"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE_URL
@@ -16,6 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // and the resume builder are omitted while paused/disabled — an indexed
     // URL for a disabled page is worse than no URL at all.
     '',
+    ...(PRODUCTS_ENABLED ? ['/submit'] : []),
     ...(TOOL_DIRECTORY_ENABLED ? ['/search', '/compare', '/submit-tool'] : []),
     '/blog',
     '/packs',

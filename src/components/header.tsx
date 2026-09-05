@@ -10,14 +10,15 @@ import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 import { JOBS_FEATURE_ENABLED } from "@/lib/jobs/config"
+import { PRODUCTS_ENABLED } from "@/lib/products/config"
 
 const NAV_LINKS = [
-  // Workspace is deliberately not in the nav. It's reached through the
-  // homepage CTA instead, so the entry point is the funnel rather than a
-  // top-level browse item.
+  // The leaderboard is the homepage, so the nav carries the action that feeds
+  // it (Submit) rather than a link back to it.
   // Jobs is behind a flag while the feature is paused — see
   // JOBS_FEATURE_ENABLED in lib/jobs/config.ts.
   ...(JOBS_FEATURE_ENABLED ? [{ href: "/jobs", label: "Jobs" }] : []),
+  ...(PRODUCTS_ENABLED ? [{ href: "/submit", label: "Submit" }] : []),
   { href: "/utilities", label: "Utilities" },
   { href: "/pdf", label: "PDF Tools" },
   { href: "/blog", label: "Blog" },

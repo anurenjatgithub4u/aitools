@@ -110,10 +110,10 @@ export default async function PacksPage({
               </div>
             </div>
             <Link
-              href="/workspace"
+              href="/utilities"
               className="shrink-0 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              My Workflows →
+              Free Tools →
             </Link>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/db";
 import { Submission } from "@/models/Submission";
+import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config";
 
 // Accept "example.com" or "https://example.com" and normalize to a full URL.
 // Returns null if the result still isn't a parseable URL.
@@ -33,6 +34,13 @@ function toStringArray(value: unknown): string[] {
 }
 
 export async function POST(req: NextRequest) {
+  // The /submit-tool page already 404s with the directory archived, but this
+  // route stayed open — an unauthenticated, unmetered write endpoint feeding a
+  // collection nothing reads any more. New submissions go to /api/products.
+  if (!TOOL_DIRECTORY_ENABLED) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
   try {
     await connectDB();
     const body = await req.json();

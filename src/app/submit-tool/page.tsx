@@ -3,7 +3,9 @@
 // Metadata for client components must live in a sibling layout.tsx (see ./layout.tsx).
 
 import { useState, useEffect, FormEvent } from "react"
+import { notFound } from "next/navigation"
 import { Sparkles, CheckCircle2, Loader2, ArrowRight } from "lucide-react"
+import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
@@ -56,6 +58,8 @@ const initialState: FormState = {
 }
 
 export default function SubmitToolPage() {
+  if (!TOOL_DIRECTORY_ENABLED) notFound()
+
   const [form, setForm] = useState<FormState>(initialState)
   const [categories, setCategories] = useState<string[]>(FALLBACK_CATEGORIES)
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle")

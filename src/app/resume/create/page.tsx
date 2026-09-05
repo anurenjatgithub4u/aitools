@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect, Suspense } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams, notFound } from "next/navigation"
 import { motion } from "framer-motion"
 import { Sparkles, ArrowRight, CheckCircle, FileText, ChevronDown, Briefcase, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { saveResume } from "@/lib/resume/storage"
 import { REFERENCE_RESUMES } from "@/lib/resume/reference-resumes"
+import { RESUME_BUILDER_ENABLED } from "@/lib/resume/config"
 
 const EXAMPLE_PROMPTS = [
   "Create a resume for a frontend developer with 2 years of experience in React and TypeScript.",
@@ -257,6 +258,8 @@ function ResumeCreateContent() {
 }
 
 export default function ResumeCreatePage() {
+  if (!RESUME_BUILDER_ENABLED) notFound()
+
   return (
     <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Loading Resume Builder...</div>}>
       <ResumeCreateContent />

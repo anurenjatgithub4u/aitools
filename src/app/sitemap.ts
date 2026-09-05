@@ -4,6 +4,7 @@ import { Tool } from "@/models/Tool"
 import { getBlogPosts } from "@/lib/blog"
 import { getAllPacks } from "@/lib/packs"
 import { SITE_URL, slugify } from "@/lib/seo"
+import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config"
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = SITE_URL
@@ -11,14 +12,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Core static pages
   const staticRoutes = [
-    // '/jobs' is omitted while the feature is paused — an indexed URL for a
-    // disabled page is worse than no URL at all.
+    // '/jobs', the tool directory's '/search', '/compare' and '/submit-tool',
+    // and the resume builder are omitted while paused/disabled — an indexed
+    // URL for a disabled page is worse than no URL at all.
     '',
-    '/search',
-    '/compare',
+    ...(TOOL_DIRECTORY_ENABLED ? ['/search', '/compare', '/submit-tool'] : []),
     '/blog',
     '/packs',
-    '/submit-tool',
     '/utilities',
     '/utilities/youtube-summarizer',
     '/utilities/pdf-to-study',
@@ -64,32 +64,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("Failed to generate blog sitemap:", error)
   }
 
-  // Tool pages + category pages from MongoDB
+  // Tool pages + category pages from MongoDB — only while the directory is enabled.
   let toolRoutes: MetadataRoute.Sitemap = []
   let categoryRoutes: MetadataRoute.Sitemap = []
-  try {
-    await connectDB()
-    const tools = await Tool.find({}, { id: 1, category: 1, primaryCategory: 1 }).lean()
-    toolRoutes = tools.map((tool: any) => ({
-      url: `${baseUrl}/tool/${tool.id}`,
-      lastModified: now,
-      changeFrequency: 'monthly' as const,
-      priority: 0.6,
-    }))
+  if (TOOL_DIRECTORY_ENABLED) {
+    try {
+      await connectDB()
+      const tools = await Tool.find({}, { id: 1, category: 1, primaryCategory: 1 }).lean()
+      toolRoutes = tools.map((tool: any) => ({
+        url: `${baseUrl}/tool/${tool.id}`,
+        lastModified: now,
+        changeFrequency: 'monthly' as const,
+        priority: 0.6,
+      }))
 
-    const slugs = new Set<string>()
-    for (const t of tools as any[]) {
-      if (t.primaryCategory) slugs.add(slugify(t.primaryCategory))
-      if (t.category) slugs.add(slugify(t.category))
+      const slugs = new Set<string>()
+      for (const t of tools as any[]) {
+        if (t.primaryCategory) slugs.add(slugify(t.primaryCategory))
+        if (t.category) slugs.add(slugify(t.category))
+      }
+      categoryRoutes = [...slugs].filter(Boolean).map((slug) => ({
+        url: `${baseUrl}/category/${slug}`,
+        lastModified: now,
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      }))
+    } catch (error) {
+      console.error("Failed to generate tool sitemap:", error)
     }
-    categoryRoutes = [...slugs].filter(Boolean).map((slug) => ({
-      url: `${baseUrl}/category/${slug}`,
-      lastModified: now,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }))
-  } catch (error) {
-    console.error("Failed to generate tool sitemap:", error)
   }
 
   // Prompt Pack landing pages — the SEO/AEO wedge

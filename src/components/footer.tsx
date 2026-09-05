@@ -21,16 +21,16 @@ export function Footer() {
             </span>
           </Link>
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-            Discover, compare, and find the perfect AI tools for your next project. We help you navigate the AI revolution.
+            Learn anything with AI — turn your material into notes, flashcards and quizzes, and practice until it sticks.
           </p>
         </div>
         <div>
-          <h3 className="font-semibold mb-4 text-sm tracking-wider uppercase">Categories</h3>
+          <h3 className="font-semibold mb-4 text-sm tracking-wider uppercase">Product</h3>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li><Link href="/search?category=AI+Writing" className="hover:text-primary transition-colors">AI Writing</Link></li>
-            <li><Link href="/search?category=AI+Image" className="hover:text-primary transition-colors">AI Image</Link></li>
-            <li><Link href="/search?category=AI+Video" className="hover:text-primary transition-colors">AI Video</Link></li>
-            <li><Link href="/search?category=AI+Coding" className="hover:text-primary transition-colors">AI Coding</Link></li>
+            <li><Link href="/utilities" className="hover:text-primary transition-colors">Utilities</Link></li>
+            <li><Link href="/pdf" className="hover:text-primary transition-colors">PDF Tools</Link></li>
+            <li><Link href="/packs" className="hover:text-primary transition-colors">Prompt Packs</Link></li>
+            <li><Link href="/blog" className="hover:text-primary transition-colors">Blog</Link></li>
           </ul>
         </div>
         <div>

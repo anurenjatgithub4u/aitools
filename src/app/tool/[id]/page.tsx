@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import connectDB from "@/lib/db"
 import { Tool } from "@/models/Tool"
+import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config"
 import { ToolLogo } from "@/components/tool-logo"
 import {
   SITE_NAME,
@@ -20,6 +21,7 @@ import {
 } from "@/lib/seo"
 
 export async function generateStaticParams() {
+  if (!TOOL_DIRECTORY_ENABLED) return []
   try {
     await connectDB()
     const tools = await Tool.find({}, { id: 1 }).lean()
@@ -44,6 +46,9 @@ const getTool = cache(async (id: string) => {
 })
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  if (!TOOL_DIRECTORY_ENABLED) {
+    return { title: "Tool not found", robots: { index: false, follow: false } }
+  }
   const { id } = await params
   const tool = await getTool(id)
   if (!tool) {
@@ -75,6 +80,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 export default async function ToolPage({ params }: { params: Promise<{ id: string }> }) {
+  if (!TOOL_DIRECTORY_ENABLED) notFound()
+
   const resolvedParams = await params
   const tool: any = await getTool(resolvedParams.id)
 

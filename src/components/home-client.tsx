@@ -160,8 +160,8 @@ export default function HomeClient() {
                     Start Learning Free →
                   </Button>
                 </Link>
-                <Link href="/topics/ai-agents" className="group flex items-center gap-2 rounded-2xl border border-border bg-card/60 px-7 h-13 shadow-sm transition-colors hover:border-primary/50 text-foreground font-medium text-base cursor-pointer">
-                  Browse Learning Paths
+                <Link href="/packs" className="group flex items-center gap-2 rounded-2xl border border-border bg-card/60 px-7 h-13 shadow-sm transition-colors hover:border-primary/50 text-foreground font-medium text-base cursor-pointer">
+                  Browse Prompt Packs
                 </Link>
               </motion.div>
             </div>

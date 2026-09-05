@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "Search AI Tools",
   description: "Search and filter the best AI tools by task, category, pricing and features on FindurAI.",
   alternates: { canonical: "/search" },
-  robots: { index: false, follow: true },
+  robots: { index: false, follow: false },
 }
 
 export default function SearchLayout({ children }: { children: React.ReactNode }) {

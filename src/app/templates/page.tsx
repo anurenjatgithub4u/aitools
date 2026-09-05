@@ -1,12 +1,16 @@
 "use client"
 
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import { motion } from "framer-motion"
 import { RESUME_TEMPLATES } from "@/lib/resume/templates"
 import { Sparkles, ArrowRight, LayoutTemplate, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { RESUME_BUILDER_ENABLED } from "@/lib/resume/config"
 
 export default function TemplatesPage() {
+  if (!RESUME_BUILDER_ENABLED) notFound()
+
   return (
     <div className="min-h-screen bg-background py-12 px-4 relative overflow-hidden">
       <div className="fixed inset-0 -z-10 bg-purple-500/5 [mask-image:radial-gradient(ellipse_60%_50%_at_50%_20%,black,transparent)] dark:bg-black dark:bg-[radial-gradient(ellipse_60%_50%_at_50%_15%,rgba(147,51,234,0.12),transparent_70%)]" />

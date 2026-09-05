@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useEffect, Suspense, useMemo } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams, useRouter, notFound } from "next/navigation"
+import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config"
 import { CheckCircle2, XCircle, Star, ArrowRight, AlertTriangle, Trophy, Sparkles, DollarSign, Layers, ListChecks, Scale } from "lucide-react"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { buttonVariants } from "@/components/ui/button"
@@ -404,6 +405,8 @@ function CompareContent() {
 }
 
 export default function ComparePage() {
+  if (!TOOL_DIRECTORY_ENABLED) notFound()
+
   return (
     <Suspense fallback={<div className="p-8 text-center">Loading comparison...</div>}>
       <CompareContent />

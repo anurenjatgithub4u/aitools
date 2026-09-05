@@ -12,6 +12,8 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, SlidersHorizontal, Sparkles, Plus, Check, Loader2, Globe, Star, CheckCircle2, XCircle } from "lucide-react"
 import { AITool } from "@/types"
 import { UnifiedResults } from "@/components/workspace/unified-results"
+import { notFound } from "next/navigation"
+import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config"
 
 // Words that describe the search intent itself, not the domain. These are
 // stripped before per-word matching so generic words don't pull in noise.
@@ -868,6 +870,8 @@ function SearchContent() {
 }
 
 export default function SearchPage() {
+  if (!TOOL_DIRECTORY_ENABLED) notFound()
+
   return (
     <div className="min-h-screen bg-muted/10">
       <div className="bg-background border-b border-border/40 pt-10 pb-6 px-4">

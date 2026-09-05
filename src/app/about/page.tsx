@@ -90,20 +90,20 @@ export default function AboutPage() {
           <Users className="h-10 w-10 text-primary mx-auto mb-4" />
           <h2 className="text-2xl md:text-3xl font-bold mb-4">Start Finding Your Next AI Tool</h2>
           <p className="text-muted-foreground max-w-lg mx-auto mb-6">
-            Ready to explore our catalog of reviewed tools? Check out our comparison system or explore directory categories.
+            Ready to turn your own material into something you can actually study? Open your workspace or browse the free utilities.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Link
-              href="/search"
+              href="/workspace"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-primary text-primary-foreground font-semibold hover:bg-primary/95 transition-all shadow-md shadow-primary/10 hover:shadow-primary/20"
             >
-              Search Directory
+              Open Workspace
             </Link>
             <Link
-              href="/compare"
+              href="/utilities"
               className="inline-flex items-center justify-center px-6 py-3 rounded-xl border border-border/80 bg-background/50 hover:bg-background/80 hover:border-border transition-all font-semibold"
             >
-              Compare Tools
+              Browse Utilities
             </Link>
           </div>
         </div>

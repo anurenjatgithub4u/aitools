@@ -5,6 +5,7 @@ import Link from "next/link"
 import { ChevronRight } from "lucide-react"
 import connectDB from "@/lib/db"
 import { Tool } from "@/models/Tool"
+import { TOOL_DIRECTORY_ENABLED } from "@/lib/tools/config"
 import { ToolCard } from "@/components/tool-card"
 import {
   SITE_NAME,
@@ -42,6 +43,7 @@ const getCategory = cache(async (slug: string) => {
 })
 
 export async function generateStaticParams() {
+  if (!TOOL_DIRECTORY_ENABLED) return []
   try {
     await connectDB()
     const tools = await Tool.find({}, { category: 1, primaryCategory: 1 }).lean<any[]>()
@@ -58,6 +60,9 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  if (!TOOL_DIRECTORY_ENABLED) {
+    return { title: "Category not found", robots: { index: false, follow: false } }
+  }
   const { slug } = await params
   const data = await getCategory(slug)
   if (!data) return { title: "Category not found", robots: { index: false, follow: true } }
@@ -76,6 +81,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 }
 
 export default async function CategoryPage({ params }: { params: Promise<{ slug: string }> }) {
+  if (!TOOL_DIRECTORY_ENABLED) notFound()
+
   const { slug } = await params
   const data = await getCategory(slug)
   if (!data) notFound()

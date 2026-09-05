@@ -1,15 +1,18 @@
 "use client"
 
 import { useState, useEffect, use } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, notFound } from "next/navigation"
 import { ResumeData } from "@/types/resume"
 import { getResumeById, saveResume, duplicateResume } from "@/lib/resume/storage"
 import { EditorSidebar } from "@/components/resume/EditorSidebar"
 import { ResumeCanvas } from "@/components/resume/ResumeCanvas"
 import { AIPanel } from "@/components/resume/AIPanel"
 import { ArrowLeft, Sparkles, SlidersHorizontal, ShieldCheck } from "lucide-react"
+import { RESUME_BUILDER_ENABLED } from "@/lib/resume/config"
 
 export default function ResumeEditorPage({ params }: { params: Promise<{ resumeId: string }> }) {
+  if (!RESUME_BUILDER_ENABLED) notFound()
+
   const resolvedParams = use(params)
   const resumeId = resolvedParams.resumeId
   const router = useRouter()

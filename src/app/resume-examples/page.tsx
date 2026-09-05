@@ -2,13 +2,17 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { notFound } from "next/navigation"
 import { motion } from "framer-motion"
 import { REFERENCE_RESUMES } from "@/lib/resume/reference-resumes"
 import { RESUME_TEMPLATES } from "@/lib/resume/templates"
 import { Sparkles, ArrowRight, Eye, CheckCircle2, LayoutTemplate } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { RESUME_BUILDER_ENABLED } from "@/lib/resume/config"
 
 export default function ResumeExamplesPage() {
+  if (!RESUME_BUILDER_ENABLED) notFound()
+
   const [selectedCategory, setSelectedCategory] = useState<string>("All")
 
   const categories = ["All", "Technology", "Business", "Students"]

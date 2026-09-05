@@ -9,8 +9,11 @@ import { ArrowLeft, Sparkles, ArrowRight, CheckCircle2, ShieldCheck, Download } 
 import { Button } from "@/components/ui/button"
 import { TemplateRenderer } from "@/components/resume/TemplateRenderer"
 import { ResumeData } from "@/types/resume"
+import { RESUME_BUILDER_ENABLED } from "@/lib/resume/config"
 
 export default function ReferenceResumeDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  if (!RESUME_BUILDER_ENABLED) notFound()
+
   const resolvedParams = use(params)
   const slug = resolvedParams.slug
 

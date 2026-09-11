@@ -3,11 +3,8 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "zsh",
-      "runtimeArgs": [
-        "-c",
-        "export PATH=/Users/designdepartment/.nvm/versions/node/v20.20.0/bin:$PATH && npm run dev"
-      ],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": true
     }

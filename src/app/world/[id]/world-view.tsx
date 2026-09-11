@@ -25,6 +25,7 @@ export function WorldView({ id }: { id: string }) {
       drive: () => world?.toggleDrive(),
       lift: () => world?.lift(),
       run: () => world?.toggleRun(),
+      zoom: (d) => world?.zoom(d),
     });
 
     import("@/world/world").then(({ World }) => {

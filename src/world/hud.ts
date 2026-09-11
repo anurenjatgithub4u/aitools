@@ -14,7 +14,7 @@ export interface Hud {
   minimap: HTMLCanvasElement;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   const visited = store.visited();
@@ -45,6 +45,10 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <div class="chip">${visited.size} of ${DESTINATIONS.length} worlds</div>
       <a class="chip leave" href="/">Leave world</a>
     </div>
+    <div class="zoom">
+      <button id="zoomin" title="Zoom in">+</button>
+      <button id="zoomout" title="Zoom out">−</button>
+    </div>
     <div class="actions">
       <button class="act" id="liftbtn" hidden>🙋<small>Lift</small></button>
       <button class="act" id="drive" hidden>🚗<small>Drive</small></button>
@@ -70,6 +74,15 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const jumpBtn = root.querySelector<HTMLButtonElement>('#jump')!;
   const press = (btn: HTMLElement, fn: () => void) => btn.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
   press(jumpBtn, actions.jump);
+  // zoom buttons repeat while held
+  const hold = (btn: HTMLElement, delta: number) => {
+    let timer = 0;
+    const stop = () => { clearInterval(timer); timer = 0; };
+    btn.addEventListener('pointerdown', (e) => { e.preventDefault(); actions.zoom(delta); stop(); timer = window.setInterval(() => actions.zoom(delta), 80); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) btn.addEventListener(ev, stop);
+  };
+  hold(root.querySelector('#zoomin')!, -1);
+  hold(root.querySelector('#zoomout')!, 1);
   const runBtn = root.querySelector<HTMLButtonElement>('#run')!;
   press(runBtn, actions.run);
   press(driveBtn, actions.drive);

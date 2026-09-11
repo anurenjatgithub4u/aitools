@@ -461,6 +461,8 @@ export class World {
 
   /** On-screen buttons call these. */
   jump() { this.wantJump = true; }
+  /** Zoom the camera in (negative) or out (positive). */
+  zoom(delta: number) { this.dist = THREE.MathUtils.clamp(this.dist + delta, 4, 24); }
   /** Sticky run mode (touch button); Shift still works as hold-to-run. */
   toggleRun() { this.runMode = !this.runMode; this.ev.onRun(this.runMode); }
   private runMode = false;

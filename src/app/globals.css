@@ -96,6 +96,9 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .act.on { background: rgba(232, 196, 106, .95); color: var(--ink); border-color: transparent; }
 .act:active { background: rgba(232, 196, 106, .95); color: var(--ink); }
 @keyframes pop { 30% { transform: scale(1.12); } }
+.hud .zoom { right: 26px; top: 50%; transform: translateY(-50%); display: flex; flex-direction: column; gap: 6px; }
+.zoom button { width: 44px; height: 44px; border-radius: 50%; border: 2px solid rgba(255,255,255,.6); background: rgba(20, 40, 34, .72); color: #fff; font-size: 24px; line-height: 1; display: grid; place-items: center; cursor: pointer; font-family: inherit; touch-action: none; user-select: none; }
+.zoom button:active { background: rgba(232, 196, 106, .95); color: var(--ink); }
 .round { width: 44px; height: 44px; border-radius: 50%; border: 0; background: rgba(20, 40, 34, .72); color: #fff; font-size: 18px; display: grid; place-items: center; cursor: pointer; font-family: inherit; }
 .next { display: flex; align-items: center; gap: 14px; background: rgba(20, 40, 34, .82); backdrop-filter: blur(8px); padding: 12px 20px 12px 14px; border-radius: 14px; }
 .next .key { width: 40px; height: 40px; border-radius: 10px; background: #2f6b4f; display: grid; place-items: center; font-weight: 700; }
@@ -122,6 +125,7 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 @media (max-width: 1000px) {
   .hints { display: none; }
   .hud .actions { right: 26px; bottom: 290px; flex-direction: row; }
+  .hud .zoom { top: 34%; }
 }
 
 @media (max-width: 720px), (max-height: 500px) {
@@ -165,6 +169,8 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   .chip.prompt { font-size: 12px; padding: 6px 12px; max-width: 100%; white-space: normal; text-align: center; }
 
   .hud .actions { right: 14px; bottom: calc(96px + env(safe-area-inset-bottom)); gap: 8px; }
+  .hud .zoom { right: 14px; top: 40%; }
+  .zoom button { width: 38px; height: 38px; font-size: 20px; }
   .act { width: 56px; height: 56px; font-size: 20px; }
   .act small { font-size: 8px; }
   .stick { width: 110px; height: 110px; margin: -55px 0 0 -55px; }
@@ -186,5 +192,6 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   .hud .bottom-center { bottom: 10px; left: 50%; transform: translateX(-50%); width: auto; }
   .next { max-width: 260px; }
   .hud .actions { bottom: 12px; flex-direction: row; }
+  .hud .zoom { top: 50%; flex-direction: row; right: 100px; }
   .act { width: 48px; height: 48px; font-size: 18px; }
 }

@@ -1,4 +1,4 @@
-import { DESTINATIONS, type Collectible, type Destination } from './destinations';
+import { type Collectible, type Destination } from './destinations';
 import type { QuestState } from './quests';
 import { store } from './store';
 
@@ -16,13 +16,13 @@ export interface Hud {
   muted(m: boolean): void;
   quest(q: QuestState | null): void;
   friends(n: number): void;
+  rank(r: number, of: number): void;
   minimap: HTMLCanvasElement;
 }
 
 export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
-  const visited = store.visited();
   root.innerHTML = `
   <div class="hud">
     <a class="brand top-left" href="/"><span class="logo">🌍</span><div><b>WANDER</b><small>ONE PLANET · COUNTLESS WONDERS</small></div></a>
@@ -35,7 +35,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     <div class="top-center">
       <div class="chip big">🏆 <b id="pts">${points}</b> points</div>
       <div class="chip" id="online">👥 ${d.explorers} exploring together</div>
-      <div class="chip friends" id="friends">🤝 ${store.friends().length} friends</div>
+      <div class="row"><div class="chip rank" id="rank">🏅 Rank #–</div><div class="chip friends" id="friends">🤝 ${store.friends().length} friends</div></div>
     </div>
     <div class="top-right">
       <a class="round" href="/" title="All worlds">🌍</a>
@@ -43,7 +43,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <button class="round" id="help" title="Help">?</button>
     </div>
     <div class="bottom-left">
-      <p class="eyebrow">${d.country} · a little escape</p>
+      <p class="eyebrow">${d.country}</p>
       <h2>${d.name}</h2>
       <p class="sub">${d.place} · ${d.tagline}</p>
     </div>
@@ -54,13 +54,11 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       </div>
       <div class="chip prompt" id="prompt" hidden></div>
       <div class="chip prompt lifting" id="liftprompt" hidden></div>
-      <div class="next"><span class="key">M</span><div><small>WHERE TO NEXT?</small><b id="hint">Collect anything with a number</b></div></div>
       <div class="hints"><span>✨ Walk over things to collect</span><span>⌨ WASD move · Shift run/boost · Space jump · E drive · F lift · R refuel · H horn</span><span>🖱 Drag or two-finger swipe to look · wheel / pinch to zoom</span></div>
     </div>
     <div class="bottom-right">
       <div class="minimap"><canvas id="minimap" width="170" height="170"></canvas><span>${d.name}</span></div>
-      <div class="chip">${visited.size} of ${DESTINATIONS.length} worlds</div>
-      <a class="chip leave" href="/">Leave world</a>
+      <a class="chip leave" href="/">Exit</a>
     </div>
     <div class="zoom">
       <button id="zoomin" title="Zoom in">+</button>
@@ -87,7 +85,6 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
 
   const pts = root.querySelector('#pts')!;
   const online = root.querySelector('#online')!;
-  const hint = root.querySelector('#hint')!;
   const toasts = root.querySelector('#toasts')!;
   const helpbox = root.querySelector<HTMLElement>('#helpbox')!;
   const promptEl = root.querySelector<HTMLElement>('#prompt')!;
@@ -113,6 +110,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const friendBtn = root.querySelector<HTMLButtonElement>('#friendbtn')!;
   press(friendBtn, actions.befriend);
   const friendsChip = root.querySelector<HTMLElement>('#friends')!;
+  const rankChip = root.querySelector<HTMLElement>('#rank')!;
   const dashEl = root.querySelector<HTMLElement>('#dash')!;
   const fuelBar = root.querySelector<HTMLElement>('#fuelbar')!, fuelTxt = root.querySelector<HTMLElement>('#fueltxt')!;
   const boostBar = root.querySelector<HTMLElement>('#boostbar')!, kmhEl = root.querySelector<HTMLElement>('#kmh')!;
@@ -145,7 +143,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       setTimeout(() => t.remove(), 1600);
     },
     online(n) { online.textContent = `👥 ${n} exploring together`; },
-    nearest(name, dist) { hint.textContent = name ? `${name} · ${Math.round(dist)} m away` : 'Collect anything with a number'; },
+    nearest() { /* the old 'where to next' card is gone; kept for the event signature */ },
     prompt(text, driving) {
       promptEl.hidden = !text;
       promptEl.textContent = text ?? '';
@@ -198,6 +196,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       friendBtn.hidden = !text || !isFriend;
     },
     friends(n) { friendsChip.textContent = `🤝 ${n} friends`; },
+    rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
     minimap: root.querySelector<HTMLCanvasElement>('#minimap')!,
   };
 }

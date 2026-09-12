@@ -45,6 +45,9 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .card p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.4; }
 .meta { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 13px; color: var(--ink-2); }
 .meta b { color: var(--accent, var(--green)); filter: brightness(.7); }
+.enter-btn { display: inline-block; margin: 26px 0 0; background: var(--green); color: #fff; font-weight: 600; font-size: 17px; padding: 14px 26px; border-radius: 999px; box-shadow: var(--shadow); }
+.enter-btn:hover { transform: translateY(-2px); }
+.landing.enter .hero { padding-top: 90px; max-width: 760px; }
 .foot { margin-top: 48px; text-align: center; font-size: 12px; color: var(--ink-2); letter-spacing: .08em; }
 
 /* ---------- world ---------- */
@@ -85,6 +88,9 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .quest .qfoot span:nth-child(2) { color: #ffb7ee; margin-left: auto; }
 .quest button { margin-left: auto; font: inherit; font-size: 12px; font-weight: 600; background: var(--gold); color: var(--ink); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
 .tag.friend { background: rgba(231, 84, 128, .92); }
+.hud .top-center .row { display: flex; gap: 8px; }
+.chip.rank { background: rgba(232, 196, 106, .92); color: var(--ink); font-weight: 600; }
+.chip.rank.top { background: #fff; }
 .chip.friends { background: rgba(231, 84, 128, .8); }
 .pill.gift { background: #f2c31b; color: var(--ink); }
 .hud .top-left small { color: rgba(255,255,255,.75); }
@@ -177,16 +183,21 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   .card h3 { font-size: 21px; }
 
   .chip, .next { backdrop-filter: none; }
-  .hud .top-left { top: 12px; left: 14px; }
+  .hud .top-left { display: none; }
   .hud .quest { top: 100px; left: 12px; width: 190px; padding: 8px 10px; }
   .quest p { display: none; }
   .quest b { font-size: 13px; }
   .quest em { font-size: 16px; }
-  .hud .top-left small, .hud .top-left b { display: none; }
-  .hud .top-left .logo { font-size: 26px; }
-  .hud .top-center { top: 12px; gap: 6px; }
-  .chip.big { font-size: 15px; padding: 8px 16px; }
-  .chip.big b { font-size: 18px; }
+  .hud .top-center { top: 12px; left: 14px; transform: none; align-items: flex-start; gap: 5px; }
+  .hud .top-center .row .chip { font-size: 10px; padding: 4px 9px; }
+  .tag { font-size: 10px; padding: 2px 7px; }
+  .pill { font-size: 10px; padding: 2px 7px; }
+  .place { font-size: 10px; padding: 3px 9px; border-left-width: 3px; }
+  .shop { font-size: 9px; padding: 2px 6px; }
+  .sign.metro { font-size: 10px; padding: 3px 8px; }
+  .hud .bottom-left { display: none; }
+  .chip.big { font-size: 14px; padding: 7px 12px; }
+  .chip.big b { font-size: 16px; }
   .hud #online { font-size: 11px; padding: 5px 10px; }
   .hud .top-right { top: 12px; right: 14px; gap: 8px; }
   .round { width: 38px; height: 38px; font-size: 16px; }

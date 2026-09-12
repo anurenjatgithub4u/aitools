@@ -24,7 +24,8 @@ export interface Destination {
   solids?: [number, number, number][]; // x, z, radius circles kept clear of trees (collision itself comes from the meshes)
 }
 
-export const DESTINATIONS: Destination[] = [
+// Every world we have built. Only THE CITY is playable right now; the rest are kept for later.
+export const ALL_DESTINATIONS: Destination[] = [
   {
     id: 'kochi', name: 'Kochi', place: 'Fort Kochi · Kerala', country: 'India', emoji: '🎣',
     routes: [[[15, -42], [15, 86]], [[-56, 70], [74, 70]]],
@@ -46,12 +47,12 @@ export const DESTINATIONS: Destination[] = [
     ],
   },
   {
-    id: 'bengaluru', name: 'Bengaluru', place: 'Garden City · Karnataka', country: 'India', emoji: '🌳',
+    id: 'city', name: 'City', place: 'Wander City', country: 'one city · countless stories', emoji: '🏙️',
     routes: [[[15, -60], [15, 86]], [[-130, 80], [104, 80]], [[15, -20], [-40, -60], [-110, -85]], [[15, -60], [100, -120]], [[15, 86], [40, 132], [115, 115]]],
     pump: [29, 10, -Math.PI / 2],
     traffic: [{ kind: 'bus', route: 1, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 0, start: 0.6, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 3, start: 0.3, color: 0x6c3fb0, label: 'BMTC Vayu Vajra' }, { kind: 'bus', route: 4, start: 0.5, color: 0x2fa66a, label: 'BMTC' }, { kind: 'bus', route: 1, start: 0.15, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'police', route: 0, start: 0.2 }],
     spawn: [0, 42], solids: [[0, -25, 22], [-45, 10, 8], [50, 45, 15], [70, 60, 6], [-50, -60, 16], [60, -40, 12], [-20, 60, 24], [88, 12, 8], [96, 28, 8], [-75, 40, 26], [-38, -2, 12], [-110, 70, 22], [-105, 110, 18], [-125, -95, 20], [-70, 118, 12], [115, 128, 18], [40, 150, 22], [100, -130, 30], [100, -154, 46]],
-    tagline: 'Garden City, Silicon Valley of India',
+    tagline: 'One big low-poly city, built on the streets of Bengaluru',
     blurb: 'Start at Vidhana Soudha, cross Cubbon Park to Brigade Road and its old stores, ride the Namma Metro from Majestic to Indiranagar, climb Lalbagh rock, drive out to the Infosys campus and the airport, and see if you can get past Silk Board.',
     explorers: 1342,
     theme: { sky: 0xc9def0, ground: 0x74b064, fog: 0xdbe8f0, sun: 0xfff2d8, accent: '#7b3fa0' },
@@ -114,5 +115,8 @@ export const DESTINATIONS: Destination[] = [
     ],
   },
 ];
+
+export const DESTINATIONS: Destination[] = ALL_DESTINATIONS.filter((d) => d.id === 'city');
+export const CITY = DESTINATIONS[0];
 
 export const byId = (id: string) => DESTINATIONS.find((d) => d.id === id);

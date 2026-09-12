@@ -532,6 +532,64 @@ function bengaluru(g: THREE.Group, h: H) {
   plane.position.set(ax, ay + 0.3, az - 14); plane.rotation.y = Math.PI / 2; g.add(plane);
   g.add(at(label('Kempegowda International Airport', 'place', 150), ax, ay + 16, az + 10));
 
+  // ---- outer ring ----
+  // Whitefield: ITPL tech park, east
+  const wx = 200, wz = -20, wy = h(wx, wz);
+  for (const [dx, dz, hh] of [[-16, -10, 30], [0, -14, 38], [16, -8, 28], [-10, 10, 22], [12, 12, 26]]) {
+    g.add(at(mesh(new THREE.BoxGeometry(12, hh, 12), glass, { transparent: true, opacity: 0.55 }), wx + dx, wy + hh / 2, wz + dz));
+    for (let y = 4; y < hh; y += 4) g.add(at(box(12.2, 0.3, 12.2, 0xd8d8d8), wx + dx, wy + y, wz + dz));
+  }
+  g.add(at(box(40, 0.25, 40, 0x6d6d6d), wx, wy + 0.12, wz));
+  g.add(at(label('Whitefield · ITPL Tech Park', 'place', 140), wx, wy + 44, wz - 14));
+
+  // Jayanagar 4th Block: quiet grid of houses, south-west
+  const jx = -150, jz = 150, jy = h(jx, jz);
+  const tiles = [0xa8503a, 0x8a5a2b, 0x2f6fd1, 0x3fa66a];
+  for (let i = 0; i < 12; i++) {
+    const x = jx - 24 + (i % 4) * 16, z = jz - 12 + Math.floor(i / 4) * 16, y = h(x, z);
+    g.add(at(box(8, 5, 8, [0xf4e8d0, 0xe8dcc8, 0xf0d9c0][i % 3]), x, y + 2.5, z));
+    g.add(rot(at(cone(6.2, 3, tiles[i % 4], 4), x, y + 6.5, z), 'y', Math.PI / 4));
+    g.add(at(box(1.2, 2.2, 0.15, 0x3a2418), x, y + 1.1, z + 4.05));
+  }
+  g.add(at(box(40, 0.2, 3, 0x6d6d6d), jx - 4, jy + 0.12, jz - 4));
+  g.add(at(label('Jayanagar 4th Block', 'place', 130), jx, jy + 12, jz + 4));
+
+  // Hebbal Lake with the flyover curling past it, north
+  const hbx = 40, hbz = -195, hby = h(hbx, hbz);
+  g.add(at(cyl(24, 24, 0.3, 0x4a97c8, 32), hbx, hby + 0.2, hbz));
+  for (let i = 0; i < 12; i++) {
+    const a = -0.4 + i * 0.16, px = hbx + 40 + Math.cos(a) * 34, pz = hbz + Math.sin(a) * 34;
+    g.add(at(cyl(0.8, 1, 8, 0xb9b4a8, 8), px, h(px, pz) + 4, pz));
+  }
+  for (let i = 0; i < 11; i++) {
+    const a0 = -0.4 + i * 0.16, a1 = a0 + 0.16;
+    const p0 = V(hbx + 40 + Math.cos(a0) * 34, h(hbx, hbz) + 8, hbz + Math.sin(a0) * 34), p1 = V(hbx + 40 + Math.cos(a1) * 34, h(hbx, hbz) + 8, hbz + Math.sin(a1) * 34);
+    const seg = box(p0.distanceTo(p1) + 0.4, 0.8, 6, 0x6d6d6d);
+    seg.position.copy(p0).add(p1).multiplyScalar(0.5); seg.lookAt(p1); seg.rotateY(Math.PI / 2); g.add(seg);
+  }
+  g.add(at(label('Hebbal Lake · Flyover', 'place', 130), hbx, hby + 8, hbz));
+
+  // Bannerghatta National Park gate, far south, with a couple of elephants
+  const bgx = -100, bgz = 210, bgy = h(bgx, bgz);
+  for (const dx of [-6, 6]) g.add(at(box(2.5, 9, 2.5, 0x8a6a4a), bgx + dx, bgy + 4.5, bgz));
+  g.add(at(box(15, 2, 2.6, 0x6b4a2a), bgx, bgy + 9.5, bgz));
+  g.add(at(box(11, 1.2, 0.3, 0x2fa66a), bgx, bgy + 7.5, bgz + 1.3));
+  for (const [ex, ez, ry] of [[bgx - 16, bgz - 10, 0.6], [bgx + 18, bgz - 6, -1.2]]) {
+    const e = new THREE.Group();
+    e.add(at(box(4, 3, 6, 0x7d7d7d), 0, 3, 0));
+    e.add(at(box(3, 2.6, 2.6, 0x7d7d7d), 0, 3.6, 4));
+    e.add(rot(at(cyl(0.35, 0.5, 3.4, 0x7d7d7d, 8), 0, 2.2, 5.4), 'x', 0.5));                // trunk
+    for (const s of [-1, 1]) e.add(at(box(0.3, 2, 1.8, 0x8f8f8f), s * 1.7, 3.8, 4));           // ears
+    for (const lx of [-1.3, 1.3]) for (const lz of [-2, 2]) e.add(at(cyl(0.55, 0.6, 3, 0x7d7d7d, 8), lx, 1.5, lz));
+    e.position.set(ex, h(ex, ez), ez); e.rotation.y = ry; g.add(e);
+  }
+  g.add(at(label('Bannerghatta National Park', 'place', 130), bgx, bgy + 14, bgz));
+
+  road(g, h, 104, 80, 200, -20);       // Whitefield Road
+  road(g, h, -30, 125, -150, 150);     // to Jayanagar
+  road(g, h, 100, -120, 40, -185);     // Hebbal ring
+  road(g, h, -60, 110, -100, 205);     // Bannerghatta Road
+
   // extra roads: to Majestic, to the airport, to ISKCON, down to Electronic City and Koramangala
   road(g, h, -56, 80, -130, 80);
   road(g, h, 15, -60, 100, -120);
@@ -699,19 +757,22 @@ export function scatterDecor(dest: Destination, terrain: Terrain, avoid: Avoid[]
     let placed = 0, tries = 0;
     while (placed < d.count && tries++ < d.count * 12) {
       const a = r() * Math.PI * 2;
-      const rad = keepClear + r() * (185 - keepClear);
+      const rad = keepClear + r() * (235 - keepClear);
       const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
       if (!terrain.onLand(x, z)) continue;
       if (avoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
       if (dest.solids?.some((s) => Math.hypot(x - s[0], z - s[1]) < s[2] + 2)) continue;         // keep monuments clear
-      if (dest.id === 'bengaluru' && (Math.abs(z - 80) < 12 || (Math.abs(x - 15) < 5 && z > -62 && z < 88)
+      if ((dest.id === 'bengaluru' || dest.id === 'city') && (Math.abs(z - 80) < 12 || (Math.abs(x - 15) < 5 && z > -62 && z < 88)
         || Math.hypot(x - 88, z - 80) < 22 || Math.hypot(x + 75, z - 40) < 26
         || (Math.abs(z - 64) < 6 && x > -52 && x < 70) || (Math.abs(z - 96) < 6 && x > 52 && x < 104)      // shop strips
         || (Math.abs(z - 80) < 5 && x < -56) || Math.hypot(x + 110, z - 80) < 30 || Math.hypot(x + 105, z - 110) < 20
         || Math.hypot(x + 125, z + 95) < 24 || Math.hypot(x + 120, z + 30) < 24 || Math.hypot(x + 70, z - 118) < 16
         || Math.hypot(x + 30, z - 125) < 20 || Math.hypot(x - 115, z - 128) < 22 || Math.hypot(x - 40, z - 150) < 26
         || (x > 50 && z < -110) || Math.abs((z + 60) - (x - 15) * (-60 / 85)) < 6 && x > 15 && x < 100 && z < -55
-        || Math.hypot(x - 28, z - 110) < 8 || Math.hypot(x - 78, z - 123) < 8 || Math.hypot(x + 45, z - 98) < 8)) continue;  // new districts and roads
+        || Math.hypot(x - 28, z - 110) < 8 || Math.hypot(x - 78, z - 123) < 8 || Math.hypot(x + 45, z - 98) < 8
+        || Math.hypot(x - 200, z + 20) < 34 || Math.hypot(x + 150, z - 150) < 40 || Math.hypot(x - 40, z + 195) < 30 || Math.hypot(x + 100, z - 210) < 26
+        || Math.abs((z - 80) - (x - 104) * (-100 / 96)) < 6 && x > 104 || Math.abs((z - 125) - (x + 30) * (25 / -120)) < 6 && x < -30 && x > -150
+        || Math.abs((z + 120) - (x - 100) * (-65 / -60)) < 6 && x < 100 && x > 40 || Math.abs((z - 110) - (x + 60) * (95 / -40)) < 6 && x < -60 && x > -100)) continue;  // districts and roads
       if (dest.id === 'kochi' && (Math.abs(z - 95) < 12 || x < -95 || (x > 98 && Math.abs(z) < 62)
         || (Math.abs(x - 15) < 5 && z > -45 && z < 88) || (Math.abs(z - 70) < 5 && x > -60 && x < 100)
         || (Math.abs(x - 20) < 24 && z > 44 && z < 82) || (x > 70 && z > 65))) continue;                // metro, shore, roads, mall, bus hub
@@ -733,6 +794,7 @@ export function buildLandmark(dest: Destination, terrain: Terrain): THREE.Group 
     case 'eiffel-tower': eiffel(g); break;
     case 'pyramids-of-giza': pyramids(g); break;
     case 'kochi': kochi(g, h); break;
+    case 'city':
     case 'bengaluru': bengaluru(g, h); break;
   }
   return g;

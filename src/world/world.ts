@@ -24,6 +24,7 @@ export interface WorldEvents {
   onMuted(m: boolean): void;
   onQuest(q: QuestState | null): void;
   onFriends(n: number): void;
+  onRank(rank: number, of: number): void;
 }
 
 const BOT_NAMES = [
@@ -33,7 +34,7 @@ const BOT_NAMES = [
   'Meera (Kochi)', 'Aisha (Hyderabad)', 'Lakshmi (Bengaluru)', 'Emma (London)', 'Sana (Lahore)', 'Nila (Chennai)',
 ];
 const FEMALE = new Set(['Mia', 'Sofia', 'Zara', 'Ananya', 'Fatima', 'Hana', 'Priya', 'Yuki', 'Elena', 'Meera', 'Aisha', 'Lakshmi', 'Emma', 'Sana', 'Nila']);
-const TUKTUK_WORLDS = new Set(['kochi', 'bengaluru', 'taj-mahal', 'pyramids-of-giza']);
+const TUKTUK_WORLDS = new Set(['city', 'kochi', 'bengaluru', 'taj-mahal', 'pyramids-of-giza']);
 
 // Collision volume taken from a landmark mesh. Cones use a circle footprint, everything else its box.
 interface Blocker { box: THREE.Box3; radius?: number; cx: number; cz: number }
@@ -49,7 +50,7 @@ interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; t
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
 interface Pickup { mesh: THREE.Mesh; label: CSS2DObject; item: Collectible; active: boolean; respawnAt: number; baseY: number; phase: number }
 
-const WORLD_RADIUS = 190;
+const WORLD_RADIUS = 240;
 const VEHICLE_OFFSETS: [number, number][] = [[-7, 3], [7, 8], [-12, -6], [13, -2], [-4, -10], [4, -11]];
 const GRAVITY = 24;
 const WALK_SPEED = 9.5;
@@ -76,6 +77,11 @@ export class World {
   private occluders: THREE.Object3D[] = [];
   private decor!: THREE.Group;
   private mobile = false;
+  private sun!: THREE.DirectionalLight;
+  private online = 0;
+  private ev: WorldEvents;
+  private lastRank = -1;
+  private get labelRange() { return this.mobile ? 28 : 70; }
   private blockers: Blocker[] = [];
   private worldLabels: CSS2DObject[] = [];
   private train: { group: THREE.Group; stops: number[]; z: number; color: number; idx: number; dir: number; pause: number } | null = null;
@@ -105,11 +111,13 @@ export class World {
   constructor(
     private container: HTMLElement,
     private dest: Destination,
-    private ev: WorldEvents,
+    ev: WorldEvents,
     playerName: string,
     startPoints: number,
   ) {
     this.points = startPoints;
+    const inner = ev.onPoints.bind(ev);
+    this.ev = { ...ev, onPoints: (n) => { inner(n); this.pushRank(); } };
     this.terrain = makeTerrain(dest.terrain);
 
     const w = container.clientWidth, h = container.clientHeight;
@@ -153,7 +161,7 @@ export class World {
   private buildEnvironment() {
     const { theme } = this.dest;
     this.scene.background = new THREE.Color(theme.sky);
-    this.scene.fog = new THREE.Fog(theme.fog, 70, 260);
+    this.scene.fog = new THREE.Fog(theme.fog, 80, 320);
 
     this.scene.add(new THREE.HemisphereLight(theme.sky, theme.ground, 0.85));
     const sun = new THREE.DirectionalLight(theme.sun, 1.7);
@@ -161,12 +169,13 @@ export class World {
     sun.castShadow = true;
     sun.shadow.mapSize.set(this.mobile ? 1024 : 2048, this.mobile ? 1024 : 2048);
     const sc = sun.shadow.camera;
-    sc.left = sc.bottom = -140; sc.right = sc.top = 140; sc.far = 400;
+    sc.left = sc.bottom = -90; sc.right = sc.top = 90; sc.far = 400;   // a tighter box that follows the player: sharper and cheaper
     sun.shadow.bias = -0.0005;
-    this.scene.add(sun);
+    this.scene.add(sun, sun.target);
+    this.sun = sun;
 
     // ground
-    const size = 440, segs = 110;
+    const size = 540, segs = 130;
     const geo = new THREE.PlaneGeometry(size, size, segs, segs);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position as THREE.BufferAttribute;
@@ -744,6 +753,7 @@ export class World {
   // ---------- loop ----------
   start() {
     this.clock.start();
+    this.pushRank();
     const tick = () => { this.raf = requestAnimationFrame(tick); this.update(); };
     tick();
   }
@@ -813,7 +823,7 @@ export class World {
       focus = vp.clone().add(new THREE.Vector3(0, 2.2, 0));
       focusRadius = 3;
       const speedKmh = Math.round(Math.abs(v.speed) * 3.6);
-      this.prompt(empty ? `Out of petrol! Find the \u26FD pump · E to get out` : `${s.label} · W/S drive · A/D steer · Shift boost · H horn · E out`, true);
+      this.prompt(empty ? `Out of petrol! Find the \u26FD pump` : this.mobile ? null : `${s.label} · W/S drive · A/D steer · Shift boost · H horn · E out`, true);
 
       // refuelling at the pump: stop within 9 m and press R (or the button)
       const atPump = s.fuel && !!this.pumpPos && Math.abs(v.speed) < 1.5 && Math.hypot(vp.x - this.pumpPos.x, vp.z - this.pumpPos.z) < 9;
@@ -836,7 +846,7 @@ export class World {
         if (walker) this.boardBot(v, walker);
         else if (aboard.length) this.dropPassengers(v);
       }
-      this.liftPrompt(walker ? `Press F to give ${walker.name} a lift` : aboard.length ? `${aboard.map((b) => b.name).join(', ')} aboard · F to drop off (+30 each)` : null);
+      this.liftPrompt(walker ? (this.mobile ? `Give ${walker.name} a lift?` : `Press F to give ${walker.name} a lift`) : aboard.length ? `${aboard.map((b) => b.name).join(', ')} aboard${this.mobile ? '' : ' · F to drop off (+30 each)'}` : null);
     } else {
       // --- walking
       const p = this.player.group.position;
@@ -877,11 +887,11 @@ export class World {
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
-      this.prompt(near ? `Press E to drive the ${near.spec.label}` : null, false);
+      this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
       const who = this.nearestStranger(p);
       if (this.wantFriend && who) this.askFriend(who, t);
-      this.liftPrompt(who ? `Press G to send ${who.name} a friend request` : null);
+      this.liftPrompt(who ? (this.mobile ? `Add ${who.name} as a friend?` : `Press G to send ${who.name} a friend request`) : null);
     }
     this.wantLift = false;
     this.wantRefuel = false;
@@ -901,6 +911,8 @@ export class World {
     if (this.firstFrame) { this.camera.position.copy(cam); this.firstFrame = false; }
     else this.camera.position.lerp(cam, 1 - Math.pow(0.001, dt));
     this.camera.lookAt(focus);
+    this.sun.position.set(focus.x + 70, focus.y + 110, focus.z + 50);
+    this.sun.target.position.copy(focus);
 
     // --- bots wander
     for (const b of this.bots) {
@@ -913,7 +925,7 @@ export class World {
         b.av.armR.rotation.x = -2.6 + Math.sin(t * 8) * 0.3;   // wave
         if (t >= b.reply.at) this.answerFriend(b);
       }
-      if (b.knocked) { this.updateKnocked(b, dt); b.label.visible = bp.distanceToSquared(focus) < 70 * 70; continue; }
+      if (b.knocked) { this.updateKnocked(b, dt); b.label.visible = bp.distanceToSquared(focus) < this.labelRange * this.labelRange; continue; }
       if (b.wait > 0) { b.wait -= dt; b.walking = Math.max(0, b.walking - dt * 3); }
       else {
         const dx = b.target.x - bp.x, dz = b.target.z - bp.z;
@@ -928,7 +940,7 @@ export class World {
       }
       bp.y = this.groundAt(bp.x, bp.z, bp.y);
       animateWalk(b.av, t * (b.speed / 3), b.walking * 0.8);
-      b.label.visible = bp.distanceToSquared(focus) < 70 * 70;
+      b.label.visible = bp.distanceToSquared(focus) < this.labelRange * this.labelRange;
     }
 
     // --- pickups
@@ -941,7 +953,7 @@ export class World {
       pk.mesh.position.y = pk.baseY + Math.sin(t * 2 + pk.phase) * 0.2;
       pk.mesh.rotation.y += dt * 1.5;
       const d = Math.hypot(pk.mesh.position.x - focus.x, pk.mesh.position.z - focus.z);
-      pk.label.visible = d < 45;
+      pk.label.visible = d < this.labelRange * 0.6;
       if (d < nd) { nd = d; nearest = pk; }
       if (d < focusRadius && this.airY < 1.2) {
         pk.active = false; pk.mesh.visible = false; pk.respawnAt = t + 12;
@@ -1003,7 +1015,8 @@ export class World {
 
     // --- world labels + metro train
     const wp = new THREE.Vector3();
-    for (const l of this.worldLabels) l.visible = l.getWorldPosition(wp).distanceToSquared(focus) < (l.userData.range as number) ** 2;
+    const lr = this.mobile ? 0.5 : 1;
+    for (const l of this.worldLabels) l.visible = l.getWorldPosition(wp).distanceToSquared(focus) < ((l.userData.range as number) * lr) ** 2;
     if (this.train) {
       const tr = this.train;
       if (tr.pause > 0) tr.pause -= dt;
@@ -1025,7 +1038,9 @@ export class World {
     for (const c of this.clouds) { c.position.x += dt * 1.2; if (c.position.x > 240) c.position.x = -240; }
     if (t - this.lastOnline > 6) {
       this.lastOnline = t;
-      this.ev.onOnline(this.dest.explorers + Math.round(Math.random() * 40 - 20));
+      this.online = this.dest.explorers + Math.round(Math.random() * 40 - 20);
+      this.ev.onOnline(this.online);
+      this.pushRank();
     }
 
     this.updateQuest(focus, focusRadius, dt, t);
@@ -1041,7 +1056,7 @@ export class World {
   }
 
   // ---------- minimap ----------
-  private static MAP_SPAN = 400; // world units across the map
+  private static MAP_SPAN = 500; // world units across the map
 
   private drawMinimapBase(size: number) {
     const c = document.createElement('canvas');
@@ -1355,6 +1370,15 @@ export class World {
     else if (q.kind === 'taxi' && q.rider) { progress = q.rider.riding ? 'Passenger aboard' : `Pick up ${q.rider.name}`; hint = q.rider.riding ? `${q.stops[0].name} · ${dist(q.stops[0].pos)}` : `${q.rider.name} · ${dist(q.rider.av.group.position)}`; }
     else progress = `${q.got} / ${q.need} ${q.item}`;
     this.ev.onQuest({ status: q.status, title: q.title, desc: q.desc, progress, remaining: Math.max(0, left), total: q.seconds, reward: q.reward, hint });
+  }
+
+  /** Where you stand among everyone in the city right now (a smooth curve over points). */
+  private pushRank() {
+    const online = this.online || this.dest.explorers;
+    const rank = 1 + Math.floor((online - 1) * Math.exp(-this.points / 2500));
+    if (rank === this.lastRank) return;
+    this.lastRank = rank;
+    this.ev.onRank(rank, online);
   }
 
   private prompt(text: string | null, driving: boolean) {

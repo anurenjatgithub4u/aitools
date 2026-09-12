@@ -1,15 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DESTINATIONS } from "@/world/destinations";
 import { store } from "@/world/store";
 
 // Points / visited counter in the landing header. Reads localStorage after mount
 // so the statically exported HTML never disagrees with the client.
 export function Progress() {
-  const [text, setText] = useState("0 points · 0 / " + DESTINATIONS.length + " worlds");
+  const [text, setText] = useState("0 points");
   useEffect(() => {
-    setText(`${store.points()} points · ${store.visited().size} / ${DESTINATIONS.length} worlds · ${store.friends().length} friends`);
+    setText(`${store.points()} points · ${store.friends().length} friends`);
   }, []);
   return (
     <div className="score">

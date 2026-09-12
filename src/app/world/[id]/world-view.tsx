@@ -51,6 +51,7 @@ export function WorldView({ id }: { id: string }) {
           onMuted: (m) => hud.muted(m),
           onQuest: (q) => hud.quest(q),
           onFriends: (n) => hud.friends(n),
+          onRank: (r, of) => hud.rank(r, of),
         },
         store.name(),
         store.points(),

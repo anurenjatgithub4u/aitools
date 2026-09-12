@@ -66,10 +66,13 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
           <button data-a="hangout">🏖️<small>Hangout</small></button>
           <button data-a="chat">💬<small>Chat</small></button>
         </div>
-        <div class="mrow" id="meetgames" hidden>
+        <div class="mrow games" id="meetgames" hidden>
           <button data-a="race">🏁<small>Race</small></button>
           <button data-a="hunt">💰<small>Prize hunt</small></button>
           <button data-a="pool">🎱<small>8-ball</small></button>
+          <button data-a="carrom">🎯<small>Carrom</small></button>
+          <button data-a="chess">♟️<small>Chess</small></button>
+          <button data-a="ludo">🎲<small>Ludo</small></button>
           <button data-a="back">←<small>Back</small></button>
         </div>
       </div>
@@ -94,6 +97,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <button class="act" id="run">🏃<small>Run</small></button>
     </div>
     <div class="chatbox" id="chat" hidden>
+      <div class="chead"><b>💬 Chat</b><small>people nearby can hear you</small><button type="button" id="cclose" title="Close">✕</button></div>
       <div class="clog" id="clog"></div>
       <form id="cform"><input id="cinput" maxlength="120" placeholder="Say something to people nearby…" autocomplete="off"><button type="submit">Send</button></form>
     </div>
@@ -101,7 +105,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     <div id="toasts"></div>
     <div class="help" id="helpbox" hidden>
       <h3>How to play</h3>
-      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, prize hunt or 8-ball pool — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
+      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
       <p>${d.blurb}</p>
       <button id="closehelp">Got it</button>
     </div>
@@ -155,6 +159,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const cinput = root.querySelector<HTMLInputElement>('#cinput')!, bubble = root.querySelector<HTMLElement>('#bubble')!;
   let bubbleTimer = 0;
   root.querySelector('#chatbtn')!.addEventListener('click', () => { chatEl.hidden = !chatEl.hidden; if (!chatEl.hidden) cinput.focus(); });
+  root.querySelector('#cclose')!.addEventListener('click', () => { chatEl.hidden = true; cinput.blur(); });
   root.querySelector<HTMLFormElement>('#cform')!.addEventListener('submit', (e) => { e.preventDefault(); const v = cinput.value; cinput.value = ''; if (v.trim()) actions.say(v); });
   cinput.addEventListener('keydown', (e) => { if (e.key === 'Escape') { chatEl.hidden = true; cinput.blur(); } e.stopPropagation(); });
   addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 'c' && (e.target as HTMLElement).tagName !== 'INPUT') { chatEl.hidden = !chatEl.hidden; if (!chatEl.hidden) cinput.focus(); } });

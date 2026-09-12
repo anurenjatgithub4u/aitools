@@ -2,6 +2,8 @@
 // Simplified rules: first pot decides your group (solids 1–7 / stripes 9–15); pot the 8 after
 // your group to win, pot it early (or with the cue) and you lose; scratch = ball in hand.
 
+import { openArena, type ArenaOpts } from './arena';
+
 interface Ball { n: number; x: number; y: number; vx: number; vy: number; in: boolean }
 
 const W = 900, H = 500, RAIL = 34, R = 11, POCKET = 22;
@@ -12,17 +14,11 @@ const COLORS: Record<number, string> = {
 const POCKETS: [number, number][] = [[RAIL, RAIL], [W / 2, RAIL - 6], [W - RAIL, RAIL], [RAIL, H - RAIL], [W / 2, H - RAIL + 6], [W - RAIL, H - RAIL]];
 
 export function openPool(host: HTMLElement, opponent: string, you: string, onDone: (win: boolean) => void) {
-  const root = document.createElement('div');
-  root.className = 'pool';
-  root.innerHTML = `
-    <div class="ptop"><b>🎱 8-ball</b><span id="pturn"></span><span id="pgroups"></span><button id="pquit">✕ Quit</button></div>
-    <canvas id="pc" width="${W}" height="${H}"></canvas>
-    <div class="phint" id="phint">Drag from the cue ball to aim · release to shoot</div>
-    <div class="pend" id="pend" hidden><h3 id="ptitle"></h3><p id="psub"></p><button id="pclose">Back to the city</button></div>`;
-  host.appendChild(root);
-  const cv = root.querySelector<HTMLCanvasElement>('#pc')!, ctx = cv.getContext('2d')!;
-  const turnEl = root.querySelector('#pturn')!, groupsEl = root.querySelector('#pgroups')!, hintEl = root.querySelector('#phint')!;
-  const endEl = root.querySelector<HTMLElement>('#pend')!;
+  const opts: ArenaOpts = { host, icon: '🎱', title: '8-ball pool', you, opponent, hint: 'Drag from the cue ball to aim · longer drag = harder shot', onDone, onRematch: () => openPool(host, opponent, you, onDone) };
+  const A = openArena(opts);
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H; cv.className = 'pooltable';
+  A.board.appendChild(cv);
+  const ctx = cv.getContext('2d')!;
 
   // ---- state
   const balls: Ball[] = [];
@@ -45,9 +41,9 @@ export function openPool(host: HTMLElement, opponent: string, you: string, onDon
   const groupName = (who: 'you' | 'bot') => (groups.you === null ? 'open table' : (who === 'you') === (groups.you === 'solid') ? 'solids' : 'stripes');
 
   const status = () => {
-    turnEl.textContent = over ? '' : turn === 'you' ? `Your shot${ballInHand ? ' · ball in hand: click to place' : ''}` : `${opponent} is thinking…`;
-    groupsEl.textContent = groups.you ? `You: ${groupName('you')} (${remaining('you')} left) · ${opponent}: ${groupName('bot')} (${remaining('bot')} left)` : 'Open table — first pot picks your group';
-    hintEl.textContent = turn === 'you' ? (ballInHand ? 'Tap anywhere on the table to place the cue ball' : 'Drag from the cue ball to aim · longer drag = harder shot') : '';
+    A.setTurn(turn);
+    A.setScore(groups.you ? `${groupName('you')} · ${remaining('you')} left` : 'open table', groups.you ? `${groupName('bot')} · ${remaining('bot')} left` : 'open table');
+    if (!over) A.setStatus(turn === 'you' ? (ballInHand ? 'Ball in hand — tap the table to place the cue ball' : 'Your shot: drag from the cue ball to aim, longer drag = harder') : `${opponent} is thinking…`);
   };
 
   // ---- physics
@@ -115,11 +111,8 @@ export function openPool(host: HTMLElement, opponent: string, you: string, onDon
 
   function finish(win: boolean, why: string) {
     over = true;
-    endEl.hidden = false;
-    endEl.querySelector('#ptitle')!.textContent = win ? '🏆 You win!' : `${opponent} wins`;
-    endEl.querySelector('#psub')!.textContent = why + (win ? ' · +250 points' : '');
     status();
-    onDone(win);
+    A.finish(win, why, 250);
   }
 
   // ---- bot: aim the easiest ball of its group at the nearest pocket, with a little wobble
@@ -205,14 +198,12 @@ export function openPool(host: HTMLElement, opponent: string, you: string, onDon
 
   let raf = 0;
   const loop = () => {
+    if (!cv.isConnected) { cancelAnimationFrame(raf); return; }
     raf = requestAnimationFrame(loop);
+    if (A.over && !over) over = true;   // quit from the shell
     if (moving && !step()) endShot();
     draw();
   };
   loop();
   status();
-
-  const close = () => { cancelAnimationFrame(raf); root.remove(); };
-  root.querySelector('#pquit')!.addEventListener('click', () => { if (!over) { over = true; onDone(false); } close(); });
-  root.querySelector('#pclose')!.addEventListener('click', close);
 }

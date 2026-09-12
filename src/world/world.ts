@@ -28,9 +28,10 @@ export interface WorldEvents {
   onRank(rank: number, of: number): void;
   onMeet(m: { name: string; friend: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
-  onPool(opponent: string): void;
+  onGame(kind: GameKind, opponent: string): void;
 }
-export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'pool';
+export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom';
+export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | GameKind;
 
 const BOT_NAMES = [
   'Aarav (Kochi)', 'Mia (Berlin)', 'Kenji (Osaka)', 'Sofia (Lisbon)', 'Liam (Toronto)', 'Zara (Dubai)',
@@ -1213,7 +1214,10 @@ export class World {
       case 'chat': this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
       case 'race': this.startVersus('race', b); break;
       case 'hunt': this.startVersus('hunt', b); break;
-      case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onPool(b.name); break;
+      case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
+      case 'chess': this.botSays(b, 'White moves first — your go ♟️', 0.2); this.ev.onGame('chess', b.name); break;
+      case 'ludo': this.botSays(b, 'Roll a six! 🎲', 0.2); this.ev.onGame('ludo', b.name); break;
+      case 'carrom': this.botSays(b, 'Flick it! 🎯', 0.2); this.ev.onGame('carrom', b.name); break;
     }
   }
 
@@ -1248,16 +1252,19 @@ export class World {
     near.forEach((b, i) => this.botSays(b, chatReply(text, { friend: b.friend, name: b.name, you: this.playerName }), 1 + i * 1.2 + Math.random()));
   }
 
-  /** Result of the 8-ball table. */
-  poolResult(win: boolean, opponent: string) {
+  /** Result of a board / table game. */
+  gameResult(kind: GameKind, win: boolean | null, opponent: string) {
     const b = this.bots.find((x) => x.name === opponent);
+    const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom' }[kind];
+    const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200 }[kind];
+    if (win === null) { this.ev.onCollect({ name: `Draw at ${name} vs ${opponent}`, points: 0, color: 0x999999, shape: 'box' }); return; }
     if (win) {
-      this.points += 250; this.ev.onPoints(this.points);
-      this.ev.onCollect({ name: `Won 8-ball vs ${opponent}!`, points: 250, color: 0x2fa66a, shape: 'gem' });
+      this.points += prize; this.ev.onPoints(this.points);
+      this.ev.onCollect({ name: `Won ${name} vs ${opponent}!`, points: prize, color: 0x2fa66a, shape: 'gem' });
       this.sfx.questDone();
       if (b) this.botSays(b, RACE_GG[Math.floor(Math.random() * RACE_GG.length)], 0.5);
     } else {
-      this.ev.onCollect({ name: `Lost 8-ball vs ${opponent}`, points: 0, color: 0xd94a3d, shape: 'box' });
+      this.ev.onCollect({ name: `Lost ${name} vs ${opponent}`, points: 0, color: 0xd94a3d, shape: 'box' });
       this.sfx.questFail();
       if (b) this.botSays(b, 'Told you I never lose 😎', 0.5);
     }

@@ -56,7 +56,14 @@ export function WorldView({ id }: { id: string }) {
           onRank: (r, of) => hud.rank(r, of),
           onMeet: (m) => hud.meet(m),
           onChat: (from, text, mine) => hud.chat(from, text, mine),
-          onPool: (opponent) => { import("@/world/pool").then(({ openPool }) => openPool(hudEl, opponent, store.name(), (win) => world?.poolResult(win, opponent))); },
+          onGame: (kind, opponent) => {
+            const done = (win: boolean | null) => world?.gameResult(kind, win, opponent);
+            const me = store.name();
+            if (kind === 'pool') import("@/world/pool").then(({ openPool }) => openPool(hudEl, opponent, me, done));
+            else if (kind === 'chess') import("@/world/chess").then(({ openChess }) => openChess(hudEl, opponent, me, done));
+            else if (kind === 'ludo') import("@/world/ludo").then(({ openLudo }) => openLudo(hudEl, opponent, me, done));
+            else import("@/world/carrom").then(({ openCarrom }) => openCarrom(hudEl, opponent, me, done));
+          },
         },
         store.name(),
         store.points(),

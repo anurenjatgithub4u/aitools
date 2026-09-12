@@ -6,12 +6,12 @@ const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-int
 const playfair = Playfair_Display({ subsets: ["latin"], display: "swap", weight: ["500", "600"], variable: "--font-playfair" });
 
 export const metadata: Metadata = {
-  title: { default: "Wander · walk the world's wonders", template: "%s · Wander" },
+  title: { default: "FindurAI · one city, countless stories", template: "%s · FindurAI" },
   description:
     "Tiny low-poly worlds of real places — Kochi, Bengaluru, the Taj Mahal, Paris and Giza. Pick one, step inside, wander with other explorers, drive a tuk-tuk and collect local treats.",
-  applicationName: "Wander",
+  applicationName: "FindurAI",
   icons: { icon: "/favicon.svg" },
-  openGraph: { type: "website", siteName: "Wander", title: "Wander · walk the world's wonders" },
+  openGraph: { type: "website", siteName: "FindurAI", title: "FindurAI · one city, countless stories" },
 };
 
 export const viewport: Viewport = {

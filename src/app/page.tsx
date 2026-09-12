@@ -10,7 +10,7 @@ export default function Home() {
         <div className="brand">
           <span className="logo">🏙️</span>
           <div>
-            <b>WANDER</b>
+            <b>FINDURAI</b>
             <small>ONE CITY · COUNTLESS STORIES</small>
           </div>
         </div>

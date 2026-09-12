@@ -8,6 +8,7 @@ import { buildLandmark, scatterDecor, makePickup } from './landmarks';
 import { makeVehicle, VEHICLE_COLORS, FUEL_RANGE, BOOST_MULT, type Vehicle, type VehicleKind } from './vehicles';
 import { makePetrolStation } from './landmarks';
 import { Sfx } from './audio';
+import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG } from './chat';
 import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
@@ -25,7 +26,11 @@ export interface WorldEvents {
   onQuest(q: QuestState | null): void;
   onFriends(n: number): void;
   onRank(rank: number, of: number): void;
+  onMeet(m: { name: string; friend: boolean } | null): void;
+  onChat(from: string, text: string, mine: boolean): void;
+  onPool(opponent: string): void;
 }
+export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'pool';
 
 const BOT_NAMES = [
   'Aarav (Kochi)', 'Mia (Berlin)', 'Kenji (Osaka)', 'Sofia (Lisbon)', 'Liam (Toronto)', 'Zara (Dubai)',
@@ -45,7 +50,7 @@ const LOW_PLATFORM = 2.6; // boxes this thin are walkable surfaces, taller ones 
 interface Critter { a: Animal; target: THREE.Vector3; wait: number; walking: number; phase: number }
 interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 
-interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null }
+interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number }
 // A pedestrian that has been hit: flies with `vel`, then lies on the ground for a moment before getting up.
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
 interface Pickup { mesh: THREE.Mesh; label: CSS2DObject; item: Collectible; active: boolean; respawnAt: number; baseY: number; phase: number }
@@ -81,6 +86,11 @@ export class World {
   private online = 0;
   private ev: WorldEvents;
   private lastRank = -1;
+  private meet: Bot | null = null;
+  private lastMeet = '';
+  private hangout: { bot: Bot; until: number; nextLine: number } | null = null;
+  private pending: { at: number; bot: Bot; text: string }[] = [];
+  private playerName = 'Explorer';
   private get labelRange() { return this.mobile ? 28 : 70; }
   private blockers: Blocker[] = [];
   private worldLabels: CSS2DObject[] = [];
@@ -116,6 +126,7 @@ export class World {
     startPoints: number,
   ) {
     this.points = startPoints;
+    this.playerName = playerName;
     const inner = ev.onPoints.bind(ev);
     this.ev = { ...ev, onPoints: (n) => { inner(n); this.pushRank(); } };
     this.terrain = makeTerrain(dest.terrain);
@@ -373,7 +384,7 @@ export class World {
       if (friend) el.classList.add('friend');
       const label = new CSS2DObject(el); label.position.y = 2.7; label.userData.orig = text; av.group.add(label);
       this.scene.add(av.group);
-      this.bots.push({ av, label, name: short, female, target: this.randomLandPoint(10, 110), speed: rand(1.8, 3.4), wait: 0, walking: 0, riding: null, knocked: null, friend, asked: -99, reply: null });
+      this.bots.push({ av, label, name: short, female, target: this.randomLandPoint(10, 110), speed: rand(1.8, 3.4), wait: 0, walking: 0, riding: null, knocked: null, friend, asked: -99, reply: null, greeted: -99, bubbleUntil: 0 });
     });
   }
 
@@ -454,6 +465,7 @@ export class World {
   private bindInput() {
     const el = this.renderer.domElement;
     const down = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement | null)?.tagName === 'INPUT') return;
       this.sfx.unlock();
       const k = e.key.toLowerCase();
       if (k === 'h' && !e.repeat && this.driving) this.sfx.horn();
@@ -466,7 +478,7 @@ export class World {
       if (k === 'f' && !e.repeat) this.wantLift = true;
       this.keys.add(k);
     };
-    const up = (e: KeyboardEvent) => this.keys.delete(e.key.toLowerCase());
+    const up = (e: KeyboardEvent) => { if ((e.target as HTMLElement | null)?.tagName === 'INPUT') { this.keys.clear(); return; } this.keys.delete(e.key.toLowerCase()); };
     addEventListener('keydown', down); addEventListener('keyup', up);
     this.cleanup.push(() => { removeEventListener('keydown', down); removeEventListener('keyup', up); });
 
@@ -546,6 +558,7 @@ export class World {
     stops: { name: string; pos: THREE.Vector3 }[]; stopIdx: number; beacon: THREE.Group | null;
     rider: Bot | null; arrow: THREE.Mesh | null; item: string | null; need: number;
     status: 'active' | 'done' | 'failed'; finishedAt: number; lastTick: number;
+    opp: Bot | null; oppVehicle: Vehicle | null; oppIdx: number; oppGot: number; oppNext: number;
   } | null = null;
   private questCooldown = 4;   // seconds until a task is offered automatically
   private questSeq = 0;
@@ -846,6 +859,7 @@ export class World {
         if (walker) this.boardBot(v, walker);
         else if (aboard.length) this.dropPassengers(v);
       }
+      if (this.lastMeet) { this.lastMeet = ''; this.meet = null; this.ev.onMeet(null); }
       this.liftPrompt(walker ? (this.mobile ? `Give ${walker.name} a lift?` : `Press F to give ${walker.name} a lift`) : aboard.length ? `${aboard.map((b) => b.name).join(', ')} aboard${this.mobile ? '' : ' · F to drop off (+30 each)'}` : null);
     } else {
       // --- walking
@@ -889,9 +903,16 @@ export class World {
       const near = this.nearestVehicle();
       this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
-      const who = this.nearestStranger(p);
-      if (this.wantFriend && who) this.askFriend(who, t);
-      this.liftPrompt(who ? (this.mobile ? `Add ${who.name} as a friend?` : `Press G to send ${who.name} a friend request`) : null);
+      this.meet = this.nearestPerson(p);
+      if (this.wantFriend && this.meet && !this.meet.friend) this.askFriend(this.meet, t);
+      const key = this.meet ? `${this.meet.name}|${this.meet.friend}` : '';
+      if (key !== this.lastMeet) {
+        this.lastMeet = key;
+        this.ev.onMeet(this.meet ? { name: this.meet.name, friend: this.meet.friend } : null);
+        // they notice you sometimes
+        if (this.meet && t - this.meet.greeted > 45 && Math.random() < 0.5) { this.meet.greeted = t; this.botSays(this.meet, HELLO_WHEN_NEAR[Math.floor(Math.random() * HELLO_WHEN_NEAR.length)], 0.6); }
+      }
+      this.liftPrompt(null);
     }
     this.wantLift = false;
     this.wantRefuel = false;
@@ -918,6 +939,15 @@ export class World {
     for (const b of this.bots) {
       if (b.riding) { b.label.visible = true; continue; }
       const bp = b.av.group.position;
+      if (b.bubbleUntil && t > b.bubbleUntil) { b.bubbleUntil = 0; b.label.element.textContent = b.label.userData.orig as string; b.label.element.classList.remove('talk'); }
+      if (this.hangout?.bot === b && !b.knocked) {
+        // tag along a couple of metres behind the player
+        const pp = this.player.group.position;
+        const d = Math.hypot(pp.x - bp.x, pp.z - bp.z);
+        b.target.set(pp.x, pp.y, pp.z); b.wait = 0;
+        if (d < 2.5) { b.walking = Math.max(0, b.walking - dt * 3); animateWalk(b.av, t, b.walking * 0.8); b.label.visible = true; continue; }
+        b.speed = this.runMode || this.keys.has('shift') ? 6.5 : 4;
+      }
       if (b.reply) {
         // turn to face the player, then answer
         const pp = this.player.group.position;
@@ -1011,6 +1041,14 @@ export class World {
       this.settle(r.t.group, r.t.group.rotation.y, r.t.length, 2.6);
       for (const w of r.t.wheels) w.rotation.x += step / 0.5;
       if (r.t.light) { const on = Math.floor(t * 4) % 2 === 0; (r.t.light[0].material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 1.5 : 0.1; (r.t.light[1].material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 0.1 : 1.5; }
+    }
+
+    // --- chat replies that are due, hangout timer
+    for (let i = this.pending.length - 1; i >= 0; i--) if (t >= this.pending[i].at) { const m = this.pending.splice(i, 1)[0]; this.botSays(m.bot, m.text, 0); }
+    if (this.hangout) {
+      const hg = this.hangout;
+      if (t > hg.until || hg.bot.knocked || hg.bot.riding) { this.endHangout(); }
+      else if (t > hg.nextLine) { hg.nextLine = t + 9 + Math.random() * 8; this.botSays(hg.bot, HANGOUT_LINES[Math.floor(Math.random() * HANGOUT_LINES.length)], 0); }
     }
 
     // --- world labels + metro train
@@ -1146,6 +1184,85 @@ export class World {
   }
 
   // ---------- friends ----------
+  /** Anyone within reach — friend or not — you can talk to, play with, or hang out with. */
+  private nearestPerson(p: THREE.Vector3): Bot | null {
+    let best: Bot | null = null, bd = 4;
+    for (const b of this.bots) {
+      if (b.riding || b.knocked || b.reply) continue;
+      const d = b.av.group.position.distanceTo(p);
+      if (d < bd) { bd = d; best = b; }
+    }
+    return best;
+  }
+
+  /** Buttons on the meet card. */
+  interact(action: MeetAction) {
+    const b = this.meet;
+    if (!b) return;
+    const t = this.elapsed;
+    switch (action) {
+      case 'friend': if (!b.friend && t - b.asked > 20) this.askFriend(b, t); break;
+      case 'hangout':
+        if (this.hangout) this.endHangout();
+        this.hangout = { bot: b, until: t + 90, nextLine: t + 3 };
+        b.wait = 0;
+        this.ev.onCollect({ name: `${b.name} is hanging out with you for a bit`, points: 0, color: 0x3fb7d9, shape: 'gem' });
+        this.botSays(b, 'Sure, let us walk! 🚶', 0.4);
+        this.sfx.checkpoint();
+        break;
+      case 'chat': this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
+      case 'race': this.startVersus('race', b); break;
+      case 'hunt': this.startVersus('hunt', b); break;
+      case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onPool(b.name); break;
+    }
+  }
+
+  private endHangout() {
+    const hg = this.hangout;
+    if (!hg) return;
+    this.hangout = null;
+    hg.bot.speed = rand(1.8, 3.4); hg.bot.wait = 1; hg.bot.target = this.randomLandPoint(8, 120);
+    this.points += 15; this.ev.onPoints(this.points);
+    this.ev.onCollect({ name: `Hangout with ${hg.bot.name} · fun!`, points: 15, color: 0x3fb7d9, shape: 'gem' });
+    this.botSays(hg.bot, 'That was fun, see you! 👋', 0);
+  }
+
+  /** A line from an explorer: shows in the chat log and as a bubble on their name tag. */
+  private botSays(b: Bot, text: string, delay: number) {
+    if (delay > 0) { this.pending.push({ at: this.elapsed + delay, bot: b, text }); return; }
+    this.ev.onChat(b.name, text, false);
+    b.bubbleUntil = this.elapsed + 4.5;
+    b.label.element.textContent = `${b.name}: ${text}`;
+    b.label.element.classList.add('talk');
+    b.label.visible = true;
+  }
+
+  /** The player typed something: nearby explorers answer. */
+  say(text: string) {
+    text = text.trim().slice(0, 120);
+    if (!text) return;
+    this.ev.onChat(this.playerName, text, true);
+    const p = this.driving ? this.driving.group.position : this.player.group.position;
+    const near = this.bots.filter((b) => !b.knocked && b.av.group.position.distanceTo(p) < 22).sort((a, b) => a.av.group.position.distanceTo(p) - b.av.group.position.distanceTo(p)).slice(0, 2);
+    if (!near.length) { this.ev.onChat('', 'No one close enough heard you — walk up to someone.', false); return; }
+    near.forEach((b, i) => this.botSays(b, chatReply(text, { friend: b.friend, name: b.name, you: this.playerName }), 1 + i * 1.2 + Math.random()));
+  }
+
+  /** Result of the 8-ball table. */
+  poolResult(win: boolean, opponent: string) {
+    const b = this.bots.find((x) => x.name === opponent);
+    if (win) {
+      this.points += 250; this.ev.onPoints(this.points);
+      this.ev.onCollect({ name: `Won 8-ball vs ${opponent}!`, points: 250, color: 0x2fa66a, shape: 'gem' });
+      this.sfx.questDone();
+      if (b) this.botSays(b, RACE_GG[Math.floor(Math.random() * RACE_GG.length)], 0.5);
+    } else {
+      this.ev.onCollect({ name: `Lost 8-ball vs ${opponent}`, points: 0, color: 0xd94a3d, shape: 'box' });
+      this.sfx.questFail();
+      if (b) this.botSays(b, 'Told you I never lose 😎', 0.5);
+    }
+  }
+
   private nearestStranger(p: THREE.Vector3): Bot | null {
     let best: Bot | null = null, bd = 4;
     for (const b of this.bots) {
@@ -1196,10 +1313,10 @@ export class World {
     return out;
   }
 
-  private startQuest() {
+  private startQuest(forced?: QuestKind, opp?: Bot) {
     this.clearQuest();
     const kinds: QuestKind[] = ['hunt', 'race', 'taxi', 'collect'];
-    const kind = kinds[this.questSeq++ % kinds.length];
+    const kind = forced ?? kinds[this.questSeq++ % kinds.length];
     const t = this.elapsed;
     const focus = this.driving ? this.driving.group.position : this.player.group.position;
     const q = {
@@ -1207,6 +1324,7 @@ export class World {
       stops: [] as { name: string; pos: THREE.Vector3 }[], stopIdx: 0, beacon: null as THREE.Group | null,
       rider: null as Bot | null, arrow: null as THREE.Mesh | null, item: null as string | null, need: 0,
       status: 'active' as const, finishedAt: 0, lastTick: 0,
+      opp: null as Bot | null, oppVehicle: null as Vehicle | null, oppIdx: 0, oppGot: 0, oppNext: 0,
     };
     const places = this.placeNames().filter((p) => p.pos.distanceTo(focus) > 35);
     let def;
@@ -1246,6 +1364,24 @@ export class World {
       def = makeQuestDef('collect', { item: item.name, count: 4 });
     }
     q.title = def.title; q.desc = def.desc; q.reward = def.reward; q.seconds = def.seconds; q.endsAt = t + def.seconds;
+    if (opp) {
+      q.opp = opp; opp.wait = 0;
+      if (kind === 'race') {
+        q.title = `Race vs ${opp.name}`; q.desc = `First to ${q.stops.map((s) => s.name).join(' → ')} wins. ${opp.name} is on a bike — grab one too!`; q.reward = 200;
+        const bike = makeVehicle('bike', 0x2a2a2a);
+        const op = opp.av.group.position;
+        bike.heading = opp.av.group.rotation.y;
+        bike.group.position.set(op.x, op.y, op.z);
+        this.scene.add(bike.group);
+        this.scene.remove(opp.av.group); bike.group.add(opp.av.group);
+        opp.av.group.position.set(0, 0.55, -0.15); opp.av.group.rotation.set(0, 0, 0); poseRide(opp.av);
+        opp.riding = bike; q.oppVehicle = bike;
+      } else {
+        q.title = `Prize hunt vs ${opp.name}`; q.desc = `${GIFT_TOTAL} bundles, two hunters. Find more than ${opp.name} before the clock runs out.`; q.reward = 160; q.seconds = 100; q.endsAt = t + 100;
+        q.oppNext = t + 10 + Math.random() * 8;
+      }
+      this.botSays(opp, RACE_TRASH[Math.floor(Math.random() * RACE_TRASH.length)], 0.5);
+    }
     this.quest = q;
     this.sfx.questStart();
     this.pushQuest(t, def.seconds);
@@ -1261,6 +1397,7 @@ export class World {
   private clearQuest() {
     const q = this.quest;
     if (!q) return;
+    this.releaseOpponent(q);
     for (const g of q.gifts) this.scene.remove(g);
     if (q.beacon) this.scene.remove(q.beacon);
     if (q.arrow) q.arrow.parent?.remove(q.arrow);
@@ -1289,8 +1426,65 @@ export class World {
     if (q.rider && q.rider.wait > 1000) q.rider.wait = 1;
     for (const g of q.gifts) this.scene.remove(g);
     q.gifts = [];
+    if (q.opp) this.botSays(q.opp, ok ? RACE_GG[Math.floor(Math.random() * RACE_GG.length)] : 'Better luck next time 😄', 0.6);
+    this.releaseOpponent(q);
     this.questCooldown = 10;
     this.pushQuest(this.elapsed, 0);
+  }
+
+  startVersus(kind: 'race' | 'hunt', opp: Bot) { this.startQuest(kind, opp); }
+
+  private releaseOpponent(q: NonNullable<World['quest']>) {
+    const opp = q.opp;
+    if (!opp) return;
+    if (q.oppVehicle) {
+      const v = q.oppVehicle;
+      v.group.remove(opp.av.group); this.scene.add(opp.av.group);
+      opp.av.group.position.set(v.group.position.x + 1.5, this.terrain.h(v.group.position.x + 1.5, v.group.position.z), v.group.position.z);
+      opp.av.group.rotation.set(0, v.heading, 0);
+      opp.av.armL.rotation.x = opp.av.armR.rotation.x = 0; opp.av.legL.rotation.z = opp.av.legR.rotation.z = 0;
+      opp.riding = null;
+      this.scene.remove(v.group);
+      q.oppVehicle = null;
+    }
+    opp.wait = 1; opp.target = this.randomLandPoint(8, 120);
+    q.opp = null;
+  }
+
+  /** Move the rival along the checkpoints / let them "find" bundles. */
+  private updateOpponent(q: NonNullable<World['quest']>, dt: number, t: number) {
+    const opp = q.opp!;
+    if (q.kind === 'race' && q.oppVehicle) {
+      const v = q.oppVehicle, vp = v.group.position;
+      const target = q.stops[q.oppIdx]?.pos;
+      if (!target) return;
+      const dx = target.x - vp.x, dz = target.z - vp.z, d = Math.hypot(dx, dz);
+      const want = Math.atan2(dx, dz);
+      v.heading += wrapAngle(want - v.heading) * Math.min(1, dt * 2.5);
+      const speed = 11.5 + Math.sin(t * 0.7) * 1.5;   // a fair rival: a quick cycle pace with a bit of rhythm
+      const nx = vp.x + Math.sin(v.heading) * speed * dt, nz = vp.z + Math.cos(v.heading) * speed * dt;
+      if (this.walkable(nx, nz, vp.y)) { vp.x = nx; vp.z = nz; } else { v.heading += 1.2 * dt; vp.x += Math.sin(v.heading + 1) * 2 * dt; vp.z += Math.cos(v.heading + 1) * 2 * dt; }
+      this.settleVehicle(v);
+      for (const w of v.wheels) w.rotation.x += (speed * dt) / 0.4;
+      opp.label.visible = true;
+      if (d < 12) {
+        q.oppIdx++;
+        if (q.oppIdx >= q.stops.length) { this.botSays(opp, 'Winner! 🏆', 0); this.finishQuest(false); }
+        else this.ev.onCollect({ name: `${opp.name} passed ${q.stops[q.oppIdx - 1].name}`, points: 0, color: 0xd94a3d, shape: 'box' });
+      }
+    } else if (q.kind === 'hunt') {
+      if (t >= q.oppNext) {
+        q.oppNext = t + 12 + Math.random() * 8;
+        const left = q.gifts.filter((g) => g.visible);
+        if (left.length) {
+          left[Math.floor(Math.random() * left.length)].visible = false;
+          q.oppGot++;
+          this.ev.onCollect({ name: `${opp.name} found \u20B9500 · ${q.oppGot}`, points: 0, color: 0xd94a3d, shape: 'box' });
+          this.botSays(opp, 'Got one! 💰', 0);
+          if (q.got + q.oppGot >= q.total) this.finishQuest(q.got > q.oppGot);
+        }
+      }
+    }
   }
 
   private questCollected(name: string) {
@@ -1320,8 +1514,9 @@ export class World {
       return;
     }
     const left = q.endsAt - t;
-    if (left <= 0) { this.finishQuest(false); return; }
+    if (left <= 0) { this.finishQuest(q.opp && q.kind === 'hunt' ? q.got > q.oppGot : false); return; }
     if (left < 10 && Math.floor(left) !== Math.floor(left + dt)) this.sfx.tick();
+    if (q.opp) this.updateOpponent(q, dt, t);
 
     if (q.kind === 'hunt') {
       for (const g of q.gifts) {
@@ -1334,7 +1529,7 @@ export class World {
           this.points += 20; this.ev.onPoints(this.points);
           this.ev.onCollect({ name: `\u20B9500 found · ${q.got} of ${q.total}`, points: 20, color: 0xf2c31b, shape: 'box' });
           this.sfx.checkpoint();
-          if (q.got >= q.total) this.finishQuest(true);
+          if (q.opp ? q.got + q.oppGot >= q.total || q.got > q.total / 2 : q.got >= q.total) this.finishQuest(q.opp ? q.got > q.oppGot : true);
         }
       }
     } else if (q.kind === 'race') {
@@ -1365,8 +1560,8 @@ export class World {
       return;
     }
     const dist = (p: THREE.Vector3) => `${Math.round(Math.hypot(p.x - from.x, p.z - from.z))} m`;
-    if (q.kind === 'hunt') progress = `${q.got} / ${q.total} bundles`;
-    else if (q.kind === 'race') { progress = `${q.stopIdx} / ${q.total} checkpoints`; const s = q.stops[q.stopIdx]; if (s) hint = `${s.name} · ${dist(s.pos)}`; }
+    if (q.kind === 'hunt') progress = q.opp ? `You ${q.got} · ${q.opp.name} ${q.oppGot}` : `${q.got} / ${q.total} bundles`;
+    else if (q.kind === 'race') { progress = q.opp ? `You ${q.stopIdx} · ${q.opp.name} ${q.oppIdx} of ${q.total}` : `${q.stopIdx} / ${q.total} checkpoints`; const s = q.stops[q.stopIdx]; if (s) hint = `${s.name} · ${dist(s.pos)}`; }
     else if (q.kind === 'taxi' && q.rider) { progress = q.rider.riding ? 'Passenger aboard' : `Pick up ${q.rider.name}`; hint = q.rider.riding ? `${q.stops[0].name} · ${dist(q.stops[0].pos)}` : `${q.rider.name} · ${dist(q.rider.av.group.position)}`; }
     else progress = `${q.got} / ${q.need} ${q.item}`;
     this.ev.onQuest({ status: q.status, title: q.title, desc: q.desc, progress, remaining: Math.max(0, left), total: q.seconds, reward: q.reward, hint });

@@ -47,7 +47,7 @@ export const ALL_DESTINATIONS: Destination[] = [
     ],
   },
   {
-    id: 'city', name: 'City', place: 'Wander City', country: 'one city · countless stories', emoji: '🏙️',
+    id: 'city', name: 'City', place: 'FindurAI City', country: 'one city · countless stories', emoji: '🏙️',
     routes: [[[15, -60], [15, 86]], [[-130, 80], [104, 80]], [[15, -20], [-40, -60], [-110, -85]], [[15, -60], [100, -120]], [[15, 86], [40, 132], [115, 115]]],
     pump: [29, 10, -Math.PI / 2],
     traffic: [{ kind: 'bus', route: 1, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 0, start: 0.6, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 3, start: 0.3, color: 0x6c3fb0, label: 'BMTC Vayu Vajra' }, { kind: 'bus', route: 4, start: 0.5, color: 0x2fa66a, label: 'BMTC' }, { kind: 'bus', route: 1, start: 0.15, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'police', route: 0, start: 0.2 }],

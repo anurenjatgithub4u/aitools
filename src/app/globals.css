@@ -118,6 +118,24 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .toast.bad { border-left-color: #d94a3d; color: #d94a3d; }
 @keyframes blink { 50% { opacity: .35; } }
 .act.boostbtn.on { background: #a36bff; border-color: #fff; }
+.meet { background: rgba(20, 40, 34, .9); backdrop-filter: blur(8px); border-radius: 16px; padding: 10px 12px; text-align: center; border: 1px solid rgba(255,255,255,.15); }
+.meet b { display: block; font-size: 14px; margin-bottom: 8px; }
+.meet .mrow { display: flex; gap: 8px; }
+.meet button { width: 66px; height: 58px; border-radius: 12px; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-family: inherit; touch-action: none; user-select: none; }
+.meet button small { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
+.meet button:active, .meet button:hover { background: var(--gold); color: var(--ink); }
+.tag.talk { background: #fff; color: var(--ink); max-width: 240px; white-space: normal; text-align: center; }
+.hud .chatbox { left: 26px; bottom: 34px; width: 320px; background: rgba(20, 40, 34, .88); backdrop-filter: blur(8px); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 3; }
+.clog { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.cmsg { background: rgba(255,255,255,.1); padding: 5px 9px; border-radius: 10px; align-self: flex-start; max-width: 92%; }
+.cmsg b { color: var(--gold); margin-right: 4px; }
+.cmsg.mine { align-self: flex-end; background: rgba(232, 196, 106, .9); color: var(--ink); }
+.cmsg.mine b { color: var(--ink); }
+.cmsg.sys { color: rgba(255,255,255,.7); font-style: italic; background: none; }
+#cform { display: flex; gap: 6px; }
+#cform input { flex: 1; font: inherit; font-size: 13px; padding: 8px 10px; border-radius: 10px; border: 0; background: rgba(255,255,255,.95); color: var(--ink); min-width: 0; }
+#cform button { font: inherit; font-size: 13px; font-weight: 600; background: var(--gold); color: var(--ink); border: 0; border-radius: 10px; padding: 0 12px; cursor: pointer; }
+.hud .bubble { left: 26px; bottom: 120px; max-width: 320px; background: #fff; color: var(--ink); padding: 8px 12px; border-radius: 12px; font-size: 13px; box-shadow: var(--shadow); pointer-events: none; }
 .chip.prompt.lifting { background: rgba(63, 183, 217, .95); color: #0c2a33; }
 .minimap { position: relative; width: 170px; height: 170px; border-radius: 16px; overflow: hidden; border: 3px solid rgba(255,255,255,.85); box-shadow: 0 8px 24px rgba(0,0,0,.25); background: #1e4d3a; }
 .minimap canvas { display: block; width: 100%; height: 100%; }
@@ -150,6 +168,18 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .help h3 { font-size: 26px; margin-bottom: 10px; }
 .help p { line-height: 1.6; font-size: 14px; color: var(--ink-2); }
 .help button { font: inherit; background: var(--green); color: #fff; border: 0; padding: 10px 18px; border-radius: 10px; cursor: pointer; }
+
+
+/* ---------- 8-ball pool overlay ---------- */
+.pool { position: absolute; inset: 0; z-index: 20; background: rgba(10, 20, 16, .92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; pointer-events: auto; color: #fff; }
+.pool .ptop { display: flex; align-items: center; gap: 16px; width: min(900px, 96vw); font-size: 13px; }
+.pool .ptop b { font-size: 18px; }
+.pool .ptop button { margin-left: auto; font: inherit; background: rgba(255,255,255,.15); color: #fff; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.pool canvas { width: min(900px, 96vw); height: auto; border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.5); touch-action: none; }
+.pool .phint { font-size: 13px; color: rgba(255,255,255,.75); min-height: 18px; }
+.pool .pend { position: absolute; background: #fff; color: var(--ink); padding: 24px 30px; border-radius: 18px; text-align: center; box-shadow: var(--shadow); }
+.pool .pend h3 { font-size: 26px; margin-bottom: 6px; }
+.pool .pend button { margin-top: 12px; font: inherit; font-weight: 600; background: var(--green); color: #fff; border: 0; border-radius: 999px; padding: 10px 18px; cursor: pointer; }
 
 /* ---------- responsive ---------- */
 body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
@@ -196,6 +226,10 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   .shop { font-size: 9px; padding: 2px 6px; }
   .sign.metro { font-size: 10px; padding: 3px 8px; }
   .hud .bottom-left { display: none; }
+  .meet button { width: 58px; height: 52px; font-size: 18px; }
+  .hud .chatbox { left: 10px; right: 10px; width: auto; bottom: calc(10px + env(safe-area-inset-bottom)); }
+  .clog { max-height: 120px; }
+  .hud .bubble { left: 10px; bottom: calc(96px + env(safe-area-inset-bottom)); max-width: 60%; font-size: 12px; }
   .chip.big { font-size: 14px; padding: 7px 12px; }
   .chip.big b { font-size: 16px; }
   .hud #online { font-size: 11px; padding: 5px 10px; }

@@ -1,5 +1,6 @@
 import { type Collectible, type Destination } from './destinations';
 import type { QuestState } from './quests';
+import type { MeetAction } from './world';
 import { store } from './store';
 
 export const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
@@ -17,15 +18,17 @@ export interface Hud {
   quest(q: QuestState | null): void;
   friends(n: number): void;
   rank(r: number, of: number): void;
+  meet(m: { name: string; friend: boolean } | null): void;
+  chat(from: string, text: string, mine: boolean): void;
   minimap: HTMLCanvasElement;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
   <div class="hud">
-    <a class="brand top-left" href="/"><span class="logo">🌍</span><div><b>WANDER</b><small>ONE PLANET · COUNTLESS WONDERS</small></div></a>
+    <a class="brand top-left" href="/"><span class="logo">🌍</span><div><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></div></a>
     <div class="quest" id="quest">
       <div class="qhead"><span class="qicon">🎯</span><div><small id="qkicker">TASK</small><b id="qtitle">Looking for a task…</b></div><em id="qtime"></em></div>
       <p id="qdesc">Explore while we line one up. Press T for a task right away.</p>
@@ -39,6 +42,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     </div>
     <div class="top-right">
       <a class="round" href="/" title="All worlds">🌍</a>
+      <button class="round" id="chatbtn" title="Chat (C)">💬</button>
       <button class="round" id="mute" title="Sound (M)">🔊</button>
       <button class="round" id="help" title="Help">?</button>
     </div>
@@ -54,6 +58,21 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       </div>
       <div class="chip prompt" id="prompt" hidden></div>
       <div class="chip prompt lifting" id="liftprompt" hidden></div>
+      <div class="meet" id="meet" hidden>
+        <b id="meetname"></b>
+        <div class="mrow" id="meetmain">
+          <button data-a="friend" id="meetfriend">🤝<small>Friend</small></button>
+          <button data-a="game">🎮<small>Game</small></button>
+          <button data-a="hangout">🏖️<small>Hangout</small></button>
+          <button data-a="chat">💬<small>Chat</small></button>
+        </div>
+        <div class="mrow" id="meetgames" hidden>
+          <button data-a="race">🏁<small>Race</small></button>
+          <button data-a="hunt">💰<small>Prize hunt</small></button>
+          <button data-a="pool">🎱<small>8-ball</small></button>
+          <button data-a="back">←<small>Back</small></button>
+        </div>
+      </div>
       <div class="hints"><span>✨ Walk over things to collect</span><span>⌨ WASD move · Shift run/boost · Space jump · E drive · F lift · R refuel · H horn</span><span>🖱 Drag or two-finger swipe to look · wheel / pinch to zoom</span></div>
     </div>
     <div class="bottom-right">
@@ -74,10 +93,15 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <button class="act" id="jump">⤒<small>Jump</small></button>
       <button class="act" id="run">🏃<small>Run</small></button>
     </div>
+    <div class="chatbox" id="chat" hidden>
+      <div class="clog" id="clog"></div>
+      <form id="cform"><input id="cinput" maxlength="120" placeholder="Say something to people nearby…" autocomplete="off"><button type="submit">Send</button></form>
+    </div>
+    <div class="bubble" id="bubble" hidden></div>
     <div id="toasts"></div>
     <div class="help" id="helpbox" hidden>
       <h3>How to play</h3>
-      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>Friends</b> walk up to any explorer and press <b>G</b> to send a friend request — most say yes. Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
+      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, prize hunt or 8-ball pool — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
       <p>${d.blurb}</p>
       <button id="closehelp">Got it</button>
     </div>
@@ -111,6 +135,29 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   press(friendBtn, actions.befriend);
   const friendsChip = root.querySelector<HTMLElement>('#friends')!;
   const rankChip = root.querySelector<HTMLElement>('#rank')!;
+  // meet card
+  const meetEl = root.querySelector<HTMLElement>('#meet')!, meetName = root.querySelector<HTMLElement>('#meetname')!;
+  const meetMain = root.querySelector<HTMLElement>('#meetmain')!, meetGames = root.querySelector<HTMLElement>('#meetgames')!;
+  const meetFriend = root.querySelector<HTMLElement>('#meetfriend')!;
+  meetEl.addEventListener('pointerdown', (e) => {
+    const btn = (e.target as HTMLElement).closest('button') as HTMLElement | null;
+    if (!btn) return;
+    e.preventDefault();
+    const a = btn.dataset.a!;
+    if (a === 'game') { meetMain.hidden = true; meetGames.hidden = false; return; }
+    if (a === 'back') { meetMain.hidden = false; meetGames.hidden = true; return; }
+    meetMain.hidden = false; meetGames.hidden = true;
+    if (a === 'chat') { chatEl.hidden = false; cinput.focus(); }
+    actions.interact(a as MeetAction);
+  });
+  // chat
+  const chatEl = root.querySelector<HTMLElement>('#chat')!, clog = root.querySelector<HTMLElement>('#clog')!;
+  const cinput = root.querySelector<HTMLInputElement>('#cinput')!, bubble = root.querySelector<HTMLElement>('#bubble')!;
+  let bubbleTimer = 0;
+  root.querySelector('#chatbtn')!.addEventListener('click', () => { chatEl.hidden = !chatEl.hidden; if (!chatEl.hidden) cinput.focus(); });
+  root.querySelector<HTMLFormElement>('#cform')!.addEventListener('submit', (e) => { e.preventDefault(); const v = cinput.value; cinput.value = ''; if (v.trim()) actions.say(v); });
+  cinput.addEventListener('keydown', (e) => { if (e.key === 'Escape') { chatEl.hidden = true; cinput.blur(); } e.stopPropagation(); });
+  addEventListener('keydown', (e) => { if (e.key.toLowerCase() === 'c' && (e.target as HTMLElement).tagName !== 'INPUT') { chatEl.hidden = !chatEl.hidden; if (!chatEl.hidden) cinput.focus(); } });
   const dashEl = root.querySelector<HTMLElement>('#dash')!;
   const fuelBar = root.querySelector<HTMLElement>('#fuelbar')!, fuelTxt = root.querySelector<HTMLElement>('#fueltxt')!;
   const boostBar = root.querySelector<HTMLElement>('#boostbar')!, kmhEl = root.querySelector<HTMLElement>('#kmh')!;
@@ -196,6 +243,27 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       friendBtn.hidden = !text || !isFriend;
     },
     friends(n) { friendsChip.textContent = `🤝 ${n} friends`; },
+    meet(m) {
+      meetEl.hidden = !m;
+      meetMain.hidden = false; meetGames.hidden = true;
+      if (!m) return;
+      meetName.textContent = m.friend ? `🤝 ${m.name} · friend` : m.name;
+      meetFriend.hidden = m.friend;
+    },
+    chat(from, text, mine) {
+      const row = document.createElement('div');
+      row.className = `cmsg ${mine ? 'mine' : from ? '' : 'sys'}`;
+      row.innerHTML = from ? `<b>${from}</b> ${text}` : text;
+      clog.appendChild(row);
+      while (clog.children.length > 40) clog.firstElementChild!.remove();
+      clog.scrollTop = clog.scrollHeight;
+      if (!mine && chatEl.hidden) {
+        bubble.textContent = from ? `${from}: ${text}` : text;
+        bubble.hidden = false;
+        clearTimeout(bubbleTimer);
+        bubbleTimer = window.setTimeout(() => (bubble.hidden = true), 4000);
+      }
+    },
     rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
     minimap: root.querySelector<HTMLCanvasElement>('#minimap')!,
   };

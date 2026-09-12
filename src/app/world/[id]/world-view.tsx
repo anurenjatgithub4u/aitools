@@ -32,6 +32,8 @@ export function WorldView({ id }: { id: string }) {
       mute: () => world?.toggleMute(),
       task: () => world?.startTask(),
       befriend: () => world?.befriend(),
+      interact: (a) => world?.interact(a),
+      say: (text) => world?.say(text),
     });
 
     import("@/world/world").then(({ World }) => {
@@ -52,6 +54,9 @@ export function WorldView({ id }: { id: string }) {
           onQuest: (q) => hud.quest(q),
           onFriends: (n) => hud.friends(n),
           onRank: (r, of) => hud.rank(r, of),
+          onMeet: (m) => hud.meet(m),
+          onChat: (from, text, mine) => hud.chat(from, text, mine),
+          onPool: (opponent) => { import("@/world/pool").then(({ openPool }) => openPool(hudEl, opponent, store.name(), (win) => world?.poolResult(win, opponent))); },
         },
         store.name(),
         store.points(),

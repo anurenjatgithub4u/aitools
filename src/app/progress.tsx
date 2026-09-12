@@ -9,7 +9,7 @@ import { store } from "@/world/store";
 export function Progress() {
   const [text, setText] = useState("0 points · 0 / " + DESTINATIONS.length + " worlds");
   useEffect(() => {
-    setText(`${store.points()} points · ${store.visited().size} / ${DESTINATIONS.length} worlds`);
+    setText(`${store.points()} points · ${store.visited().size} / ${DESTINATIONS.length} worlds · ${store.friends().length} friends`);
   }, []);
   return (
     <div className="score">

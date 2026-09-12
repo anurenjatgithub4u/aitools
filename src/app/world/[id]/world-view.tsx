@@ -26,6 +26,12 @@ export function WorldView({ id }: { id: string }) {
       lift: () => world?.lift(),
       run: () => world?.toggleRun(),
       zoom: (d) => world?.zoom(d),
+      boost: (held) => world?.setBoost(held),
+      refuel: () => world?.refuel(),
+      horn: () => world?.horn(),
+      mute: () => world?.toggleMute(),
+      task: () => world?.startTask(),
+      befriend: () => world?.befriend(),
     });
 
     import("@/world/world").then(({ World }) => {
@@ -41,11 +47,16 @@ export function WorldView({ id }: { id: string }) {
           onPrompt: (text, driving) => hud.prompt(text, driving),
           onLift: (text) => hud.lift(text),
           onRun: (on) => hud.run(on),
+          onDash: (d) => hud.dash(d),
+          onMuted: (m) => hud.muted(m),
+          onQuest: (q) => hud.quest(q),
+          onFriends: (n) => hud.friends(n),
         },
         store.name(),
         store.points(),
       );
       world.attachMinimap(hud.minimap);
+      hud.muted(world.sfx.muted);
       world.start();
       if (process.env.NODE_ENV === "development") (window as unknown as { __world: World }).__world = world;
     });

@@ -64,9 +64,29 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.5); pointer-events: none; }
 .stick .knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.75); }
 
-.hud { position: absolute; inset: 0; pointer-events: none; color: #fff; }
+.stage .labels { z-index: 1; }
+.hud { position: absolute; inset: 0; pointer-events: none; color: #fff; z-index: 2; }
 .hud > * { position: absolute; pointer-events: auto; }
 .hud .top-left { top: 22px; left: 26px; color: #fff; }
+.hud .quest { top: 76px; left: 26px; width: 300px; background: rgba(20, 40, 34, .82); backdrop-filter: blur(8px); border-radius: 14px; padding: 12px 14px; color: #fff; border-left: 5px solid var(--gold); }
+.quest.done { border-left-color: #6fd36f; }
+.quest.failed { border-left-color: #e74c3c; }
+.quest .qhead { display: flex; align-items: center; gap: 10px; }
+.quest .qicon { font-size: 22px; }
+.quest small { display: block; letter-spacing: .18em; font-size: 9px; color: var(--gold); }
+.quest b { font-size: 15px; }
+.quest em { margin-left: auto; font-style: normal; font-weight: 700; font-size: 20px; font-variant-numeric: tabular-nums; }
+.quest p { margin: 8px 0; font-size: 12px; line-height: 1.4; color: rgba(255,255,255,.85); }
+.quest .qbar { height: 6px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden; }
+.quest .qbar i { display: block; height: 100%; width: 0; background: var(--gold); transition: width .25s linear; }
+.quest .qbar i.urgent { background: #e74c3c; animation: blink .6s infinite; }
+.quest .qfoot { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; }
+.quest .qfoot span:first-child { font-weight: 600; }
+.quest .qfoot span:nth-child(2) { color: #ffb7ee; margin-left: auto; }
+.quest button { margin-left: auto; font: inherit; font-size: 12px; font-weight: 600; background: var(--gold); color: var(--ink); border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.tag.friend { background: rgba(231, 84, 128, .92); }
+.chip.friends { background: rgba(231, 84, 128, .8); }
+.pill.gift { background: #f2c31b; color: var(--ink); }
 .hud .top-left small { color: rgba(255,255,255,.75); }
 .hud .top-center { top: 22px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .hud .top-right { top: 22px; right: 26px; display: flex; gap: 10px; }
@@ -82,12 +102,23 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .chip.leave { background: rgba(232, 196, 106, .95); color: var(--ink); font-weight: 600; }
 .chip.pop { animation: pop .35s ease; }
 .chip.prompt { background: rgba(232, 196, 106, .95); color: var(--ink); font-weight: 600; }
+.dash { display: flex; gap: 14px; background: rgba(20, 40, 34, .82); backdrop-filter: blur(8px); padding: 8px 16px; border-radius: 14px; }
+.gauge { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.gauge i { width: 110px; height: 10px; border-radius: 999px; background: rgba(255,255,255,.18); overflow: hidden; display: block; }
+.gauge b { display: block; height: 100%; width: 100%; background: #6fd36f; border-radius: 999px; transition: width .15s linear; }
+.gauge b.low { background: #e74c3c; animation: blink 1s infinite; }
+.gauge b.boost { background: linear-gradient(90deg, #3fb7d9, #a36bff); }
+.gauge em { font-style: normal; min-width: 78px; color: rgba(255,255,255,.85); white-space: nowrap; }
+.toast.bad { border-left-color: #d94a3d; color: #d94a3d; }
+@keyframes blink { 50% { opacity: .35; } }
+.act.boostbtn.on { background: #a36bff; border-color: #fff; }
 .chip.prompt.lifting { background: rgba(63, 183, 217, .95); color: #0c2a33; }
 .minimap { position: relative; width: 170px; height: 170px; border-radius: 16px; overflow: hidden; border: 3px solid rgba(255,255,255,.85); box-shadow: 0 8px 24px rgba(0,0,0,.25); background: #1e4d3a; }
 .minimap canvas { display: block; width: 100%; height: 100%; }
 .minimap span { position: absolute; left: 8px; bottom: 6px; font-size: 10px; letter-spacing: .16em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
 .chip.prompt.driving { background: rgba(20, 40, 34, .82); color: #fff; font-weight: 500; }
 .sign.metro { background: #2b7bc9; color: #fff; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.shop { background: #fff8e6; color: #17332b; padding: 3px 9px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 2px solid #17332b; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
 .place { background: rgba(255,255,255,.94); color: var(--ink); padding: 5px 13px; border-radius: 999px; font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: 13px; white-space: nowrap; box-shadow: 0 2px 10px rgba(0,0,0,.18); border-left: 5px solid var(--gold); }
 .pill.vehicle { background: rgba(232, 196, 106, .95); color: var(--ink); }
 .hud .actions { right: 214px; bottom: 34px; display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
@@ -124,7 +155,12 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 /* narrow desktop / tablets: drop the key hints, stack the action buttons above the map */
 @media (max-width: 1000px) {
   .hints { display: none; }
-  .hud .actions { right: 26px; bottom: 290px; flex-direction: row; }
+  .minimap { width: 120px; height: 120px; }
+  .hud .bottom-center { left: calc(50% - 60px); }
+  .hud .actions { right: 26px; bottom: 250px; flex-direction: row; }
+  .hud .bottom-left .eyebrow, .hud .bottom-left .sub { display: none; }
+  .hud .bottom-left h2 { font-size: 30px; }
+  .dash { flex-direction: column; gap: 4px; }
   .hud .zoom { top: 34%; }
 }
 
@@ -142,6 +178,10 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 
   .chip, .next { backdrop-filter: none; }
   .hud .top-left { top: 12px; left: 14px; }
+  .hud .quest { top: 100px; left: 12px; width: 190px; padding: 8px 10px; }
+  .quest p { display: none; }
+  .quest b { font-size: 13px; }
+  .quest em { font-size: 16px; }
   .hud .top-left small, .hud .top-left b { display: none; }
   .hud .top-left .logo { font-size: 26px; }
   .hud .top-center { top: 12px; gap: 6px; }
@@ -166,6 +206,9 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   .next { padding: 8px 14px 8px 8px; gap: 10px; width: 100%; max-width: 360px; border-radius: 12px; }
   .next .key { width: 32px; height: 32px; font-size: 13px; }
   .next b { font-size: 14px; }
+  .dash { gap: 8px; padding: 6px 10px; }
+  .gauge i { width: 64px; }
+  .gauge em { min-width: 0; font-size: 10px; }
   .chip.prompt { font-size: 12px; padding: 6px 12px; max-width: 100%; white-space: normal; text-align: center; }
 
   .hud .actions { right: 14px; bottom: calc(96px + env(safe-area-inset-bottom)); gap: 8px; }
@@ -182,6 +225,7 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 /* phones held sideways: keep the middle of the screen clear */
 @media (max-height: 500px) {
   .hud .top-left { display: none; }
+  .hud .quest { top: 52px; left: 14px; width: 180px; }
   .hud .top-center { left: 14px; transform: none; align-items: flex-start; }
   .hud .bottom-right { top: 58px; }
   .minimap { width: 80px; height: 80px; }

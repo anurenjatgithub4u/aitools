@@ -211,11 +211,11 @@ function kochi(g: THREE.Group, h: H) {
   ferry.position.set(-109, 0, -75); ferry.rotation.y = 0.3; g.add(ferry);
 
   // LuLu Mall - glass front, big sign
-  g.add(at(box(36, 12, 22, 0xe8e2d6), -20, h(-20, 72) + 6, 60));
-  g.add(at(mesh(new THREE.BoxGeometry(32, 8, 0.4), 0x9fd3e8, { transparent: true, opacity: 0.6 }), -20, h(-20, 72) + 5, 71.3));
-  g.add(at(box(36.5, 1.5, 23, 0x2a2a2a), -20, h(-20, 72) + 12.5, 60));
-  g.add(at(box(10, 2.4, 0.4, 0xd94a3d), -20, h(-20, 72) + 10.2, 71.4));
-  for (let i = 0; i < 6; i++) g.add(at(box(1.8, 0.4, 3.6, [0xffffff, 0xd94a3d, 0x2f6fd1][i % 3]), -34 + i * 5.5, h(-34 + i * 5.5, 78) + 0.4, 78)); // parked cars
+  g.add(at(box(36, 12, 22, 0xe8e2d6), -20, h(-20, 60) + 6, 48));
+  g.add(at(mesh(new THREE.BoxGeometry(32, 8, 0.4), 0x9fd3e8, { transparent: true, opacity: 0.6 }), -20, h(-20, 60) + 5, 59.3));
+  g.add(at(box(36.5, 1.5, 23, 0x2a2a2a), -20, h(-20, 60) + 12.5, 48));
+  g.add(at(box(10, 2.4, 0.4, 0xd94a3d), -20, h(-20, 60) + 10.2, 59.4));
+  for (let i = 0; i < 6; i++) g.add(at(box(1.8, 0.4, 3.6, [0xffffff, 0xd94a3d, 0x2f6fd1][i % 3]), -34 + i * 5.5, h(-34 + i * 5.5, 64) + 0.4, 64)); // parked cars
 
   // Vyttila Mobility Hub - KSRTC bus
   const bus = new THREE.Group();
@@ -237,7 +237,7 @@ function kochi(g: THREE.Group, h: H) {
     ['Mattancherry Palace', 42, 13, 50],
     ['Jew Town \u00b7 Paradesi Synagogue', 57, 20, 60],
     ['Marine Drive \u00b7 Rainbow Bridge', 103, 9, 0],
-    ['LuLu Mall', -20, 16, 66],
+    ['LuLu Mall', -20, 16, 54],
     ['Vyttila Mobility Hub', 84, 8, 80],
   ];
   for (const [name, x, y, z] of places) g.add(at(label(name, 'place', 120), x, h(x, z) + y, z));
@@ -288,6 +288,7 @@ function metroLine(g: THREE.Group, h: H, z: number, stops: [string, number][], c
   }
   train.add(at(box(0.6, 2.4, 2.4, 0xf2c31b), 17.5, 1.6, 0));
   train.position.set(stops[0][1], 14, z);
+  train.userData.animated = true;
   g.add(train);
   g.userData.train = { group: train, stops: stops.map((st) => st[1]), z, color };
 }
@@ -408,9 +409,140 @@ function bengaluru(g: THREE.Group, h: H) {
   g.add(at(box(0.8, 2.4, 0.8, 0x333333), 104, h(104, 76) + 6.5, 76));
   g.add(at(box(0.5, 0.5, 0.2, 0xd92b2b), 104, h(104, 76) + 7.2, 76.5));
 
+
+  // ---- more of the real city, further out ----
+  // a shop: box with awning, door, and a name board (used along MG Road, Brigade Road, Church Street)
+  const shop = (name: string, x: number, z: number, w: number, c: number, awn: number, rotY = 0) => {
+    const y = h(x, z);
+    const s = new THREE.Group();
+    s.add(at(box(w, 4.5, 6, c), 0, 2.25, 0));
+    s.add(at(box(w * 0.8, 1.8, 0.06, glass), 0, 1.6, 3.04));                        // shop window
+    s.add(at(box(1.2, 2.4, 0.1, 0x3a2418), w * 0.35, 1.2, 3.05));                   // door
+    s.add(rot(at(box(w + 0.4, 0.12, 1.6, awn), 0, 3.1, 3.7), 'x', 0.25));            // awning
+    s.add(at(box(w, 0.8, 0.2, 0x2a2a2a), 0, 4.1, 3.1));                             // fascia
+    s.add(at(label(name, 'shop', 70), 0, 5.4, 3));
+    s.position.set(x, y, z); s.rotation.y = rotY;
+    g.add(s);
+  };
+  // Brigade Road / Church Street strip: the famous stores, just south of MG Road
+  const strip: [string, number, number][] = [
+    ["Koshy's", 0x8a5a2b, 0xd94a3d], ['Blossom Book House', 0x6a3fb0, 0xf2c31b], ['Corner House', 0xd94a3d, 0xffffff],
+    ['Higginbothams', 0x2f6fd1, 0xffffff], ['Café Coffee Day', 0x8a2a2a, 0xf2c31b], ['Nilgiris', 0x2fa66a, 0xffffff],
+    ['Church Street Social', 0x333333, 0xf27d3a], ['Bangalore Central', 0xf4f4f4, 0xd94a3d],
+  ];
+  strip.forEach(([name, c, awn], i) => shop(name, -44 + i * 15, 64, 12, c, awn, Math.PI));
+  // Indiranagar 100 Feet Road: pubs and cafés east of Trinity
+  shop('Toit Brewpub', 60, 96, 14, 0x6b4a2a, 0xf2c31b);
+  shop("Truffles", 78, 96, 12, 0xd94a3d, 0xffffff);
+  shop('Third Wave Coffee', 96, 96, 12, 0x2a2a2a, 0x3fb7d9);
+  // Basavanagudi (by the Bull Temple): Vidyarthi Bhavan; Lalbagh Road: MTR
+  shop('Vidyarthi Bhavan', 42, -40, 12, 0xd8c49a, 0x2fa66a, Math.PI / 2);
+  shop('MTR · Mavalli Tiffin Rooms', 30, 55, 12, 0xf4f4f4, 0xd94a3d, -Math.PI / 2);
+
+  // High Court (Attara Kacheri) - red building facing Vidhana Soudha across the lawn
+  const hx = -38, hz = -2, hy = h(hx, hz);
+  g.add(at(box(22, 8, 10, red), hx, hy + 4, hz));
+  for (let i = 0; i < 7; i++) g.add(at(cyl(0.45, 0.45, 7, 0xf0d9c0, 8), hx - 9 + i * 3, hy + 4, hz + 5.5));
+  g.add(at(box(23, 0.8, 12, 0xf0d9c0), hx, hy + 8.4, hz));
+
+  // Majestic: KSR City Railway Station + Kempegowda bus stand (west end of the metro)
+  const kx = -110, kz = 80, ky = h(kx, kz);
+  g.add(at(box(40, 7, 12, 0xe8dcc8), kx, ky + 3.5, kz - 10));
+  g.add(at(box(42, 0.8, 14, red), kx, ky + 7.4, kz - 10));
+  g.add(at(box(6, 4, 0.3, 0x2b6fd9), kx, ky + 9.5, kz - 4));
+  g.add(at(label('KSR Bengaluru City Railway Station', 'place', 130), kx, ky + 12, kz - 4));
+  for (let i = 0; i < 2; i++) g.add(at(box(44, 0.5, 3, 0xbdbdbd), kx, ky + 0.8, kz + 2 + i * 6));    // platforms
+  for (const dz of [5, 11]) for (const dx of [-1.4, 1.4]) g.add(at(box(46, 0.15, 0.2, 0x555555), kx, ky + 0.15, kz + dz + dx));
+  for (let i = 0; i < 4; i++) {                                                                     // a parked train
+    g.add(at(box(9, 3, 2.6, i ? 0x2b6fd9 : 0xd94a3d), kx - 15 + i * 9.5, ky + 1.8, kz + 5));
+    g.add(at(box(9.1, 0.8, 2.7, 0xf4f4f4), kx - 15 + i * 9.5, ky + 2.3, kz + 5));
+  }
+  g.add(at(cyl(16, 16, 0.4, 0x6d6d6d, 24), kx + 5, ky + 0.2, kz + 30));                          // bus stand circle
+  g.add(at(cyl(16.5, 16.5, 1, 0xd9d4c8, 24), kx + 5, ky + 6, kz + 30));
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; g.add(at(cyl(0.3, 0.3, 6, 0x888888, 8), kx + 5 + Math.cos(a) * 14, ky + 3, kz + 30 + Math.sin(a) * 14)); }
+  g.add(at(label('Kempegowda Bus Station · Majestic', 'place', 120), kx + 5, ky + 9, kz + 30));
+
+  // ISKCON Temple, Rajajinagar - white with gold gopurams, up on its hill
+  const ix = -125, iz = -95, iy = h(ix, iz);
+  g.add(at(box(30, 6, 24, 0xf4f4f4), ix, iy + 3, iz));
+  g.add(at(box(22, 8, 16, 0xf4f4f4), ix, iy + 10, iz));
+  for (const [dx, dz, hh] of [[0, 0, 12], [-9, 6, 8], [9, 6, 8]]) {
+    for (let i = 0; i < 4; i++) g.add(at(box(6 - i * 1.2, hh / 4, 6 - i * 1.2, 0xd9b23a), ix + dx, iy + 14 + i * hh / 4, iz + dz));
+    g.add(at(cone(1.2, 2, 0xd9b23a, 8), ix + dx, iy + 15 + hh, iz + dz));
+  }
+  for (let i = 0; i < 8; i++) g.add(at(box(14 - i, 0.5, 3, 0xe8e0d0), ix, iy + 0.5 + i * 0.7, iz + 14 + i * 1.2));   // steps
+  g.add(at(label('ISKCON Temple · Rajajinagar', 'place', 130), ix, iy + 32, iz));
+
+  // Sankey Tank - lake in Malleshwaram
+  const nx = -120, nz = -30, ny = h(nx, nz);
+  g.add(at(cyl(20, 20, 0.3, 0x4a97c8, 28), nx, ny + 0.2, nz));
+  g.add(at(box(2, 0.3, 42, 0xc9b99a), nx + 22, ny + 0.3, nz));
+  g.add(at(label('Sankey Tank · Malleshwaram', 'place', 120), nx, ny + 5, nz));
+
+  // Tipu Sultan's Summer Palace and KR Market, south-west of the centre
+  const tpx = -70, tpz = 118, tpy = h(tpx, tpz);
+  g.add(at(box(22, 1.2, 14, 0xc9b99a), tpx, tpy + 0.6, tpz));
+  g.add(at(box(18, 7, 10, 0x6b4a2a), tpx, tpy + 4.5, tpz));
+  for (let i = 0; i < 7; i++) for (const dz of [-5.2, 5.2]) g.add(at(box(0.5, 6, 0.5, 0x8a6a4a), tpx - 8 + i * 2.7, tpy + 4, tpz + dz));
+  for (let i = 0; i < 6; i++) g.add(at(box(2, 2.4, 0.15, 0x3a2418), tpx - 7 + i * 2.8, tpy + 6.5, tpz + 5.3));   // arches
+  g.add(at(box(19, 0.6, 11.5, 0xa8503a), tpx, tpy + 8.3, tpz));
+  g.add(at(label("Tipu Sultan's Summer Palace", 'place', 120), tpx, tpy + 12, tpz));
+  const mx = -30, mz = 125, my = h(mx, mz);
+  const flower = [0xf2c31b, 0xe74c6f, 0xf27d3a, 0xffffff, 0xb0308a];
+  for (let i = 0; i < 12; i++) {
+    const x = mx - 14 + (i % 6) * 5.6, z = mz + (i < 6 ? -4 : 4);
+    g.add(at(box(3.5, 1, 2.5, 0xd8c49a), x, my + 0.5, z));
+    g.add(at(sph(1.1, flower[i % flower.length], 7), x, my + 1.6, z));
+    g.add(rot(at(cone(2.6, 1.4, [0xd94a3d, 0x2f6fd1][i % 2], 4), x, my + 3.5, z), 'y', Math.PI / 4));
+    g.add(at(cyl(0.08, 0.08, 3, 0x555555, 6), x, my + 1.5, z + 1.4));
+  }
+  g.add(at(label('KR Market · flower market', 'place', 110), mx, my + 6, mz));
+
+  // Koramangala: Forum Mall; Electronic City: Infosys campus (the "Silicon Valley" bit)
+  const fx = 115, fz = 128, fy = h(fx, fz);
+  g.add(at(box(34, 12, 26, 0xe8e2d6), fx, fy + 6, fz));
+  g.add(at(mesh(new THREE.BoxGeometry(30, 8, 0.4), glass, { transparent: true, opacity: 0.6 }), fx, fy + 5, fz - 13.2));
+  g.add(at(box(9, 2.4, 0.4, 0x2f6fd1), fx, fy + 10.5, fz - 13.3));
+  g.add(at(label('Forum Mall · Koramangala', 'place', 120), fx, fy + 16, fz - 12));
+  const ex = 40, ez = 150, ey = h(ex, ez);
+  for (const [dx, dz, hh] of [[-14, 0, 20], [0, -8, 26], [14, 0, 20], [0, 10, 14]]) {
+    g.add(at(mesh(new THREE.BoxGeometry(11, hh, 11), glass, { transparent: true, opacity: 0.55 }), ex + dx, ey + hh / 2, ez + dz));
+    for (let y = 4; y < hh; y += 4) g.add(at(box(11.2, 0.3, 11.2, 0xf4f4f4), ex + dx, ey + y, ez + dz));
+  }
+  g.add(at(cyl(6, 6, 0.6, 0x4a97c8, 20), ex, ey + 0.3, ez + 1));                                   // campus pond
+  g.add(at(box(8, 2, 0.5, 0x1f5fd0), ex, ey + 2, ez - 16));
+  g.add(at(label('Infosys · Electronic City', 'place', 130), ex, ey + 30, ez - 8));
+
+  // Kempegowda International Airport, far north-east: terminal, tower, runway and a plane
+  const ax = 100, az = -140, ay = h(ax, az);
+  g.add(at(box(50, 8, 14, 0xe8e2d6), ax, ay + 4, az + 10));
+  g.add(at(mesh(new THREE.BoxGeometry(48, 5, 0.4), glass, { transparent: true, opacity: 0.6 }), ax, ay + 4, az + 17.2));
+  g.add(at(box(52, 1.2, 16, 0x555555), ax, ay + 8.6, az + 10));
+  g.add(at(cyl(1.4, 1.8, 22, 0xbdbdbd, 10), ax - 32, ay + 11, az + 14));                           // control tower
+  g.add(at(cyl(4, 3, 4, glass, 10), ax - 32, ay + 24, az + 14));
+  g.add(at(box(90, 0.25, 12, 0x4a4a4a), ax, ay + 0.15, az - 14));                                  // runway
+  for (let i = 0; i < 9; i++) g.add(at(box(4, 0.3, 0.6, 0xf4f4f4), ax - 40 + i * 10, ay + 0.2, az - 14));
+  const plane = new THREE.Group();
+  plane.add(rot(at(cyl(1.6, 1.6, 22, 0xf4f4f4, 12), 0, 2.6, 0), 'x', Math.PI / 2));
+  plane.add(rot(at(cone(1.6, 4, 0xf4f4f4, 12), 0, 2.6, 13), 'x', Math.PI / 2));
+  plane.add(at(box(24, 0.3, 4, 0xdddddd), 0, 2.2, 0));                                             // wings
+  plane.add(at(box(8, 0.3, 2.4, 0xdddddd), 0, 3, -10));
+  plane.add(at(box(0.3, 5, 3.5, 0xd94a3d), 0, 5, -10));                                            // tail fin
+  for (const x of [-6, 6]) plane.add(rot(at(cyl(0.9, 0.9, 3, 0x555555, 10), x, 1.4, 1), 'x', Math.PI / 2));
+  plane.position.set(ax, ay + 0.3, az - 14); plane.rotation.y = Math.PI / 2; g.add(plane);
+  g.add(at(label('Kempegowda International Airport', 'place', 150), ax, ay + 16, az + 10));
+
+  // extra roads: to Majestic, to the airport, to ISKCON, down to Electronic City and Koramangala
+  road(g, h, -56, 80, -130, 80);
+  road(g, h, 15, -60, 100, -120);
+  road(g, h, -40, -60, -110, -85);
+  road(g, h, 15, 86, 40, 132);
+  road(g, h, 40, 132, 115, 115);
+  road(g, h, -30, 86, -60, 110);
+
   // place-name boards
   const places: [string, number, number, number][] = [
-    ['Vidhana Soudha', 0, 31, -12], ['Cubbon Park \u00b7 Bandstand', -45, 9, 10], ['Lalbagh Botanical Garden \u00b7 Glass House', 50, 14, 45],
+    ['Vidhana Soudha', 0, 31, -12], ['High Court · Attara Kacheri', -38, 12, -2], ['Brigade Road · Church Street', 8, 8, 64], ['Indiranagar 100 Feet Road', 78, 8, 96], ['Cubbon Park \u00b7 Bandstand', -45, 9, 10], ['Lalbagh Botanical Garden \u00b7 Glass House', 50, 14, 45],
     ['Lalbagh Rock \u00b7 Kempegowda Tower', 70, 17, 60], ['Bangalore Palace', -50, 22, -52], ['Bull Temple \u00b7 Nandi', 60, 18, -33],
     ['UB City', 86, 46, 12], ['M. Chinnaswamy Stadium', -20, 12, 60], ['Ulsoor Lake', -75, 4, 40], ['Silk Board Junction \u00b7 traffic jam', 88, 7, 80],
     ['MG Road', 10, 6, 74],
@@ -573,7 +705,13 @@ export function scatterDecor(dest: Destination, terrain: Terrain, avoid: Avoid[]
       if (avoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
       if (dest.solids?.some((s) => Math.hypot(x - s[0], z - s[1]) < s[2] + 2)) continue;         // keep monuments clear
       if (dest.id === 'bengaluru' && (Math.abs(z - 80) < 12 || (Math.abs(x - 15) < 5 && z > -62 && z < 88)
-        || Math.hypot(x - 88, z - 80) < 22 || Math.hypot(x + 75, z - 40) < 26)) continue;                 // metro, roads, Silk Board, lake
+        || Math.hypot(x - 88, z - 80) < 22 || Math.hypot(x + 75, z - 40) < 26
+        || (Math.abs(z - 64) < 6 && x > -52 && x < 70) || (Math.abs(z - 96) < 6 && x > 52 && x < 104)      // shop strips
+        || (Math.abs(z - 80) < 5 && x < -56) || Math.hypot(x + 110, z - 80) < 30 || Math.hypot(x + 105, z - 110) < 20
+        || Math.hypot(x + 125, z + 95) < 24 || Math.hypot(x + 120, z + 30) < 24 || Math.hypot(x + 70, z - 118) < 16
+        || Math.hypot(x + 30, z - 125) < 20 || Math.hypot(x - 115, z - 128) < 22 || Math.hypot(x - 40, z - 150) < 26
+        || (x > 50 && z < -110) || Math.abs((z + 60) - (x - 15) * (-60 / 85)) < 6 && x > 15 && x < 100 && z < -55
+        || Math.hypot(x - 28, z - 110) < 8 || Math.hypot(x - 78, z - 123) < 8 || Math.hypot(x + 45, z - 98) < 8)) continue;  // new districts and roads
       if (dest.id === 'kochi' && (Math.abs(z - 95) < 12 || x < -95 || (x > 98 && Math.abs(z) < 62)
         || (Math.abs(x - 15) < 5 && z > -45 && z < 88) || (Math.abs(z - 70) < 5 && x > -60 && x < 100)
         || (Math.abs(x - 20) < 24 && z > 44 && z < 82) || (x > 70 && z > 65))) continue;                // metro, shore, roads, mall, bus hub
@@ -601,6 +739,36 @@ export function buildLandmark(dest: Destination, terrain: Terrain): THREE.Group 
 }
 
 // Small floating item the player can walk over
+// Petrol station: canopy on pillars, two pump islands, a shop and a tall price sign. Faces +Z.
+export function makePetrolStation(name: string): THREE.Group {
+  const g = new THREE.Group();
+  const red = 0xd94a3d, white = 0xf4f4f4, dark = 0x2a2a2a;
+  g.add(at(box(16, 0.2, 12, 0x6d6d6d), 0, 0.1, 0));                             // forecourt
+  for (const x of [-6, 6]) for (const z of [-4, 4]) g.add(at(cyl(0.3, 0.3, 5.5, white, 8), x, 2.85, z));
+  g.add(at(box(17, 0.6, 13, white), 0, 5.8, 0));                                  // canopy
+  g.add(at(box(17.2, 0.5, 13.2, red), 0, 6.35, 0));
+  g.add(at(box(17.2, 0.25, 13.2, 0x2f6fd1), 0, 6.7, 0));
+  for (const x of [-3, 3]) {
+    g.add(at(box(1.6, 0.3, 4.5, 0xbdbdbd), x, 0.35, 0));                          // island
+    for (const z of [-1.2, 1.2]) {
+      g.add(at(box(0.9, 1.8, 0.6, white), x, 1.4, z));
+      g.add(at(box(0.7, 0.5, 0.05, 0x1b1b1b), x, 1.9, z + 0.31));               // display
+      g.add(at(box(0.9, 0.35, 0.62, red), x, 2.45, z));
+      g.add(at(box(0.12, 0.7, 0.12, dark), x + 0.55, 1.2, z + 0.2));            // nozzle + hose
+      g.add(at(box(0.06, 0.06, 1.2, dark), x + 0.58, 0.9, z - 0.1));
+    }
+  }
+  g.add(at(box(6, 3.2, 4, white), 7.5, 1.6, -7));                                // shop
+  g.add(at(box(5, 1.6, 0.06, 0x9fd3e8), 7.5, 1.5, -4.96));
+  g.add(at(box(6.2, 0.4, 4.2, red), 7.5, 3.4, -7));
+  g.add(at(cyl(0.2, 0.25, 9, dark, 8), -10, 4.5, -5));                            // price sign
+  g.add(at(box(3.2, 2.2, 0.3, red), -10, 9.5, -5));
+  g.add(at(box(2.8, 1.5, 0.05, white), -10, 9.5, -4.82));
+  g.add(at(box(2.8, 0.9, 0.3, 0x1b1b1b), -10, 7.9, -5));
+  g.add(at(label(`⛽ ${name}`, 'place', 140), 0, 8.4, 0));
+  return g;
+}
+
 export function makePickup(shape: string, color: number): THREE.Mesh {
   let geo: THREE.BufferGeometry;
   switch (shape) {

@@ -19,6 +19,7 @@ export interface Destination {
   collectibles: Collectible[];
   spawn?: [number, number];        // where the player appears (default: in front of the landmark)
   routes?: [number, number][][];   // road polylines (x, z) that traffic drives back and forth along
+  pump?: [number, number, number]; // petrol station x, z, heading (default: beside the first road, or near spawn)
   traffic?: { kind: 'bus' | 'police'; route: number; start?: number; color?: number; label?: string }[];
   solids?: [number, number, number][]; // x, z, radius circles kept clear of trees (collision itself comes from the meshes)
 }
@@ -27,8 +28,9 @@ export const DESTINATIONS: Destination[] = [
   {
     id: 'kochi', name: 'Kochi', place: 'Fort Kochi · Kerala', country: 'India', emoji: '🎣',
     routes: [[[15, -42], [15, 86]], [[-56, 70], [74, 70]]],
+    pump: [29, 2, -Math.PI / 2],
     traffic: [{ kind: 'bus', route: 0, color: 0xd94a3d }, { kind: 'bus', route: 1, start: 0.5, color: 0x2f8f3a }, { kind: 'police', route: 0, start: 0.7 }],
-    spawn: [0, 34], solids: [[0, -22, 13], [25, -38, 7], [42, 42, 13], [57, 60, 4], [-60, -10, 3], [-60, 4, 3], [-60, 18, 3], [-20, 60, 20], [78, 76, 6], [-84, -66, 2.5]],
+    spawn: [0, 34], solids: [[0, -22, 13], [25, -38, 7], [42, 42, 13], [57, 60, 4], [-60, -10, 3], [-60, 4, 3], [-60, 18, 3], [-20, 48, 20], [78, 76, 6], [-84, -66, 2.5]],
     tagline: 'Queen of the Arabian Sea',
     blurb: 'Watch the Chinese fishing nets at sunset, walk past Santa Cruz Basilica to Mattancherry Palace and the Jew Town clock tower, catch the ferry at the jetty, and follow the metro from Aluva to Vyttila.',
     explorers: 1187,
@@ -45,11 +47,12 @@ export const DESTINATIONS: Destination[] = [
   },
   {
     id: 'bengaluru', name: 'Bengaluru', place: 'Garden City · Karnataka', country: 'India', emoji: '🌳',
-    routes: [[[15, -60], [15, 86]], [[-56, 80], [104, 80]], [[15, -20], [-40, -60]]],
-    traffic: [{ kind: 'bus', route: 1, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 0, start: 0.6, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 2, start: 0.3, color: 0x6c3fb0, label: 'BMTC Vayu Vajra' }, { kind: 'police', route: 0, start: 0.2 }],
-    spawn: [0, 42], solids: [[0, -25, 22], [-45, 10, 8], [50, 45, 15], [70, 60, 6], [-50, -60, 16], [60, -40, 12], [-20, 60, 24], [88, 12, 8], [96, 28, 8], [-75, 40, 26]],
+    routes: [[[15, -60], [15, 86]], [[-130, 80], [104, 80]], [[15, -20], [-40, -60], [-110, -85]], [[15, -60], [100, -120]], [[15, 86], [40, 132], [115, 115]]],
+    pump: [29, 10, -Math.PI / 2],
+    traffic: [{ kind: 'bus', route: 1, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 0, start: 0.6, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'bus', route: 3, start: 0.3, color: 0x6c3fb0, label: 'BMTC Vayu Vajra' }, { kind: 'bus', route: 4, start: 0.5, color: 0x2fa66a, label: 'BMTC' }, { kind: 'bus', route: 1, start: 0.15, color: 0x2b6fd9, label: 'BMTC' }, { kind: 'police', route: 0, start: 0.2 }],
+    spawn: [0, 42], solids: [[0, -25, 22], [-45, 10, 8], [50, 45, 15], [70, 60, 6], [-50, -60, 16], [60, -40, 12], [-20, 60, 24], [88, 12, 8], [96, 28, 8], [-75, 40, 26], [-38, -2, 12], [-110, 70, 22], [-105, 110, 18], [-125, -95, 20], [-70, 118, 12], [115, 128, 18], [40, 150, 22], [100, -130, 30], [100, -154, 46]],
     tagline: 'Garden City, Silicon Valley of India',
-    blurb: 'Start at Vidhana Soudha, cross Cubbon Park to MG Road under the Namma Metro, climb Lalbagh rock, and see if you can get past Silk Board.',
+    blurb: 'Start at Vidhana Soudha, cross Cubbon Park to Brigade Road and its old stores, ride the Namma Metro from Majestic to Indiranagar, climb Lalbagh rock, drive out to the Infosys campus and the airport, and see if you can get past Silk Board.',
     explorers: 1342,
     theme: { sky: 0xc9def0, ground: 0x74b064, fog: 0xdbe8f0, sun: 0xfff2d8, accent: '#7b3fa0' },
     terrain: { amp: 2, flatRadius: 32 },

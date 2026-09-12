@@ -1,14 +1,14 @@
 // Tiny localStorage-backed progress store (points, visited worlds, display name).
 const KEY = 'wander.v1';
 
-interface State { name: string; points: number; visited: string[] }
+interface State { name: string; points: number; visited: string[]; friends: string[] }
 
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { name: 'Explorer', points: 0, visited: [], ...JSON.parse(raw) };
+    if (raw) return { name: 'Explorer', points: 0, visited: [], friends: [], ...JSON.parse(raw) };
   } catch { /* ignore */ }
-  return { name: 'Explorer', points: 0, visited: [] };
+  return { name: 'Explorer', points: 0, visited: [], friends: [] };
 }
 function save(s: State) {
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* ignore */ }
@@ -24,4 +24,6 @@ export const store = {
   setPoints(p: number) { st().points = p; save(st()); },
   visited: () => new Set(st().visited),
   visit(id: string) { if (!st().visited.includes(id)) { st().visited.push(id); save(st()); } },
+  friends: () => [...st().friends],
+  addFriend(name: string) { if (!st().friends.includes(name)) { st().friends.push(name); save(st()); } },
 };

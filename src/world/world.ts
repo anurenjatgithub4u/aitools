@@ -56,7 +56,7 @@ interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; t
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
 interface Pickup { mesh: THREE.Mesh; label: CSS2DObject; item: Collectible; active: boolean; respawnAt: number; baseY: number; phase: number }
 
-const WORLD_RADIUS = 240;
+const WORLD_RADIUS = 248;
 const VEHICLE_OFFSETS: [number, number][] = [[-7, 3], [7, 8], [-12, -6], [13, -2], [-4, -10], [4, -11]];
 const GRAVITY = 24;
 const WALK_SPEED = 9.5;
@@ -218,6 +218,7 @@ export class World {
     this.decor = decor;
     landmark.traverse((o) => { if (o instanceof CSS2DObject) this.worldLabels.push(o); });
     this.placePetrolStation(landmark);
+    this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
     this.collectBlockers(landmark);
     bakeStatic(landmark);   // collision is captured above, so the visuals can be merged into a few draw calls
     if (landmark.userData.train) this.train = { ...landmark.userData.train, idx: 0, dir: 1, pause: 2 };
@@ -288,7 +289,7 @@ export class World {
       const box = new THREE.Box3().setFromObject(m);
       box.getSize(size);
       if (size.y < 0.15 || box.min.y > 40) return;                                       // paint-thin slabs, things in the sky
-      if (size.x < 1.2 && size.z < 1.2) return;                                          // poles, trunks, pillars: walk past them
+      if (size.x < 0.6 && size.z < 0.6) return;                                          // lamp posts, trunks: walk past them
       const c = box.getCenter(new THREE.Vector3());
       const radius = geo.type === 'ConeGeometry' ? (geo.parameters?.radius ?? size.x / 2) * m.scale.x * 0.8 : undefined;
       if (radius !== undefined && radius < 1.2) return;                                  // small trees
@@ -302,9 +303,19 @@ export class World {
       : x > b.box.min.x && x < b.box.max.x && z > b.box.min.z && z < b.box.max.z;
   }
 
+  /** A vehicle's four corners (and centre) must all be free. */
+  private vehicleFits(x: number, z: number, heading: number, length: number, width: number, y: number) {
+    const fx = Math.sin(heading), fz = Math.cos(heading), rx = fz, rz = -fx;
+    const L = length / 2 - 0.15, W = width / 2 - 0.05;
+    if (!this.walkable(x, z, y)) return false;
+    for (const [a, b] of [[L, W], [L, -W], [-L, W], [-L, -W]]) if (!this.walkable(x + fx * a + rx * b, z + fz * a + rz * b, y)) return false;
+    return true;
+  }
+
   /** Can something standing at height `y` move to (x, z)? */
   private walkable(x: number, z: number, y = this.terrain.h(x, z)) {
     if (Math.hypot(x, z) >= WORLD_RADIUS || !this.terrain.onLand(x, z)) return false;
+    if (this.dest.terrain.rim && this.terrain.h(x, z) - y > 1.1) return false;             // hillside too steep
     for (const b of this.blockers) {
       if (!this.hits(b, x, z)) continue;
       const { min, max } = b.box;
@@ -573,7 +584,16 @@ export class World {
   private wasAirborne = false;
   toggleDrive() { this.wantToggleDrive = true; }
   lift() { this.wantLift = true; }
-  attachMinimap(canvas: HTMLCanvasElement) { this.minimap = { canvas, base: this.drawMinimapBase(canvas.width), ctx: canvas.getContext('2d')!, last: 0 }; }
+  attachMinimap(canvas: HTMLCanvasElement) { this.minimap = { canvas, base: this.drawMinimapBase(canvas.width, false), ctx: canvas.getContext('2d')!, last: 0 }; }
+  /** Full-screen map: bigger canvas with place names. Returns a stop function. */
+  attachBigMap(canvas: HTMLCanvasElement) {
+    const base = this.drawMinimapBase(canvas.width, true);
+    const ctx = canvas.getContext('2d')!;
+    this.bigMap = { canvas, base, ctx, last: 0 };
+    return () => { this.bigMap = null; };
+  }
+  private roadLines: [number, number][][] = [];
+  private bigMap: { canvas: HTMLCanvasElement; base: HTMLCanvasElement; ctx: CanvasRenderingContext2D; last: number } | null = null;
 
   private stickEl?: HTMLElement;
   private showStick(x: number, y: number) {
@@ -824,7 +844,7 @@ export class World {
       const fx = Math.sin(v.heading), fz = Math.cos(v.heading);
       const vp = v.group.position;
       const nx = vp.x + fx * v.speed * dt, nz = vp.z + fz * v.speed * dt;
-      if (this.walkable(nx, nz, vp.y)) { vp.x = nx; vp.z = nz; }
+      if (this.vehicleFits(nx, nz, v.heading, s.length, s.width, vp.y)) { vp.x = nx; vp.z = nz; }
       else { if (Math.abs(v.speed) > 4) this.sfx.bump(); v.speed *= -0.3; }
       this.settleVehicle(v);
       this.runOverCheck(v, fx, fz);
@@ -861,7 +881,7 @@ export class World {
         else if (aboard.length) this.dropPassengers(v);
       }
       if (this.lastMeet) { this.lastMeet = ''; this.meet = null; this.ev.onMeet(null); }
-      this.liftPrompt(walker ? (this.mobile ? `Give ${walker.name} a lift?` : `Press F to give ${walker.name} a lift`) : aboard.length ? `${aboard.map((b) => b.name).join(', ')} aboard${this.mobile ? '' : ' · F to drop off (+30 each)'}` : null);
+      this.liftPrompt(walker ? (this.mobile ? `Give ${walker.name} a lift?` : `Press F to give ${walker.name} a lift`) : aboard.length ? `${aboard.map((b) => b.name).join(', ')} aboard${this.mobile ? '' : ' · F to drop off (+30 each)'}` : this.rimHint(vp));
     } else {
       // --- walking
       const p = this.player.group.position;
@@ -919,7 +939,7 @@ export class World {
         // they notice you sometimes
         if (this.meet && t - this.meet.greeted > 45 && Math.random() < 0.5) { this.meet.greeted = t; this.botSays(this.meet, HELLO_WHEN_NEAR[Math.floor(Math.random() * HELLO_WHEN_NEAR.length)], 0.6); }
       }
-      this.liftPrompt(null);
+      this.liftPrompt(this.rimHint(p));
     }
     this.wantLift = false;
     this.wantRefuel = false;
@@ -1094,6 +1114,11 @@ export class World {
     this.labels.render(this.scene, this.camera);
   }
 
+  private rimHint(p: THREE.Vector3) {
+    const rim = this.dest.terrain.rim;
+    return rim && Math.hypot(p.x, p.z) > rim - 10 ? 'City limits — the hills are too steep. Turn back!' : null;
+  }
+
   private liftPrompt(text: string | null) {
     if (text === this.lastLift) return;
     this.lastLift = text ?? '';
@@ -1103,33 +1128,47 @@ export class World {
   // ---------- minimap ----------
   private static MAP_SPAN = 500; // world units across the map
 
-  private drawMinimapBase(size: number) {
+  private drawMinimapBase(size: number, labels: boolean) {
     const c = document.createElement('canvas');
     c.width = c.height = size;
     const ctx = c.getContext('2d')!;
     const span = World.MAP_SPAN, px = size / span;
     const water = this.dest.terrain.water;
     const img = ctx.createImageData(size, size);
-    const land = new THREE.Color(this.dest.theme.ground), sea = new THREE.Color(water?.color ?? 0x3a7fb0);
+    const land = new THREE.Color(0xb9d99a), sea = new THREE.Color(water?.color ?? 0x3a7fb0), hill = new THREE.Color(0x7fa86a), outside = new THREE.Color(0x2b4a3a);
+    const rim = this.dest.terrain.rim ?? WORLD_RADIUS;
     for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
       const x = (i / size - 0.5) * span, z = (j / size - 0.5) * span;
       const h = this.terrain.h(x, z);
       const k = (j * size + i) * 4;
+      const r = Math.hypot(x, z);
       let col: THREE.Color;
-      if (Math.hypot(x, z) > WORLD_RADIUS) col = sea.clone().multiplyScalar(0.8);
+      if (r > WORLD_RADIUS) col = outside;
+      else if (r > rim) col = hill.clone().lerp(outside, (r - rim) / (WORLD_RADIUS - rim));
       else if (water && h < water.level) col = sea;
-      else col = land.clone().multiplyScalar(0.8 + Math.min(0.5, Math.max(-0.2, h * 0.02)));
+      else col = land.clone().multiplyScalar(0.92 + Math.min(0.2, Math.max(-0.1, h * 0.01)));
       img.data[k] = col.r * 255; img.data[k + 1] = col.g * 255; img.data[k + 2] = col.b * 255; img.data[k + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
     const P = (x: number, z: number) => [size / 2 + x * px, size / 2 + z * px] as const;
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#5f5f5f'; ctx.lineWidth = 3;
-    for (const route of this.dest.routes ?? []) {
-      ctx.beginPath();
-      route.forEach(([x, z], i) => { const [a, b] = P(x, z); if (i) ctx.lineTo(a, b); else ctx.moveTo(a, b); });
-      ctx.stroke();
+    // building footprints
+    ctx.fillStyle = 'rgba(90, 80, 70, .55)';
+    for (const b of this.blockers) {
+      if (b.radius !== undefined || b.box.max.y - b.box.min.y < 2.5) continue;
+      const [a, c] = P(b.box.min.x, b.box.min.z);
+      ctx.fillRect(a, c, (b.box.max.x - b.box.min.x) * px, (b.box.max.z - b.box.min.z) * px);
     }
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const drawRoads = (color: string, w: number) => {
+      ctx.strokeStyle = color; ctx.lineWidth = w;
+      for (const route of this.roadLines) {
+        ctx.beginPath();
+        route.forEach(([x, z], i) => { const [a, b] = P(x, z); if (i) ctx.lineTo(a, b); else ctx.moveTo(a, b); });
+        ctx.stroke();
+      }
+    };
+    drawRoads('#f4f1ea', Math.max(3, 7 * px));
+    drawRoads('#6d6d6d', Math.max(1.6, 4.5 * px));
     if (this.train) {
       const st = this.train.stops, [a, b] = P(st[0], this.train.z), [c2, d] = P(st[st.length - 1], this.train.z);
       ctx.strokeStyle = '#' + this.train.color.toString(16).padStart(6, '0'); ctx.lineWidth = 2.5;
@@ -1137,29 +1176,53 @@ export class World {
       ctx.fillStyle = '#fff';
       for (const x of st) { const [e, f] = P(x, this.train.z); ctx.beginPath(); ctx.arc(e, f, 2, 0, 7); ctx.fill(); }
     }
-    ctx.fillStyle = '#e8c46a';
+    if (this.pumpPos) { const [a, b] = P(this.pumpPos.x, this.pumpPos.z); ctx.fillStyle = '#d94a3d'; ctx.beginPath(); ctx.arc(a, b, labels ? 6 : 3, 0, 7); ctx.fill(); if (labels) { ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('⛽', a, b + 3); } }
     const wp = new THREE.Vector3();
+    const named: { x: number; y: number; text: string }[] = [];
     for (const l of this.worldLabels) {
-      if (!(l.element as HTMLElement).classList.contains('place')) continue;
+      const el = l.element as HTMLElement;
+      const isPlace = el.classList.contains('place'), isStop = el.classList.contains('metro');
+      if (!isPlace && !isStop) continue;
       l.getWorldPosition(wp);
       const [a, b] = P(wp.x, wp.z);
-      ctx.beginPath(); ctx.arc(a, b, 3, 0, 7); ctx.fill();
+      ctx.fillStyle = isPlace ? '#e8c46a' : '#2b7bc9'; ctx.strokeStyle = '#17332b'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(a, b, isPlace ? (labels ? 4 : 2.5) : (labels ? 3 : 1.5), 0, 7); ctx.fill(); ctx.stroke();
+      if (labels && isPlace) named.push({ x: a, y: b, text: el.textContent!.replace(/^\S+\s/, (m) => (/[A-Za-z]/.test(m) ? m : '')).split(' · ')[0] });
+    }
+    if (labels) {
+      ctx.font = '600 11px Inter, system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      const used: [number, number, number, number][] = [];
+      for (const n of named) {
+        const w = ctx.measureText(n.text).width + 8, h = 15;
+        let x = n.x + 7, y = n.y;
+        // dodge overlaps by trying a few offsets
+        for (const [dx, dy] of [[0, 0], [0, -14], [0, 14], [-w - 14, 0], [0, -28], [0, 28]]) {
+          const bx = x + dx, by = y + dy - h / 2;
+          if (!used.some(([ux, uy, uw, uh]) => bx < ux + uw && bx + w > ux && by < uy + uh && by + h > uy)) { x = bx; y = y + dy; used.push([bx, by, w, h]); break; }
+        }
+        ctx.fillStyle = 'rgba(255,255,255,.88)'; ctx.fillRect(x, y - h / 2, w, h);
+        ctx.fillStyle = '#17332b'; ctx.fillText(n.text, x + 4, y + 0.5);
+      }
     }
     return c;
   }
 
   private drawMinimap(focus: THREE.Vector3, t: number) {
-    const m = this.minimap;
-    if (!m || t - m.last < 0.1) return;
+    if (this.minimap) this.drawMapInto(this.minimap, focus, t, false);
+    if (this.bigMap) this.drawMapInto(this.bigMap, focus, t, true);
+  }
+
+  private drawMapInto(m: { canvas: HTMLCanvasElement; base: HTMLCanvasElement; ctx: CanvasRenderingContext2D; last: number }, focus: THREE.Vector3, t: number, big: boolean) {
+    if (t - m.last < 0.1) return;
     m.last = t;
     const { ctx, canvas, base } = m;
+    const k = big ? 2.2 : 1;
     const size = canvas.width, px = size / World.MAP_SPAN;
     const P = (x: number, z: number) => [size / 2 + x * px, size / 2 + z * px] as const;
     ctx.drawImage(base, 0, 0);
-    ctx.fillStyle = 'rgba(255,255,255,.9)';
-    for (const b of this.bots) { if (b.riding) continue; const [a, c] = P(b.av.group.position.x, b.av.group.position.z); ctx.beginPath(); ctx.arc(a, c, 1.6, 0, 7); ctx.fill(); }
+    for (const b of this.bots) { if (b.riding) continue; const [a, c] = P(b.av.group.position.x, b.av.group.position.z); ctx.fillStyle = b.friend ? '#e75480' : 'rgba(255,255,255,.95)'; ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(a, c, 1.8 * k, 0, 7); ctx.fill(); ctx.stroke(); }
     ctx.fillStyle = '#f27d3a';
-    for (const r of this.roads) { const [a, c] = P(r.t.group.position.x, r.t.group.position.z); ctx.fillRect(a - 2, c - 2, 4, 4); }
+    for (const r of this.roads) { const [a, c] = P(r.t.group.position.x, r.t.group.position.z); ctx.fillRect(a - 2 * k, c - 2 * k, 4 * k, 4 * k); }
     // quest markers: fuzzy zones for hidden gifts, a ring for the next checkpoint / rider
     const q = this.quest;
     if (q && q.status === 'active') {
@@ -1180,14 +1243,20 @@ export class World {
       }
     }
     ctx.fillStyle = '#3fb7d9';
-    for (const v of this.vehicles) { if (v === this.driving) continue; const [a, c] = P(v.group.position.x, v.group.position.z); ctx.fillRect(a - 2, c - 2, 4, 4); }
+    for (const v of this.vehicles) { if (v === this.driving) continue; const [a, c] = P(v.group.position.x, v.group.position.z); ctx.fillRect(a - 2 * k, c - 2 * k, 4 * k, 4 * k); }
     // player arrow
     const heading = this.driving ? this.driving.heading : this.player.group.rotation.y;
     const [a, c] = P(focus.x, focus.z);
-    ctx.save(); ctx.translate(a, c); ctx.rotate(-heading);
+    ctx.save(); ctx.translate(a, c);
+    // view cone + pulse so you can find yourself at a glance
+    ctx.rotate(-this.yaw + Math.PI);
+    ctx.fillStyle = 'rgba(232, 196, 106, .22)'; ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, 26 * k, -Math.PI / 2 - 0.55, -Math.PI / 2 + 0.55); ctx.closePath(); ctx.fill();
+    ctx.rotate(this.yaw - Math.PI - heading);
+    ctx.strokeStyle = 'rgba(232, 196, 106, .7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, (9 + Math.sin(t * 4) * 3) * k, 0, 7); ctx.stroke();
     ctx.fillStyle = '#e8c46a'; ctx.strokeStyle = '#17332b'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(5, 5); ctx.lineTo(0, 2); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.scale(k, k); ctx.beginPath(); ctx.moveTo(0, -7); ctx.lineTo(5, 5); ctx.lineTo(0, 2); ctx.lineTo(-5, 5); ctx.closePath(); ctx.fill(); ctx.stroke();
     ctx.restore();
+    if (big) { ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('N', size / 2, 16); ctx.fillText('S', size / 2, size - 8); ctx.fillText('E', size - 12, size / 2 + 4); ctx.fillText('W', 12, size / 2 + 4); }
   }
 
   // ---------- friends ----------

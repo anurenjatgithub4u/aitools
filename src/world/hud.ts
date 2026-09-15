@@ -21,6 +21,8 @@ export interface Hud {
   meet(m: { name: string; friend: boolean } | null): void;
   chat(from: string, text: string, mine: boolean): void;
   minimap: HTMLCanvasElement;
+  bigmap: HTMLCanvasElement;
+  onMapToggle(fn: (open: boolean) => void): void;
 }
 
 export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void }
@@ -79,7 +81,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <div class="hints"><span>✨ Walk over things to collect</span><span>⌨ WASD move · Shift run/boost · Space jump · E drive · F lift · R refuel · H horn</span><span>🖱 Drag or two-finger swipe to look · wheel / pinch to zoom</span></div>
     </div>
     <div class="bottom-right">
-      <div class="minimap"><canvas id="minimap" width="170" height="170"></canvas><span>${d.name}</span></div>
+      <div class="minimap" id="minimapbox" title="Open map"><canvas id="minimap" width="170" height="170"></canvas><span>${d.name} · tap</span></div>
       <a class="chip leave" href="/">Exit</a>
     </div>
     <div class="zoom">
@@ -102,6 +104,13 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <form id="cform"><input id="cinput" maxlength="120" placeholder="Say something to people nearby…" autocomplete="off"><button type="submit">Send</button></form>
     </div>
     <div class="bubble" id="bubble" hidden></div>
+    <div class="bigmap" id="bigmap" hidden>
+      <div class="bmcard">
+        <div class="bmhead"><b>🗺️ City map</b><button id="bmclose">✕</button></div>
+        <canvas id="bigmapcv" width="640" height="640"></canvas>
+        <div class="bmlegend"><span><i style="background:#e8c46a"></i>You</span><span><i style="background:#fff"></i>Explorers</span><span><i style="background:#e75480"></i>Friends</span><span><i style="background:#3fb7d9"></i>Vehicles</span><span><i style="background:#f27d3a"></i>Buses</span><span><i style="background:#2b7bc9"></i>Metro</span><span><i style="background:#d94a3d"></i>Petrol</span><span><i style="background:rgba(255,215,90,.6)"></i>Hidden cash</span></div>
+      </div>
+    </div>
     <div id="toasts"></div>
     <div class="help" id="helpbox" hidden>
       <h3>How to play</h3>
@@ -248,7 +257,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     lift(text) {
       liftEl.hidden = !text; liftEl.textContent = text ?? '';
       const isFriend = !!text && text.includes('friend request');
-      liftBtn.hidden = !text || isFriend;
+      liftBtn.hidden = !text || isFriend || text.startsWith('City limits');
       friendBtn.hidden = !text || !isFriend;
     },
     friends(n) { friendsChip.textContent = `🤝 ${n} friends`; },
@@ -275,5 +284,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
     minimap: root.querySelector<HTMLCanvasElement>('#minimap')!,
+    bigmap: root.querySelector<HTMLCanvasElement>('#bigmapcv')!,
+    onMapToggle(fn) { const box = root.querySelector<HTMLElement>('#bigmap')!; const open = () => { box.hidden = false; fn(true); }; const close = () => { box.hidden = true; fn(false); }; root.querySelector('#minimapbox')!.addEventListener('click', open); root.querySelector('#bmclose')!.addEventListener('click', close); box.addEventListener('click', (e) => { if (e.target === box) close(); }); },
   };
 }

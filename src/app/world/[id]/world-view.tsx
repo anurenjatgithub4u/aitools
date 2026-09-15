@@ -69,6 +69,8 @@ export function WorldView({ id }: { id: string }) {
         store.points(),
       );
       world.attachMinimap(hud.minimap);
+      let stopBig: (() => void) | null = null;
+      hud.onMapToggle((open) => { stopBig?.(); stopBig = open ? world!.attachBigMap(hud.bigmap) : null; });
       hud.muted(world.sfx.muted);
       world.start();
       if (process.env.NODE_ENV === "development") (window as unknown as { __world: World }).__world = world;

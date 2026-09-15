@@ -295,6 +295,7 @@ function metroLine(g: THREE.Group, h: H, z: number, stops: [string, number][], c
 
 // Tarmac strip with lane dashes that follows the ground.
 function road(g: THREE.Group, h: H, x0: number, z0: number, x1: number, z1: number) {
+  ((g.userData.roads ??= []) as [number, number][][]).push([[x0, z0], [x1, z1]]);
   const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 8);
   for (let i = 0; i < n; i++) {
     const t0 = i / n, t1 = (i + 1) / n;
@@ -757,7 +758,7 @@ export function scatterDecor(dest: Destination, terrain: Terrain, avoid: Avoid[]
     let placed = 0, tries = 0;
     while (placed < d.count && tries++ < d.count * 12) {
       const a = r() * Math.PI * 2;
-      const rad = keepClear + r() * (235 - keepClear);
+      const rad = d.kind === 'pine' && dest.terrain.rim ? dest.terrain.rim - 6 + r() * 30 : keepClear + r() * (235 - keepClear);
       const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
       if (!terrain.onLand(x, z)) continue;
       if (avoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;

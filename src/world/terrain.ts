@@ -7,6 +7,7 @@ export interface TerrainProfile {
   base?: number;          // constant height offset
   peak?: { h: number; r: number; plateau: number }; // central mountain with flat top
   island?: number;        // beyond this radius the land sinks into the sea
+  rim?: number;           // beyond this radius hills rise to wall the city in
   water?: { level: number; color: number };
 }
 
@@ -35,6 +36,7 @@ export function makeTerrain(p: TerrainProfile): Terrain {
     let y = (p.base ?? 0) + noise(x, z) * p.amp * smooth((r - p.flatRadius) / 25);
     if (p.peak) y += p.peak.h * (1 - smooth((r - p.peak.plateau) / (p.peak.r - p.peak.plateau)));
     if (p.island !== undefined) y -= Math.max(0, r - p.island) * 0.5;
+    if (p.rim !== undefined && r > p.rim) y += (r - p.rim) ** 2 * 0.06 + noise(x * 3, z * 3) * (r - p.rim) * 0.4;
     return y;
   };
   const onLand = (x: number, z: number) => !p.water || h(x, z) > p.water.level - 0.35;

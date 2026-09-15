@@ -56,8 +56,8 @@ export const ALL_DESTINATIONS: Destination[] = [
     blurb: 'Start at Vidhana Soudha, cross Cubbon Park to Brigade Road and its old stores, ride the Namma Metro from Majestic to Indiranagar, climb Lalbagh rock, drive out to the Infosys campus and the airport, and see if you can get past Silk Board.',
     explorers: 1342,
     theme: { sky: 0xc9def0, ground: 0x74b064, fog: 0xdbe8f0, sun: 0xfff2d8, accent: '#7b3fa0' },
-    terrain: { amp: 2, flatRadius: 32 },
-    decor: [{ kind: 'rain', count: 60 }, { kind: 'tree', count: 50 }, { kind: 'cherry', count: 35 }, { kind: 'bush', count: 50 }, { kind: 'palm', count: 12 }],
+    terrain: { amp: 2, flatRadius: 32, rim: 232 },
+    decor: [{ kind: 'rain', count: 90 }, { kind: 'tree', count: 80 }, { kind: 'cherry', count: 45 }, { kind: 'bush', count: 70 }, { kind: 'palm', count: 20 }, { kind: 'pine', count: 160 }],
     collectibles: [
       { name: 'Masala dosa', points: 15, color: 0xe0a25a, shape: 'cone' },
       { name: 'Filter coffee', points: 10, color: 0x6b3f2b, shape: 'ring' },

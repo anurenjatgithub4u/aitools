@@ -844,7 +844,8 @@ export class World {
       const fx = Math.sin(v.heading), fz = Math.cos(v.heading);
       const vp = v.group.position;
       const nx = vp.x + fx * v.speed * dt, nz = vp.z + fz * v.speed * dt;
-      if (this.vehicleFits(nx, nz, v.heading, s.length, s.width, vp.y)) { vp.x = nx; vp.z = nz; }
+      const wedged = !this.vehicleFits(vp.x, vp.z, v.heading, s.length, s.width, vp.y);
+      if ((wedged && Math.hypot(nx, nz) < WORLD_RADIUS && this.terrain.onLand(nx, nz)) || this.vehicleFits(nx, nz, v.heading, s.length, s.width, vp.y)) { vp.x = nx; vp.z = nz; }
       else { if (Math.abs(v.speed) > 4) this.sfx.bump(); v.speed *= -0.3; }
       this.settleVehicle(v);
       this.runOverCheck(v, fx, fz);
@@ -896,7 +897,9 @@ export class World {
         const speed = running ? WALK_SPEED * 1.8 : WALK_SPEED;
         const nx = p.x + mx * speed * dt, nz = p.z + mz * speed * dt;
         const py = p.y - this.airY;
-        if (this.walkable(nx, nz, py)) { p.x = nx; p.z = nz; }
+        // never get stuck: if we are already inside a wall (stepped onto something odd), any move out is allowed
+        const free = !this.walkable(p.x, p.z, py) && Math.hypot(nx, nz) < WORLD_RADIUS && this.terrain.onLand(nx, nz);
+        if (free || this.walkable(nx, nz, py)) { p.x = nx; p.z = nz; }
         else if (this.walkable(nx, p.z, py)) p.x = nx;        // slide along walls
         else if (this.walkable(p.x, nz, py)) p.z = nz;
         this.player.group.rotation.y = Math.atan2(mx, mz);

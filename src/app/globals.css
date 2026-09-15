@@ -118,12 +118,14 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .toast.bad { border-left-color: #d94a3d; color: #d94a3d; }
 @keyframes blink { 50% { opacity: .35; } }
 .act.boostbtn.on { background: #a36bff; border-color: #fff; }
-.meet { background: rgba(20, 40, 34, .9); backdrop-filter: blur(8px); border-radius: 16px; padding: 10px 12px; text-align: center; border: 1px solid rgba(255,255,255,.15); }
+.meet { pointer-events: auto; background: rgba(20, 40, 34, .9); backdrop-filter: blur(8px); border-radius: 16px; padding: 10px 12px; text-align: center; border: 1px solid rgba(255,255,255,.15); animation: meetin .18s ease; }
+@keyframes meetin { from { opacity: 0; transform: translateY(8px) scale(.96); } }
 .meet b { display: block; font-size: 14px; margin-bottom: 8px; }
 .meet .mrow { display: flex; gap: 8px; }
-.meet button { width: 64px; height: 56px; border-radius: 12px; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-family: inherit; touch-action: none; user-select: none; }
+.meet button { width: 64px; height: 56px; border-radius: 12px; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; font-family: inherit; touch-action: manipulation; user-select: none; -webkit-tap-highlight-color: transparent; transition: background .12s, transform .12s; }
 .meet button small { font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
-.meet button:active, .meet button:hover { background: var(--gold); color: var(--ink); }
+.meet button:hover { background: rgba(255,255,255,.22); }
+.meet button:active, .meet button.pressed { background: var(--gold); color: var(--ink); transform: scale(.94); }
 .tag.talk { background: #fff; color: var(--ink); max-width: 240px; white-space: normal; text-align: center; }
 .hud .chatbox { left: 26px; bottom: 34px; width: 320px; background: rgba(20, 40, 34, .88); backdrop-filter: blur(8px); border-radius: 14px; padding: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 3; }
 .clog { max-height: 180px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }

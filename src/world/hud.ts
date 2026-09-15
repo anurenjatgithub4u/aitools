@@ -143,8 +143,12 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const meetEl = root.querySelector<HTMLElement>('#meet')!, meetName = root.querySelector<HTMLElement>('#meetname')!;
   const meetMain = root.querySelector<HTMLElement>('#meetmain')!, meetGames = root.querySelector<HTMLElement>('#meetgames')!;
   const meetFriend = root.querySelector<HTMLElement>('#meetfriend')!;
-  meetEl.addEventListener('pointerdown', (e) => {
+  // stop the tap reaching the world canvas (which would start a camera drag), then act on release
+  meetEl.addEventListener('pointerdown', (e) => { e.stopPropagation(); const b = (e.target as HTMLElement).closest('button'); if (b) b.classList.add('pressed'); });
+  meetEl.addEventListener('pointercancel', () => meetEl.querySelectorAll('.pressed').forEach((b) => b.classList.remove('pressed')));
+  meetEl.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest('button') as HTMLElement | null;
+    meetEl.querySelectorAll('.pressed').forEach((b) => b.classList.remove('pressed'));
     if (!btn) return;
     e.preventDefault();
     const a = btn.dataset.a!;

@@ -905,6 +905,12 @@ export class World {
       this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
       this.meet = this.nearestPerson(p);
+      if (this.meet && !this.meet.reply) {
+        // they stop and turn to you while the menu is open
+        this.meet.wait = Math.max(this.meet.wait, 0.6);
+        const mp = this.meet.av.group.position;
+        this.meet.av.group.rotation.y += wrapAngle(Math.atan2(p.x - mp.x, p.z - mp.z) - this.meet.av.group.rotation.y) * Math.min(1, dt * 5);
+      }
       if (this.wantFriend && this.meet && !this.meet.friend) this.askFriend(this.meet, t);
       const key = this.meet ? `${this.meet.name}|${this.meet.friend}` : '';
       if (key !== this.lastMeet) {
@@ -1187,6 +1193,8 @@ export class World {
   // ---------- friends ----------
   /** Anyone within reach — friend or not — you can talk to, play with, or hang out with. */
   private nearestPerson(p: THREE.Vector3): Bot | null {
+    // stick with the current person until they are clearly out of reach
+    if (this.meet && !this.meet.riding && !this.meet.knocked && !this.meet.reply && this.meet.av.group.position.distanceTo(p) < 6.5) return this.meet;
     let best: Bot | null = null, bd = 4;
     for (const b of this.bots) {
       if (b.riding || b.knocked || b.reply) continue;

@@ -80,7 +80,6 @@ export function WorldView({ id }: { id: string }) {
             if (kind === 'pool') import("@/world/pool").then(({ openPool }) => openPool(hudEl, opponent, me, done));
             else if (kind === 'chess') import("@/world/chess").then(({ openChess }) => openChess(hudEl, opponent, me, done));
             else if (kind === 'ludo') import("@/world/ludo").then(({ openLudo }) => openLudo(hudEl, opponent, me, done));
-            else if (kind === 'race') import("@/world/race").then(({ openRace }) => openRace(hudEl, opponent, me, done));
             else import("@/world/carrom").then(({ openCarrom }) => openCarrom(hudEl, opponent, me, done));
           },
         },

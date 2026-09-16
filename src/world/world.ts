@@ -54,6 +54,11 @@ const LOW_PLATFORM = 2.6; // boxes this thin are walkable surfaces, taller ones 
 interface Critter { a: Animal; target: THREE.Vector3; wait: number; walking: number; phase: number }
 interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 
+// An in-world circuit race on the FindurAI Speedway: your car plus three AI cars, three laps.
+interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean }
+interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string }
+const RACE_LAPS = 3;
+
 interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
 // A real player elsewhere on the network: we get their state a few times a second and glide between updates.
 interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null }
@@ -93,6 +98,10 @@ export class World {
   private online = 0;
   private ev: WorldEvents;
   private lastRank = -1;
+  private circuit: { pts: THREE.Vector3[]; width: number } | null = null;
+  private race: RaceState | null = null;
+  private raceLock = false;
+  private lastRaceHud = 0;
   private meet: Bot | null = null;
   private lastMeet = '';
   private hangout: { bot: Bot; until: number; nextLine: number } | null = null;
@@ -390,6 +399,7 @@ export class World {
     landmark.traverse((o) => { if (o instanceof CSS2DObject) this.worldLabels.push(o); });
     this.placePetrolStation(landmark);
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
+    if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width }; }
     this.collectBlockers(landmark);
     bakeStatic(landmark);   // collision is captured above, so the visuals can be merged into a few draw calls
     if (landmark.userData.train) this.train = { ...landmark.userData.train, idx: 0, dir: 1, pause: 2 };
@@ -767,7 +777,7 @@ export class World {
   attachMinimap(canvas: HTMLCanvasElement) { this.minimap = { canvas, base: this.drawMinimapBase(canvas.width, false), ctx: canvas.getContext('2d')!, last: 0 }; }
   /** Full-screen map: bigger canvas with place names. Returns a stop function. */
   attachBigMap(canvas: HTMLCanvasElement) {
-    const base = this.drawMinimapBase(canvas.width, true);
+    const base = this.drawMinimapBase(canvas.width, false);
     const ctx = canvas.getContext('2d')!;
     this.bigMap = { canvas, base, ctx, last: 0 };
     return () => { this.bigMap = null; };
@@ -1001,7 +1011,7 @@ export class World {
       const v = this.driving;
       const s = v.spec;
       const empty = s.fuel && v.fuel <= 0;
-      const throttle = empty ? 0 : Math.min(1, Math.max(-1, iz));
+      const throttle = empty || this.raceLock ? 0 : Math.min(1, Math.max(-1, iz));
       const boosting = !empty && (this.boostHeld || k.has('shift') || k.has('b')) && v.boost > 0 && throttle > 0;
       if (boosting && !this.wasBoosting) this.sfx.boost();
       this.wasBoosting = boosting;
@@ -1029,6 +1039,7 @@ export class World {
       if ((wedged && Math.hypot(nx, nz) < WORLD_RADIUS && this.terrain.onLand(nx, nz)) || this.vehicleFits(nx, nz, v.heading, s.length, s.width, vp.y)) { vp.x = nx; vp.z = nz; }
       else { if (Math.abs(v.speed) > 4) this.sfx.bump(); v.speed *= -0.3; }
       this.settleVehicle(v);
+      if (this.race && !this.race.over && this.trackDist(vp) > this.circuit!.width / 2 + 1.5) v.speed = Math.min(v.speed, s.maxSpeed * 0.4);   // on the grass
       this.runOverCheck(v, fx, fz);
       for (const w of v.wheels) w.rotation.x += (v.speed * dt) / 0.5;
 
@@ -1264,6 +1275,8 @@ export class World {
       else if (t > hg.nextLine) { hg.nextLine = t + 9 + Math.random() * 8; this.botSays(hg.bot, HANGOUT_LINES[Math.floor(Math.random() * HANGOUT_LINES.length)], 0); }
     }
 
+    if (this.race) this.tickRace(dt, t);
+
     // --- world labels + metro train
     const wp = new THREE.Vector3();
     const lr = this.mobile ? 0.5 : 1;
@@ -1447,6 +1460,115 @@ export class World {
     if (big) { ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('N', size / 2, 16); ctx.fillText('S', size / 2, size - 8); ctx.fillText('E', size - 12, size / 2 + 4); ctx.fillText('W', 12, size / 2 + 4); }
   }
 
+  // ---------- circuit race ----------
+  private trackDist(p: THREE.Vector3) {
+    const pts = this.circuit!.pts; let best = Infinity;
+    for (let i = 0; i < pts.length; i += 2) { const d = (pts[i].x - p.x) ** 2 + (pts[i].z - p.z) ** 2; if (d < best) best = d; }
+    return Math.sqrt(best);
+  }
+  private nearestIdx(p: THREE.Vector3, from: number) {
+    const pts = this.circuit!.pts, N = pts.length; let best = from, bd = Infinity;
+    for (let k = -8; k <= 14; k++) { const i = (from + k + N) % N; const d = (pts[i].x - p.x) ** 2 + (pts[i].z - p.z) ** 2; if (d < bd) { bd = d; best = i; } }
+    return best;
+  }
+
+  /** Put everyone on the grid at the Speedway and count down. */
+  startCircuitRace(opp?: Bot) {
+    if (!this.circuit || this.race) return;
+    if (this.driving) this.exitVehicle();
+    const pts = this.circuit.pts, N = pts.length;
+    const a = pts[0], b = pts[1], dir = b.clone().sub(a).setY(0).normalize(), nx = -dir.z, nz = dir.x;
+    const heading = Math.atan2(dir.x, dir.z);
+    const drivers: (Bot | null)[] = [null];
+    const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && x !== opp);
+    if (opp && !opp.remote && !opp.riding) drivers.push(opp); else drivers.push(pool.shift() ?? null);
+    drivers.push(pool.shift() ?? null, pool.shift() ?? null);
+    const cars: RaceCar[] = drivers.map((bot, i) => {
+      const car = makeVehicle('jeep', [0xe8c46a, 0xe75480, 0x3fb7d9, 0x2fa66a][i]);
+      const back = 6 + Math.floor(i / 2) * 7, side = (i % 2 ? 1 : -1) * 3.2;
+      car.group.position.set(a.x - dir.x * back + nx * side, 0, a.z - dir.z * back + nz * side);
+      car.heading = heading; car.fuel = 1;
+      this.settleVehicle(car);
+      this.scene.add(car.group);
+      if (bot) { this.scene.remove(bot.av.group); car.group.add(bot.av.group); bot.av.group.position.copy(car.seat); bot.av.group.rotation.set(0, 0, 0); poseSit(bot.av); bot.riding = car; bot.label.visible = true; }
+      return { car, bot, name: i === 0 ? this.playerName : bot?.name ?? ['Ravi', 'Kenji', 'Mia'][i], idx: N - 3, lap: 0, prog: 0, done: 0, skill: i === 0 ? 0 : 0.86 + (i === 1 ? 0.12 : (3 - i) * 0.05), lane: (i % 2 ? 1 : -1) * 2.2, you: i === 0 };
+    });
+    this.vehicles.push(cars[0].car);
+    this.enterVehicle(cars[0].car);
+    this.yaw = heading + Math.PI;
+    this.race = { cars, countdown: 4.2, laps: RACE_LAPS, finished: 0, over: false, t0: 0, endAt: 0, opp: opp?.name ?? 'the field' };
+    this.raceLock = true;
+    this.clearQuest();
+    this.questCooldown = 8;
+    this.sfx.questStart();
+  }
+
+  private tickRace(dt: number, t: number) {
+    const r = this.race!, pts = this.circuit!.pts, N = pts.length;
+    if (r.countdown > 0) {
+      const before = Math.ceil(r.countdown - 1.2);
+      r.countdown -= dt;
+      const now = Math.ceil(r.countdown - 1.2);
+      if (now !== before) { if (now <= 0) this.sfx.checkpoint(); else this.sfx.tick(); }
+      this.raceLock = r.countdown > 1.2;
+      if (r.countdown <= 1.2 && !r.t0) r.t0 = t;
+    }
+    if (r.over && t > r.endAt) { this.endRace(); return; }
+    for (const c of r.cars) {
+      const v = c.car, vp = v.group.position;
+      if (!c.you && !r.over && r.countdown <= 1.2 && !c.done) {
+        // AI: aim at a point ahead on the centre line, offset into a lane, ease off in the corners
+        const ahead = (c.idx + 7) % N, a2 = (c.idx + 14) % N;
+        const tp = pts[ahead], dir = pts[(ahead + 1) % N].clone().sub(pts[ahead]).setY(0).normalize();
+        const tx = tp.x - dir.z * c.lane, tz = tp.z + dir.x * c.lane;
+        const want = Math.atan2(tx - vp.x, tz - vp.z);
+        const diff = wrapAngle(want - v.heading);
+        const bend = Math.abs(wrapAngle(Math.atan2(pts[a2].x - tp.x, pts[a2].z - tp.z) - Math.atan2(dir.x, dir.z)));
+        const target = v.spec.maxSpeed * c.skill * (bend > 0.35 ? 0.62 : 1);
+        v.speed += (target - v.speed) * Math.min(1, dt * (v.speed < target ? 1.1 : 3));
+        v.heading += Math.max(-1, Math.min(1, diff * 2.5)) * v.spec.turn * dt * Math.min(1, v.speed / 6);
+        vp.x += Math.sin(v.heading) * v.speed * dt; vp.z += Math.cos(v.heading) * v.speed * dt;
+        this.settleVehicle(v);
+        for (const w of v.wheels) w.rotation.x += (v.speed * dt) / 0.5;
+      } else if (!c.you && c.done) { v.speed *= 0.97; vp.x += Math.sin(v.heading) * v.speed * dt; vp.z += Math.cos(v.heading) * v.speed * dt; this.settleVehicle(v); }
+      // car-car separation
+      for (const o of r.cars) { if (o === c) continue; const op = o.car.group.position, dx = op.x - vp.x, dz = op.z - vp.z, d = Math.hypot(dx, dz); if (d < 3.6 && d > 0) { const push = (3.6 - d) / 2; if (!c.you) { vp.x -= dx / d * push; vp.z -= dz / d * push; } if (!o.you) { op.x += dx / d * push; op.z += dz / d * push; } } }
+      // progress + laps
+      const i = this.nearestIdx(vp, c.idx);
+      if (c.idx > N - 12 && i < 12) c.lap++; else if (c.idx < 12 && i > N - 12) c.lap--;
+      c.idx = i; c.prog = c.lap * N + i;
+      if (c.lap > r.laps && !c.done) {
+        c.done = ++r.finished;
+        if (c.you) {
+          r.over = true; r.endAt = t + 7;
+          const place = c.done;
+          this.gameResult('race', place === 1, r.opp);
+          this.ev.onCollect({ name: place === 1 ? 'Chequered flag - you won the race!' : `Finished ${['', '1st', '2nd', '3rd', '4th'][place]} of 4`, points: 0, color: 0xe8c46a, shape: 'gem' });
+          if (place === 1) this.sfx.questDone(); else this.sfx.questFail();
+        } else if (c.bot) this.botSays(c.bot, c.done === 1 ? 'Winner!' : 'Good race!', 0.3);
+      }
+    }
+    if (t - this.lastRaceHud > 0.2) {
+      this.lastRaceHud = t;
+      const order = [...r.cars].sort((a, b) => (a.done && b.done ? a.done - b.done : a.done ? -1 : b.done ? 1 : b.prog - a.prog));
+      const me = r.cars[0], place = order.indexOf(me) + 1;
+      const cd = Math.ceil(r.countdown - 1.2);
+      const title = r.countdown > 1.2 ? `On the grid... ${cd}` : r.countdown > 0 ? 'GO! GO! GO!' : r.over ? `Race over - P${me.done}` : `Lap ${Math.max(1, Math.min(r.laps, me.lap))} / ${r.laps} - P${place}`;
+      this.ev.onQuest({ status: r.over ? (me.done === 1 ? 'done' : 'failed') : 'active', title, desc: order.map((c, k) => `${k + 1}. ${c.name}`).join('   '), progress: `${r.laps} laps - FindurAI Speedway`, remaining: r.t0 ? t - r.t0 : 0, total: 600, reward: 250, hint: null });
+    }
+  }
+
+  private endRace() {
+    const r = this.race!;
+    this.race = null; this.raceLock = false;
+    for (const c of r.cars) {
+      if (c.you) continue;
+      if (c.bot) { c.car.group.remove(c.bot.av.group); this.scene.add(c.bot.av.group); const p = c.car.group.position; c.bot.av.group.position.set(p.x + 2, this.groundAt(p.x + 2, p.z, p.y), p.z); c.bot.av.group.rotation.set(0, c.car.heading, 0); c.bot.av.armL.rotation.x = c.bot.av.armR.rotation.x = 0; c.bot.riding = null; c.bot.wait = 2; c.bot.target = this.randomLandPoint(8, 120); }
+      this.scene.remove(c.car.group);
+    }
+    this.ev.onQuest(null);
+  }
+
   // ---------- friends ----------
   /** Anyone within reach — friend or not — you can talk to, play with, or hang out with. */
   private nearestPerson(p: THREE.Vector3): Bot | null {
@@ -1481,7 +1603,7 @@ export class World {
         this.sfx.checkpoint();
         break;
       case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
-      case 'race': this.botSays(b, 'See you on the grid 🏁', 0.2); this.ev.onGame('race', b.name); break;
+      case 'race': this.botSays(b, 'See you on the grid 🏁', 0.2); this.startCircuitRace(b); break;
       case 'hunt': this.startVersus('hunt', b); break;
       case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
       case 'chess': this.botSays(b, 'White moves first — your go ♟️', 0.2); this.ev.onGame('chess', b.name); break;
@@ -1785,6 +1907,7 @@ export class World {
   }
 
   private updateQuest(focus: THREE.Vector3, radius: number, dt: number, t: number) {
+    if (this.race) { this.questCooldown = 8; return; }   // the race owns the task card
     if (this.wantQuest) { this.wantQuest = false; if (!this.quest || this.quest.status !== 'active') this.startQuest(); }
     const q = this.quest;
     if (!q || q.status !== 'active') {

@@ -84,7 +84,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     </div>
     <div class="bottom-right">
       <div class="minimap" id="minimapbox" title="Open map"><canvas id="minimap" width="170" height="170"></canvas><span>${d.name} · tap</span></div>
-      <a class="chip leave" href="/">Exit</a>
+      <a class="chip leave" href="/" title="Restart at the plaza">↻ Restart</a>
     </div>
     <div class="zoom">
       <button id="zoomin" title="Zoom in">+</button>
@@ -119,7 +119,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <h3>How to play</h3>
       <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
       <p>${d.blurb}</p>
-      <button id="closehelp">Got it</button>
+      <button id="closehelp">Got it</button> <button id="changeavatar" class="ghost">🧍 Change my explorer</button>
     </div>
   </div>`;
 
@@ -203,6 +203,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   qBtn.addEventListener('click', actions.task);
   root.querySelector('#help')!.addEventListener('click', () => (helpbox.hidden = !helpbox.hidden));
   root.querySelector('#closehelp')!.addEventListener('click', () => (helpbox.hidden = true));
+  root.querySelector('#changeavatar')!.addEventListener('click', () => { store.clearGender(); location.reload(); });
 
   return {
     points(n) { pts.textContent = String(n); pts.parentElement!.classList.remove('pop'); void (pts.parentElement as HTMLElement).offsetWidth; pts.parentElement!.classList.add('pop'); },

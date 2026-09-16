@@ -24,6 +24,9 @@ export function WorldView({ id }: { id: string }) {
   // the 3D bundle starts downloading behind the splash; the world is built once the player has an explorer
   const [loading] = useState(() => (typeof window === "undefined" ? Promise.resolve(null) : import("@/world/world")));
   const [entered, setEntered] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [gateGone, setGateGone] = useState(false);
+  useEffect(() => { if (!ready) return; const t = setTimeout(() => setGateGone(true), 900); return () => clearTimeout(t); }, [ready]);
 
   useEffect(() => {
     if (!entered) return;
@@ -92,6 +95,8 @@ export function WorldView({ id }: { id: string }) {
       hud.onMapToggle((open) => { stopBig?.(); stopBig = open ? world!.attachBigMap(hud.bigmap) : null; });
       hud.muted(world.sfx.muted);
       world.start();
+      requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));   // first frame is on screen
+      setTimeout(() => setReady(true), 2500);                                       // …or a background tab that never paints
       if (process.env.NODE_ENV === "development") (window as unknown as { __world: World }).__world = world;
     });
 
@@ -106,7 +111,7 @@ export function WorldView({ id }: { id: string }) {
     <div className="in-world">
       <div ref={stageRef} className="stage" />
       <div ref={hudRef} />
-      {!entered && <Gate loading={loading} onEnter={() => setEntered(true)} />}
+      {!gateGone && <Gate loading={loading} ready={ready} onEnter={() => setEntered(true)} />}
     </div>
   );
 }

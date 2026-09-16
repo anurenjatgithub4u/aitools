@@ -6,10 +6,11 @@ import { store } from "@/world/store";
 // Shown before the city: a splash while the 3D bundle loads, then (first time only)
 // "create your explorer" — a name and a gender, each option rendered as a live spinning avatar.
 
-type Phase = "splash" | "profile" | "leaving";
-const SPLASH_MIN_MS = 1800;
+type Phase = "splash" | "profile" | "building" | "leaving";
+const SPLASH_MIN_MS = 700;
 
-export function Gate({ loading, onEnter }: { loading: Promise<unknown>; onEnter: () => void }) {
+// `ready` flips true once the world has rendered its first frame; only then does the gate fade out.
+export function Gate({ loading, ready, onEnter }: { loading: Promise<unknown>; ready: boolean; onEnter: () => void }) {
   const [phase, setPhase] = useState<Phase>("splash");
   const [progress, setProgress] = useState(4);
   const [loaded, setLoaded] = useState(false);
@@ -17,13 +18,15 @@ export function Gate({ loading, onEnter }: { loading: Promise<unknown>; onEnter:
   const [name, setName] = useState("Explorer");
   const startedAt = useRef(Date.now());
 
+  useEffect(() => { if (ready) { setProgress(100); const t = setTimeout(() => setPhase("leaving"), 250); return () => clearTimeout(t); } }, [ready]);
+
   useEffect(() => {
     setGender(store.gender());
     setName(store.name());
     let done = false;
     loading.then(() => { done = true; setLoaded(true); });
     // creep toward 85% while the bundle downloads, snap to 100% when it lands
-    const iv = setInterval(() => setProgress((p) => (done ? 100 : Math.min(85, p + (85 - p) * 0.08 + 0.4))), 120);
+    const iv = setInterval(() => setProgress((p) => (done ? Math.min(92, p + 3) : Math.min(70, p + (70 - p) * 0.08 + 0.4))), 120);
     return () => clearInterval(iv);
   }, [loading]);
 
@@ -37,7 +40,7 @@ export function Gate({ loading, onEnter }: { loading: Promise<unknown>; onEnter:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, phase]);
 
-  const enter = () => { setPhase("leaving"); setTimeout(onEnter, 60); };
+  const enter = () => { setPhase("building"); setTimeout(onEnter, 80); };   // let the splash paint "Building…" before the heavy work
   const save = () => {
     if (!gender) return;
     store.setGender(gender);
@@ -56,7 +59,7 @@ export function Gate({ loading, onEnter }: { loading: Promise<unknown>; onEnter:
           </div>
           <p className="splash-tag">one city · countless stories</p>
           <div className="splash-bar"><i style={{ width: `${progress}%` }} /></div>
-          <p className="splash-hint">{progress < 100 ? "Building the city…" : "Ready"}</p>
+          <p className="splash-hint">{phase === "building" ? "Building the city…" : progress < 70 ? "Loading…" : "Almost there…"}</p>
         </div>
       )}
 

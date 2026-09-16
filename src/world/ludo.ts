@@ -24,13 +24,24 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
   const me: Side = { ...RED, tokens: [0, 0, 0, 0] }, bot: Side = { ...BLUE, tokens: [0, 0, 0, 0] };
   const S = 40, N = 15;
   const wrap = document.createElement('div'); wrap.className = 'ludo';
-  wrap.innerHTML = `<canvas width="${S * N}" height="${S * N}"></canvas><div class="dice"><div class="die" id="die">🎲</div><button id="roll">Roll</button></div>`;
+  wrap.innerHTML = `<canvas width="${S * N}" height="${S * N}"></canvas><div class="dice"><div class="die" id="die"></div><button id="roll">Roll the dice</button></div>`;
   A.board.appendChild(wrap);
   const cv = wrap.querySelector('canvas')!, ctx = cv.getContext('2d')!;
   const die = wrap.querySelector<HTMLElement>('#die')!, rollBtn = wrap.querySelector<HTMLButtonElement>('#roll')!;
   let turn: Side = me, roll = 0, movable: number[] = [], busy = false;
   const other = (s: Side) => (s === me ? bot : me);
-  const PIP: Record<number, string> = { 1: '⚀', 2: '⚁', 3: '⚂', 4: '⚃', 5: '⚄', 6: '⚅' };
+  // dice face drawn with pips; `rolling` cycles random faces before settling
+  const FACES: Record<number, number[]> = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+  const setDie = (v: number) => { die.innerHTML = Array.from({ length: 9 }, (_, i) => `<b class="${FACES[v].includes(i) ? 'on' : ''}"></b>`).join(''); };
+  const rollAnim = (final: number, done: () => void) => {
+    let n = 0; die.classList.add('rolling');
+    const tick = () => { n++; setDie(1 + Math.floor(Math.random() * 6)); if (n < 9) setTimeout(tick, 60 + n * 12); else { setDie(final); die.classList.remove('rolling'); done(); } };
+    tick();
+  };
+  setDie(6);
+  // token positions animate between cells; `anim` holds in-flight hops
+  const anim = new Map<string, { from: Cell; to: Cell; t0: number }>();
+  const pulse = { t: 0 };
 
   const score = () => A.setScore(`${me.tokens.filter((t) => t === FINISH).length} / 4 home`, `${bot.tokens.filter((t) => t === FINISH).length} / 4 home`);
 
@@ -43,6 +54,9 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
   function doMove(s: Side, i: number, r: number): { capture: boolean; finished: boolean } {
     const p = s.tokens[i];
     const np = p === 0 ? 1 : p + r;
+    const from: Cell = p === 0 ? s.base[i] : (() => { const c = cellOf(s, p)!; return [c[0] + 0.5, c[1] + 0.5] as Cell; })();
+    const toC = cellOf(s, np)!;
+    anim.set(`${s.name}${i}`, { from, to: [toC[0] + 0.5, toC[1] + 0.5], t0: performance.now() });
     s.tokens[i] = np;
     let capture = false;
     const ti = trackIdx(s, np);
@@ -56,9 +70,11 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
   function draw() {
     ctx.fillStyle = '#fbf6ea'; ctx.fillRect(0, 0, S * N, S * N);
     const box = (x: number, y: number, w: number, h: number, c: string) => { ctx.fillStyle = c; ctx.fillRect(x * S, y * S, w * S, h * S); };
+    const rr = (x: number, y: number, w: number, h: number, r: number, c: string) => { ctx.fillStyle = c; ctx.beginPath(); ctx.roundRect(x * S, y * S, w * S, h * S, r); ctx.fill(); };
     // bases (four colours for looks; only red and blue play)
     box(0, 9, 6, 6, RED.color); box(9, 9, 6, 6, BLUE.color); box(0, 0, 6, 6, '#3fa66a'); box(9, 0, 6, 6, '#f2c31b');
-    for (const [x, y] of [[0, 9], [9, 9], [0, 0], [9, 0]]) box(x + 1, y + 1, 4, 4, '#fff');
+    for (const [x, y] of [[0, 9], [9, 9], [0, 0], [9, 0]]) { rr(x + 0.9, y + 0.9, 4.2, 4.2, 18, 'rgba(0,0,0,.15)'); rr(x + 0.8, y + 0.8, 4.2, 4.2, 18, '#fff'); }
+    for (const [x, y] of [[0, 9], [9, 9], [0, 0], [9, 0]]) for (const [dx, dy] of [[1.5, 1.5], [3.5, 1.5], [1.5, 3.5], [3.5, 3.5]]) { ctx.fillStyle = 'rgba(0,0,0,.08)'; ctx.beginPath(); ctx.arc((x + dx) * S, (y + dy) * S, S * 0.42, 0, 7); ctx.fill(); }
     // track grid
     ctx.strokeStyle = 'rgba(0,0,0,.12)';
     for (const [x, y] of TRACK) { box(x, y, 1, 1, '#fff'); ctx.strokeRect(x * S, y * S, S, S); }
@@ -67,24 +83,46 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
     for (const [x, y] of [[7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6]]) box(x, y, 1, 1, '#f2c31b66');
     for (const [x, y] of [[1, 7], [2, 7], [3, 7], [4, 7], [5, 7], [6, 7]]) box(x, y, 1, 1, '#3fa66a66');
     for (const s of [me, bot]) { const [x, y] = TRACK[s.start]; box(x, y, 1, 1, s.color + 'aa'); }
-    for (const i of SAFE) { const [x, y] = TRACK[i]; ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.font = `${S * 0.6}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', (x + 0.5) * S, (y + 0.5) * S); }
+    for (const i of SAFE) { const [x, y] = TRACK[i]; ctx.fillStyle = '#f2c31b'; ctx.font = `${S * 0.62}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', (x + 0.5) * S, (y + 0.5) * S + 1); }
+    // arrows into the home lanes
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.font = `${S * 0.5}px sans-serif`;
+    ctx.fillText('▲', 7.5 * S, 13.5 * S); ctx.fillText('◀', 13.5 * S, 7.5 * S); ctx.fillText('▼', 7.5 * S, 1.5 * S); ctx.fillText('▶', 1.5 * S, 7.5 * S);
     // centre
     ctx.fillStyle = RED.color; ctx.beginPath(); ctx.moveTo(6 * S, 9 * S); ctx.lineTo(7.5 * S, 7.5 * S); ctx.lineTo(9 * S, 9 * S); ctx.fill();
     ctx.fillStyle = BLUE.color; ctx.beginPath(); ctx.moveTo(9 * S, 6 * S); ctx.lineTo(7.5 * S, 7.5 * S); ctx.lineTo(9 * S, 9 * S); ctx.fill();
     ctx.fillStyle = '#3fa66a'; ctx.beginPath(); ctx.moveTo(6 * S, 6 * S); ctx.lineTo(7.5 * S, 7.5 * S); ctx.lineTo(6 * S, 9 * S); ctx.fill();
     ctx.fillStyle = '#f2c31b'; ctx.beginPath(); ctx.moveTo(6 * S, 6 * S); ctx.lineTo(7.5 * S, 7.5 * S); ctx.lineTo(9 * S, 6 * S); ctx.fill();
-    // tokens
+    // centre gloss
+    ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.beginPath(); ctx.arc(7.5 * S, 7.5 * S, S * 0.9, 0, 7); ctx.fill();
+    // tokens (hop animation between cells, pulse on movable ones)
+    const now = performance.now();
+    pulse.t = now / 1000;
     const stacks = new Map<string, number>();
     for (const s of [me, bot]) s.tokens.forEach((p, i) => {
       let cx: number, cy: number;
       if (p === 0) { [cx, cy] = s.base[i]; } else { const c = cellOf(s, p)!; const key = c.join(','); const n = stacks.get(key) ?? 0; stacks.set(key, n + 1); cx = c[0] + 0.5 + (n % 2) * 0.22 - 0.11; cy = c[1] + 0.5 + Math.floor(n / 2) * 0.22 - 0.11; }
-      const glow = s === turn && movable.includes(i);
-      ctx.beginPath(); ctx.arc(cx * S, cy * S, S * (glow ? 0.42 : 0.36), 0, 7);
-      ctx.fillStyle = s.color; ctx.fill();
-      ctx.lineWidth = glow ? 4 : 2; ctx.strokeStyle = glow ? '#fff' : s.dark; ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(cx * S - 4, cy * S - 4, 4, 0, 7); ctx.fill();
+      let lift = 0;
+      const a = anim.get(`${s.name}${i}`);
+      if (a) {
+        const k = Math.min(1, (now - a.t0) / 420);
+        if (k >= 1) anim.delete(`${s.name}${i}`);
+        else { const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; cx = a.from[0] + (a.to[0] - a.from[0]) * e; cy = a.from[1] + (a.to[1] - a.from[1]) * e; lift = Math.sin(k * Math.PI) * 10; }
+      }
+      const glow = s === turn && movable.includes(i) && !a;
+      const r = S * (glow ? 0.4 + Math.sin(pulse.t * 6) * 0.03 : 0.36);
+      ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(cx * S, cy * S + 5, r * 0.9, r * 0.5, 0, 0, 7); ctx.fill();
+      const gy = cy * S - lift;
+      const grad = ctx.createRadialGradient(cx * S - r * 0.35, gy - r * 0.35, r * 0.1, cx * S, gy, r);
+      grad.addColorStop(0, '#fff'); grad.addColorStop(0.25, s.color); grad.addColorStop(1, s.dark);
+      ctx.beginPath(); ctx.arc(cx * S, gy, r, 0, 7); ctx.fillStyle = grad; ctx.fill();
+      ctx.lineWidth = glow ? 4 : 1.5; ctx.strokeStyle = glow ? '#fff' : 'rgba(0,0,0,.35)'; ctx.stroke();
+      if (glow) { ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx * S, gy, r + 6 + Math.sin(pulse.t * 6) * 2, 0, 7); ctx.stroke(); }
     });
   }
+
+  let raf = 0;
+  const loop = () => { if (!cv.isConnected) { cancelAnimationFrame(raf); return; } raf = requestAnimationFrame(loop); draw(); };
+  raf = requestAnimationFrame(loop);
 
   function startTurn(s: Side) {
     turn = s; roll = 0; movable = [];
@@ -94,13 +132,13 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
     draw();
   }
 
-  function rolled(s: Side) {
+  function rolled(s: Side, then: (ok: boolean) => void) {
     roll = 1 + Math.floor(Math.random() * 6);
-    die.textContent = PIP[roll];
-    movable = s.tokens.map((_, i) => i).filter((i) => canMove(s, i, roll));
-    draw();
-    if (!movable.length) { A.setStatus(`${s === me ? 'You' : opponent} rolled ${roll} — no move.`); setTimeout(() => startTurn(other(s)), 900); return false; }
-    return true;
+    rollAnim(roll, () => {
+      movable = s.tokens.map((_, i) => i).filter((i) => canMove(s, i, roll));
+      if (!movable.length) { A.setStatus(`${s === me ? 'You' : opponent} rolled ${roll} — no move.`); setTimeout(() => startTurn(other(s)), 900); then(false); return; }
+      then(true);
+    });
   }
 
   function after(s: Side, res: { capture: boolean; finished: boolean }) {
@@ -113,7 +151,7 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
   rollBtn.addEventListener('click', () => {
     if (turn !== me || roll || busy || A.over) return;
     rollBtn.disabled = true;
-    if (rolled(me)) { A.setStatus(`You rolled ${roll} — tap a glowing token.`); if (movable.length === 1) setTimeout(() => pick(movable[0]), 400); }
+    rolled(me, (ok) => { if (ok) { A.setStatus(`You rolled ${roll} — tap a glowing token.`); if (movable.length === 1) setTimeout(() => pick(movable[0]), 400); } });
   });
   cv.addEventListener('click', (e) => {
     if (turn !== me || !roll || busy || A.over) return;
@@ -124,11 +162,13 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
       if (Math.hypot(c[0] - x, c[1] - y) < 0.7) { pick(i); return; }
     }
   });
-  function pick(i: number) { busy = true; const res = doMove(me, i, roll); busy = false; after(me, res); }
+  function pick(i: number) { busy = true; const res = doMove(me, i, roll); movable = []; setTimeout(() => { busy = false; after(me, res); }, 450); }
 
   function botTurn() {
     if (A.over) return;
-    if (!rolled(bot)) return;
+    rolled(bot, (ok) => { if (ok) botPick(); });
+  }
+  function botPick() {
     // prefer: finish > capture > leave base > furthest along
     let best = movable[0], bestV = -Infinity;
     for (const i of movable) {
@@ -142,7 +182,7 @@ export function openLudo(host: HTMLElement, opponent: string, you: string, onDon
       if (v > bestV) { bestV = v; best = i; }
     }
     A.setStatus(`${opponent} rolled ${roll}.`);
-    setTimeout(() => { const res = doMove(bot, best, roll); after(bot, res); }, 600);
+    setTimeout(() => { const res = doMove(bot, best, roll); movable = []; setTimeout(() => after(bot, res), 450); }, 600);
   }
 
   score(); startTurn(me);

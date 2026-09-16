@@ -131,28 +131,41 @@ export function openChess(host: HTMLElement, opponent: string, you: string, onDo
   const A = openArena(opts);
   let s: State = { b: START.split('').map((c) => (c === ' ' ? '' : c) as Piece), white: true, castle: { K: true, Q: true, k: true, q: true }, half: 0 };
   let sel: number | null = null, last: Move | null = null, busy = false;
-  const grid = document.createElement('div');
-  grid.className = 'chess';
-  A.board.appendChild(grid);
+  const wrap = document.createElement('div');
+  wrap.className = 'chesswrap';
+  wrap.innerHTML = `<div class="caps" id="capsbot"></div><div class="chessboard"><div class="ranks">${[8, 7, 6, 5, 4, 3, 2, 1].map((r) => `<span>${r}</span>`).join('')}</div><div class="chess"></div><div class="files">${'abcdefgh'.split('').map((f) => `<span>${f}</span>`).join('')}</div></div><div class="caps" id="capsyou"></div>`;
+  A.board.appendChild(wrap);
+  const grid = wrap.querySelector<HTMLElement>('.chess')!;
+  const capsYou = wrap.querySelector<HTMLElement>('#capsyou')!, capsBot = wrap.querySelector<HTMLElement>('#capsbot')!;
   const cells: HTMLElement[] = [];
   for (let i = 0; i < 64; i++) {
     const c = document.createElement('button');
     c.className = `sq ${(file(i) + rank(i)) % 2 ? 'dark' : 'light'}`;
+    c.innerHTML = '<span class="pc"></span>';
     c.addEventListener('click', () => tap(i));
     grid.appendChild(c); cells.push(c);
   }
   const captured = () => {
+    const have: Record<string, number> = {};
+    for (const p of s.b) if (p) have[p] = (have[p] ?? 0) + 1;
+    const start: Record<string, number> = { P: 8, N: 2, B: 2, R: 2, Q: 1, K: 1, p: 8, n: 2, b: 2, r: 2, q: 1, k: 1 };
+    const lost = (side: 'w' | 'b') => Object.keys(start).filter((p) => (side === 'w') === isWhite(p as Piece)).flatMap((p) => Array(Math.max(0, start[p] - (have[p] ?? 0))).fill(GLYPH[p]) as string[]);
+    capsYou.innerHTML = lost('b').map((g) => `<i>${g}</i>`).join('');   // black pieces you took
+    capsBot.innerHTML = lost('w').map((g) => `<i class="w">${g}</i>`).join('');
     const count = (white: boolean) => { let v = 0; for (const p of s.b) if (p && isWhite(p) === white) v += VAL[p.toLowerCase()]; return v; };
     const d = Math.round((count(true) - count(false)) / 100);
-    A.setScore(d > 0 ? `+${d} material` : 'white', d < 0 ? `+${-d} material` : 'black');
+    A.setScore(d > 0 ? `white · +${d}` : 'white', d < 0 ? `black · +${-d}` : 'black');
   };
   function render() {
     const moves = sel !== null ? legal(s).filter((m) => m.from === sel) : [];
     const ks = inCheck(s, s.white) ? kingSq(s.b, s.white) : -1;
     cells.forEach((c, i) => {
       const p = s.b[i];
-      c.textContent = p ? GLYPH[p] : '';
+      const pc = c.firstElementChild as HTMLElement;
+      const g = p ? GLYPH[p] : '';
+      if (pc.textContent !== g) { pc.textContent = g; if (g && last && last.to === i) { pc.classList.remove('drop'); void pc.offsetWidth; pc.classList.add('drop'); } }
       c.classList.toggle('white', !!p && isWhite(p)); c.classList.toggle('black', !!p && !isWhite(p));
+      c.classList.toggle('mine', !!p && isWhite(p) && s.white && !busy);
       c.classList.toggle('sel', i === sel);
       c.classList.toggle('can', moves.some((m) => m.to === i));
       c.classList.toggle('cap', moves.some((m) => m.to === i) && !!p);

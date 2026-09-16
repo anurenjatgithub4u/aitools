@@ -30,7 +30,7 @@ export interface WorldEvents {
   onChat(from: string, text: string, mine: boolean): void;
   onGame(kind: GameKind, opponent: string): void;
 }
-export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom';
+export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race';
 export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | GameKind;
 
 const BOT_NAMES = [
@@ -497,9 +497,15 @@ export class World {
     const pd = (e: PointerEvent) => {
       this.sfx.unlock();
       try { el.setPointerCapture(e.pointerId); } catch { /* synthetic events have no capture */ }
-      if (e.pointerType === 'touch' && e.clientX < innerWidth * 0.55 && !this.stick) {
-        this.stick = { id: e.pointerId, ox: e.clientX, oy: e.clientY, dx: 0, dy: 0 };
-        this.showStick(e.clientX, e.clientY);
+      const pad = this.stickEl && !this.stickEl.hidden ? this.stickEl.getBoundingClientRect() : null;
+      const onPad = !!pad && Math.hypot(e.clientX - (pad.left + pad.width / 2), e.clientY - (pad.top + pad.height / 2)) < pad.width * 0.9;
+      if (e.pointerType === 'touch' && !this.stick && (onPad || (!pad && e.clientX < innerWidth * 0.55))) {
+        // fixed pad: steer relative to its centre, not to where the finger landed
+        const ox = pad ? pad.left + pad.width / 2 : e.clientX, oy = pad ? pad.top + pad.height / 2 : e.clientY;
+        this.stick = { id: e.pointerId, ox, oy, dx: 0, dy: 0 };
+        if (!pad) this.showStick(ox, oy);
+        this.stickEl?.classList.add('active');
+        (this.pm as (e: PointerEvent) => void)(e);
       } else if (!this.look) {
         this.look = { id: e.pointerId, x: e.clientX, y: e.clientY };
       }
@@ -519,7 +525,7 @@ export class World {
     };
     const pu = (e: PointerEvent) => {
       if (this.look && e.pointerId === this.look.id) this.look = null;
-      if (this.stick && e.pointerId === this.stick.id) { this.stick = null; this.hideStick(); }
+      if (this.stick && e.pointerId === this.stick.id) { this.stick = null; this.stickEl?.classList.remove('active'); if (this.mobile) this.moveStick(0, 0); else this.hideStick(); }
     };
     // Mouse wheel = zoom. Touchpad two-finger swipe = look around, pinch (ctrl+wheel) = zoom.
     // Touchpads report small, continuous deltas (often with a horizontal component); wheels report big vertical steps.
@@ -535,6 +541,8 @@ export class World {
         this.pitch = THREE.MathUtils.clamp(this.pitch + dy * 0.004, 0.05, 1.25);
       }
     };
+    this.pm = pm;
+    if (this.mobile) { this.showStick(0, 0); this.stickEl!.classList.add('fixed'); this.stickEl!.style.left = ''; this.stickEl!.style.top = ''; }
     el.addEventListener('pointerdown', pd);
     el.addEventListener('pointermove', pm);
     el.addEventListener('pointerup', pu);
@@ -596,6 +604,7 @@ export class World {
   private bigMap: { canvas: HTMLCanvasElement; base: HTMLCanvasElement; ctx: CanvasRenderingContext2D; last: number } | null = null;
 
   private stickEl?: HTMLElement;
+  private pm: ((e: PointerEvent) => void) | null = null;
   private showStick(x: number, y: number) {
     if (!this.stickEl) {
       this.stickEl = document.createElement('div');
@@ -1292,7 +1301,7 @@ export class World {
         this.sfx.checkpoint();
         break;
       case 'chat': this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
-      case 'race': this.startVersus('race', b); break;
+      case 'race': this.botSays(b, 'See you on the grid 🏁', 0.2); this.ev.onGame('race', b.name); break;
       case 'hunt': this.startVersus('hunt', b); break;
       case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
       case 'chess': this.botSays(b, 'White moves first — your go ♟️', 0.2); this.ev.onGame('chess', b.name); break;
@@ -1335,8 +1344,8 @@ export class World {
   /** Result of a board / table game. */
   gameResult(kind: GameKind, win: boolean | null, opponent: string) {
     const b = this.bots.find((x) => x.name === opponent);
-    const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom' }[kind];
-    const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200 }[kind];
+    const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom', race: 'the race' }[kind];
+    const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200, race: 250 }[kind];
     if (win === null) { this.ev.onCollect({ name: `Draw at ${name} vs ${opponent}`, points: 0, color: 0x999999, shape: 'box' }); return; }
     if (win) {
       this.points += prize; this.ev.onPoints(this.points);

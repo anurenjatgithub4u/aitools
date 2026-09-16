@@ -24,6 +24,7 @@ export function openCarrom(host: HTMLElement, opponent: string, you: string, onD
   let drag: 'slide' | 'aim' | null = null, aim = { x: 0, y: 0 };
   const potted = { you: 0, bot: 0 };
   let shotPots: Coin[] = [];
+  const ripples: { x: number; y: number; t: number }[] = [];
   const own = (who: 'you' | 'bot') => (who === 'you' ? 'w' : 'b');
 
   const score = () => A.setScore(`${potted.you} / 9 white${queen === 'you' ? ' + queen' : ''}`, `${potted.bot} / 9 black${queen === 'bot' ? ' + queen' : ''}`);
@@ -38,7 +39,7 @@ export function openCarrom(host: HTMLElement, opponent: string, you: string, onD
         b.vx *= 0.988; b.vy *= 0.988;
         if (Math.hypot(b.vx, b.vy) < 0.04) b.vx = b.vy = 0;
         const r = b === striker ? RS : R;
-        for (const [px, py] of POCKETS) if (Math.hypot(b.x - px, b.y - py) < POCKET) { b.in = true; b.vx = b.vy = 0; shotPots.push(b); break; }
+        for (const [px, py] of POCKETS) if (Math.hypot(b.x - px, b.y - py) < POCKET) { b.in = true; b.vx = b.vy = 0; shotPots.push(b); ripples.push({ x: px, y: py, t: performance.now() }); if (ripples.length > 6) ripples.shift(); break; }
         if (b.in) continue;
         if (b.x < FRAME + r) { b.x = FRAME + r; b.vx = -b.vx * 0.75; }
         if (b.x > W - FRAME - r) { b.x = W - FRAME - r; b.vx = -b.vx * 0.75; }
@@ -132,28 +133,51 @@ export function openCarrom(host: HTMLElement, opponent: string, you: string, onD
     drag = null;
   });
 
+  const woodGrad = ctx.createLinearGradient(0, 0, W, W);
+  woodGrad.addColorStop(0, '#7a5230'); woodGrad.addColorStop(0.5, '#5d3d21'); woodGrad.addColorStop(1, '#7a5230');
+  const boardGrad = ctx.createRadialGradient(c, c, 40, c, c, W * 0.75);
+  boardGrad.addColorStop(0, '#f7e8c4'); boardGrad.addColorStop(1, '#e6cf9c');
   function draw() {
-    ctx.fillStyle = '#6b4a2a'; ctx.fillRect(0, 0, W, W);
-    ctx.fillStyle = '#f3e2b8'; ctx.fillRect(FRAME, FRAME, W - FRAME * 2, W - FRAME * 2);
+    ctx.fillStyle = woodGrad; ctx.fillRect(0, 0, W, W);
+    for (let i = 0; i < W; i += 9) { ctx.fillStyle = i % 27 ? 'rgba(0,0,0,.06)' : 'rgba(255,255,255,.04)'; ctx.fillRect(0, i, W, 3); }   // grain
+    ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 6; ctx.strokeRect(FRAME - 3, FRAME - 3, W - FRAME * 2 + 6, W - FRAME * 2 + 6);
+    ctx.fillStyle = boardGrad; ctx.fillRect(FRAME, FRAME, W - FRAME * 2, W - FRAME * 2);
+    // corner arrows and the centre flower
+    ctx.strokeStyle = 'rgba(160,60,40,.55)'; ctx.lineWidth = 1.5;
+    for (const [px, py] of POCKETS) { const dx = Math.sign(c - px), dy = Math.sign(c - py); ctx.beginPath(); ctx.moveTo(px + dx * 40, py + dy * 40); ctx.lineTo(px + dx * 150, py + dy * 150); ctx.stroke(); ctx.beginPath(); ctx.arc(px + dx * 62, py + dy * 62, 9, 0, 7); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(160,60,40,.5)';
+    for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; ctx.beginPath(); ctx.ellipse(c + Math.cos(a) * 28, c + Math.sin(a) * 28, 16, 8, a, 0, 7); ctx.stroke(); }
     ctx.strokeStyle = '#c0392b'; ctx.lineWidth = 2;
     for (const y of [70, W - 70]) { ctx.beginPath(); ctx.moveTo(90, y - 12); ctx.lineTo(W - 90, y - 12); ctx.moveTo(90, y + 12); ctx.lineTo(W - 90, y + 12); ctx.stroke(); }
     for (const x of [70, W - 70]) { ctx.beginPath(); ctx.moveTo(x - 12, 90); ctx.lineTo(x - 12, W - 90); ctx.moveTo(x + 12, 90); ctx.lineTo(x + 12, W - 90); ctx.stroke(); }
     ctx.beginPath(); ctx.arc(c, c, 46, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.arc(c, c, 10, 0, 7); ctx.stroke();
-    ctx.fillStyle = '#222'; for (const [px, py] of POCKETS) { ctx.beginPath(); ctx.arc(px, py, POCKET, 0, 7); ctx.fill(); }
+    for (const [px, py] of POCKETS) {
+      const pg = ctx.createRadialGradient(px, py, 3, px, py, POCKET); pg.addColorStop(0, '#000'); pg.addColorStop(0.75, '#1a1a1a'); pg.addColorStop(1, '#3a2a1a');
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, POCKET, 0, 7); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(px, py, POCKET - 3, 0, 7); ctx.stroke();
+    }
+    for (const rp of ripples) { const k = (performance.now() - rp.t) / 500; if (k < 1) { ctx.strokeStyle = `rgba(242,195,27,${1 - k})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(rp.x, rp.y, POCKET + k * 26, 0, 7); ctx.stroke(); } }
     if (drag === 'aim' && turn === 'you' && !moving) {
       const dx = striker.x - aim.x, dy = striker.y - aim.y, d = Math.hypot(dx, dy);
-      if (d > 6) { const a = Math.atan2(dy, dx); ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.moveTo(striker.x, striker.y); ctx.lineTo(striker.x + Math.cos(a) * 260, striker.y + Math.sin(a) * 260); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = '#c0392b'; ctx.fillRect(FRAME + 10, W - FRAME + 8, (W - FRAME * 2 - 20) * Math.min(1, d / 168), 6); }
+      if (d > 6) {
+        const a = Math.atan2(dy, dx), pw = Math.min(1, d / 168);
+        ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.setLineDash([6, 6]); ctx.beginPath(); ctx.moveTo(striker.x, striker.y); ctx.lineTo(striker.x + Math.cos(a) * (120 + pw * 200), striker.y + Math.sin(a) * (120 + pw * 200)); ctx.stroke(); ctx.setLineDash([]);
+        // power arc around the striker
+        ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.arc(striker.x, striker.y, RS + 10, 0, 7); ctx.stroke();
+        ctx.strokeStyle = pw > 0.8 ? '#e74c3c' : pw > 0.45 ? '#f2c31b' : '#3fa66a'; ctx.beginPath(); ctx.arc(striker.x, striker.y, RS + 10, -Math.PI / 2, -Math.PI / 2 + pw * Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(`${Math.round(pw * 100)}%`, striker.x, striker.y - RS - 18);
+      }
     }
-    for (const k of coins) {
-      if (k.in) continue;
-      ctx.beginPath(); ctx.arc(k.x, k.y, R, 0, 7);
-      ctx.fillStyle = k.kind === 'w' ? '#fdf5e0' : k.kind === 'b' ? '#2b2b2b' : '#c0392b'; ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.stroke();
-      ctx.beginPath(); ctx.arc(k.x, k.y, R * 0.45, 0, 7); ctx.strokeStyle = k.kind === 'b' ? '#777' : 'rgba(0,0,0,.25)'; ctx.stroke();
-    }
+    const disc = (x: number, y: number, r: number, base: string, dark: string) => {
+      ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.arc(x + 2, y + 3, r, 0, 7); ctx.fill();
+      const g = ctx.createRadialGradient(x - r * 0.4, y - r * 0.4, r * 0.1, x, y, r); g.addColorStop(0, '#fff'); g.addColorStop(0.2, base); g.addColorStop(1, dark);
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = g; ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = 1; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, 7); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.stroke();
+    };
+    for (const k of coins) if (!k.in) disc(k.x, k.y, R, k.kind === 'w' ? '#fdf5e0' : k.kind === 'b' ? '#3a3a3a' : '#e04a3a', k.kind === 'w' ? '#c9b48a' : k.kind === 'b' ? '#0d0d0d' : '#7a1d12');
     if (!striker.in) {
-      ctx.beginPath(); ctx.arc(striker.x, striker.y, RS, 0, 7); ctx.fillStyle = '#3fb7d9'; ctx.fill(); ctx.strokeStyle = '#1d6f87'; ctx.lineWidth = 2; ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(striker.x - 4, striker.y - 4, 4, 0, 7); ctx.fill();
+      disc(striker.x, striker.y, RS, '#5fd0ee', '#1d6f87');
       if (turn === 'you' && !moving && !drag) { ctx.strokeStyle = 'rgba(63,183,217,.6)'; ctx.setLineDash([3, 5]); ctx.beginPath(); ctx.moveTo(90, striker.y); ctx.lineTo(W - 90, striker.y); ctx.stroke(); ctx.setLineDash([]); }
     }
   }

@@ -12,6 +12,7 @@ import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG
 import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
+import { createTransport, type Transport, type NetMsg, type Gender } from './net';
 
 export interface WorldEvents {
   onPoints(total: number): void;
@@ -26,8 +27,10 @@ export interface WorldEvents {
   onQuest(q: QuestState | null): void;
   onFriends(n: number): void;
   onRank(rank: number, of: number): void;
-  onMeet(m: { name: string; friend: boolean } | null): void;
+  onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
+  onFriendRequest(req: { id: string; name: string } | null): void;
+  onNet(status: 'connecting' | 'online' | 'offline', kind: 'ws' | 'local'): void;
   onGame(kind: GameKind, opponent: string): void;
 }
 export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race';
@@ -51,7 +54,10 @@ const LOW_PLATFORM = 2.6; // boxes this thin are walkable surfaces, taller ones 
 interface Critter { a: Animal; target: THREE.Vector3; wait: number; walking: number; phase: number }
 interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 
-interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number }
+interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
+// A real player elsewhere on the network: we get their state a few times a second and glide between updates.
+interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null }
+const NET_RATE = 1 / 8;
 // A pedestrian that has been hit: flies with `vel`, then lies on the ground for a moment before getting up.
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
 interface Pickup { mesh: THREE.Mesh; label: CSS2DObject; item: Collectible; active: boolean; respawnAt: number; baseY: number; phase: number }
@@ -92,6 +98,12 @@ export class World {
   private hangout: { bot: Bot; until: number; nextLine: number } | null = null;
   private pending: { at: number; bot: Bot; text: string }[] = [];
   private playerName = 'Explorer';
+  private selfId = '';
+  private gender: Gender = 'm';
+  private net: Transport | null = null;
+  private lastNetSend = 0;
+  private lastOnlineCount = -1;
+  private pendingRequests = new Map<string, string>();   // id -> name of people who asked to be friends
   private get labelRange() { return this.mobile ? 28 : 70; }
   private blockers: Blocker[] = [];
   private worldLabels: CSS2DObject[] = [];
@@ -125,9 +137,12 @@ export class World {
     ev: WorldEvents,
     playerName: string,
     startPoints: number,
+    identity?: { id: string; gender: Gender },
   ) {
     this.points = startPoints;
     this.playerName = playerName;
+    this.selfId = identity?.id ?? store.id();
+    this.gender = identity?.gender ?? (store.gender() ?? 'm');
     const inner = ev.onPoints.bind(ev);
     this.ev = { ...ev, onPoints: (n) => { inner(n); this.pushRank(); } };
     this.terrain = makeTerrain(dest.terrain);
@@ -167,6 +182,162 @@ export class World {
     };
     addEventListener('resize', onResize);
     this.cleanup.push(() => removeEventListener('resize', onResize));
+    this.connect();
+  }
+
+  // ---------- realtime: real people in the same city ----------
+  private connect() {
+    const net = createTransport(this.dest.id, { id: this.selfId, name: this.playerName, gender: this.gender });
+    this.net = net;
+    net.onStatus((s) => { this.ev.onNet(s, net.kind); if (s === 'online') net.send({ t: 'hi', id: this.selfId, n: this.playerName, g: this.gender }); });
+    net.onMessage((m) => this.onNet(m));
+    net.send({ t: 'hi', id: this.selfId, n: this.playerName, g: this.gender });
+    const tick = setInterval(() => { if (this.player) net.send(this.statePacket()); }, NET_RATE * 1000);
+    this.cleanup.push(() => clearInterval(tick));
+    this.countOnline();
+    const bye = () => net.send({ t: 'bye', id: this.selfId });
+    addEventListener('pagehide', bye);
+    this.cleanup.push(() => { bye(); removeEventListener('pagehide', bye); net.close(); });
+  }
+
+  private statePacket(): NetMsg {
+    const v = this.driving;
+    const p = v ? v.group.position : this.player.group.position;
+    return { t: 's', id: this.selfId, n: this.playerName, g: this.gender, x: +p.x.toFixed(2), z: +p.z.toFixed(2), ry: +this.player.group.rotation.y.toFixed(2), w: +this.moveAmount.toFixed(2), j: +this.airY.toFixed(2), v: v ? v.spec.kind : '', h: v ? +v.heading.toFixed(2) : 0, ts: Date.now() };
+  }
+
+  private onNet(m: NetMsg) {
+    if ('id' in m && m.id === this.selfId) return;
+    switch (m.t) {
+      case 'who': for (const p of m.peers) if (p.id !== this.selfId) this.onNet(p); break;
+      case 'hi': {
+        // someone new: answer with our state, and show them at the spawn until their first packet arrives
+        this.net?.send(this.statePacket());
+        if (!this.bots.some((x) => x.remote?.id === m.id)) { const [sx, sz] = this.spawnPoint(); this.upsertPeer({ t: 's', id: m.id, n: m.n, g: m.g, x: sx, z: sz, ry: 0, w: 0, j: 0, v: '', h: 0, ts: Date.now() }); }
+        break;
+      }
+      case 's': this.upsertPeer(m); break;
+      case 'bye': { const b = this.bots.find((x) => x.remote?.id === m.id); if (b) this.removePeer(b); break; }
+      case 'c': {
+        const b = this.bots.find((x) => x.remote?.id === m.id);
+        this.ev.onChat(m.n, m.text, false);
+        if (b) { b.bubbleUntil = this.elapsed + 4.5; b.label.element.textContent = `${b.name}: ${m.text}`; b.label.element.classList.add('talk'); b.label.visible = true; }
+        break;
+      }
+      case 'f': if (m.to === this.selfId) { this.pendingRequests.set(m.id, m.n); this.ev.onFriendRequest({ id: m.id, name: m.n }); this.sfx.checkpoint(); } break;
+      case 'fa': if (m.to === this.selfId) {
+        const b = this.bots.find((x) => x.remote?.id === m.id);
+        store.addFriend(m.n);
+        if (b) this.markFriend(b);
+        this.points += 25; this.ev.onPoints(this.points);
+        this.ev.onCollect({ name: `${m.n} accepted! You're friends now`, points: 25, color: 0xe75480, shape: 'gem' });
+        this.ev.onFriends(store.friends().length);
+        this.sfx.questDone();
+      } break;
+    }
+  }
+
+  private upsertPeer(m: Extract<NetMsg, { t: 's' }>) {
+    let b = this.bots.find((x) => x.remote?.id === m.id);
+    if (!b) {
+      const hash = [...m.id].reduce((a, c) => a + c.charCodeAt(0), 0);
+      const av = makeAvatar({ ...(m.g === 'f' ? FEMALE_OUTFITS[hash % FEMALE_OUTFITS.length] : OUTFITS[hash % OUTFITS.length]), skin: SKINS[hash % SKINS.length] });
+      av.group.position.set(m.x, this.groundAt(m.x, m.z, 0), m.z);
+      const friend = store.friends().includes(m.n);
+      const el = document.createElement('div');
+      el.className = 'tag peer' + (friend ? ' friend' : '');
+      const text = (friend ? '\u{1F91D} ' : '') + m.n;
+      el.textContent = text;
+      const label = new CSS2DObject(el); label.position.y = 2.7; label.userData.orig = text; av.group.add(label);
+      this.scene.add(av.group);
+      b = { av, label, name: m.n, female: m.g === 'f', target: new THREE.Vector3(), speed: 0, wait: 0, walking: 0, riding: null, knocked: null, friend, asked: -99, reply: null, greeted: -99, bubbleUntil: 0,
+        remote: { id: m.id, tx: m.x, tz: m.z, ry: m.ry, w: m.w, j: m.j, v: '', h: m.h, lastSeen: Date.now(), car: null } };
+      this.bots.push(b);
+      this.ev.onCollect({ name: `${m.n} joined the city`, points: 0, color: 0x3fb7d9, shape: 'gem' });
+      this.sfx.collect(0);
+    }
+    const r = b.remote!;
+    r.tx = m.x; r.tz = m.z; r.ry = m.ry; r.w = m.w; r.j = m.j; r.h = m.h; r.lastSeen = Date.now();
+    if (m.v !== r.v) this.setPeerVehicle(b, m.v as VehicleKind | '');
+    this.countOnline();
+  }
+
+  private setPeerVehicle(b: Bot, kind: VehicleKind | '') {
+    const r = b.remote!;
+    if (r.car) { r.car.group.remove(b.av.group); this.scene.remove(r.car.group); this.scene.add(b.av.group); b.av.group.position.set(r.tx, this.groundAt(r.tx, r.tz, 0), r.tz); r.car = null; }
+    r.v = kind;
+    if (!kind) { b.av.armL.rotation.x = b.av.armR.rotation.x = 0; b.av.legL.rotation.z = b.av.legR.rotation.z = 0; return; }
+    const car = makeVehicle(kind, VEHICLE_COLORS[[...r.id].reduce((a, c) => a + c.charCodeAt(0), 0) % VEHICLE_COLORS.length]);
+    car.group.position.set(r.tx, this.groundAt(r.tx, r.tz, 0), r.tz);
+    car.heading = r.h;
+    this.scene.remove(b.av.group);
+    car.group.add(b.av.group);
+    b.av.group.position.copy(car.seat); b.av.group.rotation.set(0, 0, 0);
+    if (car.spec.ride) poseRide(b.av); else poseSit(b.av);
+    this.scene.add(car.group);
+    r.car = car;
+  }
+
+  private removePeer(b: Bot) {
+    const r = b.remote!;
+    if (r.car) { this.scene.remove(r.car.group); } else this.scene.remove(b.av.group);
+    this.bots.splice(this.bots.indexOf(b), 1);
+    if (this.meet === b) { this.meet = null; this.lastMeet = ''; this.ev.onMeet(null); }
+    if (this.hangout?.bot === b) this.hangout = null;
+    this.ev.onCollect({ name: `${b.name} left the city`, points: 0, color: 0x999999, shape: 'box' });
+    this.countOnline();
+  }
+
+  private countOnline() {
+    const n = 1 + this.bots.filter((b) => b.remote).length;
+    if (n !== this.lastOnlineCount) { this.lastOnlineCount = n; this.online = n; this.ev.onOnline(n); this.pushRank(); }
+  }
+
+  /** Move a real player's avatar toward their last reported position. */
+  private updatePeer(b: Bot, dt: number, t: number) {
+    const r = b.remote!;
+    if (Date.now() - r.lastSeen > 15000) { this.removePeer(b); return; }
+    const k = Math.min(1, dt * 9);
+    if (r.car) {
+      const vp = r.car.group.position;
+      vp.x += (r.tx - vp.x) * k; vp.z += (r.tz - vp.z) * k;
+      r.car.heading += wrapAngle(r.h - r.car.heading) * k;
+      this.settleVehicle(r.car);
+      const sp = Math.hypot(r.tx - vp.x, r.tz - vp.z);
+      for (const w of r.car.wheels) w.rotation.x += sp * dt * 4;
+    } else {
+      const bp = b.av.group.position;
+      bp.x += (r.tx - bp.x) * k; bp.z += (r.tz - bp.z) * k;
+      bp.y = this.groundAt(bp.x, bp.z, bp.y) + r.j;
+      b.av.group.rotation.y += wrapAngle(r.ry - b.av.group.rotation.y) * k;
+      const far = Math.hypot(r.tx - bp.x, r.tz - bp.z);
+      if (far > 12) { bp.x = r.tx; bp.z = r.tz; }             // teleport if we fell way behind
+      if (r.j > 0.05) poseJump(b.av); else animateWalk(b.av, t, r.w);
+    }
+    if (b.bubbleUntil && t > b.bubbleUntil) { b.bubbleUntil = 0; b.label.element.textContent = b.label.userData.orig as string; b.label.element.classList.remove('talk'); }
+    b.label.visible = true;
+  }
+
+  private markFriend(b: Bot) {
+    b.friend = true;
+    const text = `\u{1F91D} ${(b.label.userData.orig as string).replace(/^\u{1F91D} /u, '')}`;
+    b.label.userData.orig = text; b.label.element.textContent = text; b.label.element.classList.add('friend');
+  }
+
+  /** Accept / decline a friend request from a real player. */
+  answerRequest(id: string, yes: boolean) {
+    const name = this.pendingRequests.get(id);
+    this.pendingRequests.delete(id);
+    this.ev.onFriendRequest(null);
+    if (!name || !yes) return;
+    store.addFriend(name);
+    const b = this.bots.find((x) => x.remote?.id === id);
+    if (b) this.markFriend(b);
+    this.net?.send({ t: 'fa', id: this.selfId, to: id, n: this.playerName });
+    this.points += 25; this.ev.onPoints(this.points);
+    this.ev.onCollect({ name: `You and ${name} are friends now`, points: 25, color: 0xe75480, shape: 'gem' });
+    this.ev.onFriends(store.friends().length);
+    this.sfx.questDone();
   }
 
   // ---------- setup ----------
@@ -263,7 +434,7 @@ export class World {
   }
 
   private spawnPlayer(name: string) {
-    const av = makeAvatar(OUTFITS[0]);
+    const av = makeAvatar(this.gender === 'f' ? FEMALE_OUTFITS[0] : OUTFITS[0]);
     const [sx, sz] = this.spawnPoint();
     av.group.position.set(sx, this.terrain.h(sx, sz), sz);
     av.group.rotation.y = Math.atan2(-sx, -sz);
@@ -565,6 +736,7 @@ export class World {
   startTask() { this.wantQuest = true; }
   befriend() { this.wantFriend = true; }
   private wantFriend = false;
+  private moveAmount = 0;
   private lastFriendPrompt = '';
   private wantQuest = false;
   horn() { this.sfx.unlock(); this.sfx.horn(); }
@@ -913,6 +1085,7 @@ export class World {
         else if (this.walkable(p.x, nz, py)) p.z = nz;
         this.player.group.rotation.y = Math.atan2(mx, mz);
         moving = Math.min(1, len) * (running ? 1.5 : 1);
+        this.moveAmount = moving;
         if (this.stick && !this.look && iz > 0.3) this.yaw += wrapAngle(Math.atan2(mx, mz) + Math.PI - this.yaw) * Math.min(1, dt * 1.2);
       }
       // --- jump
@@ -947,9 +1120,9 @@ export class World {
       const key = this.meet ? `${this.meet.name}|${this.meet.friend}` : '';
       if (key !== this.lastMeet) {
         this.lastMeet = key;
-        this.ev.onMeet(this.meet ? { name: this.meet.name, friend: this.meet.friend } : null);
+        this.ev.onMeet(this.meet ? { name: this.meet.name, friend: this.meet.friend, real: !!this.meet.remote } : null);
         // they notice you sometimes
-        if (this.meet && t - this.meet.greeted > 45 && Math.random() < 0.5) { this.meet.greeted = t; this.botSays(this.meet, HELLO_WHEN_NEAR[Math.floor(Math.random() * HELLO_WHEN_NEAR.length)], 0.6); }
+        if (this.meet && !this.meet.remote && t - this.meet.greeted > 45 && Math.random() < 0.5) { this.meet.greeted = t; this.botSays(this.meet, HELLO_WHEN_NEAR[Math.floor(Math.random() * HELLO_WHEN_NEAR.length)], 0.6); }
       }
       this.liftPrompt(this.rimHint(p));
     }
@@ -975,7 +1148,8 @@ export class World {
     this.sun.target.position.copy(focus);
 
     // --- bots wander
-    for (const b of this.bots) {
+    for (const b of [...this.bots]) {
+      if (b.remote) { this.updatePeer(b, dt, t); continue; }
       if (b.riding) { b.label.visible = true; continue; }
       const bp = b.av.group.position;
       if (b.bubbleUntil && t > b.bubbleUntil) { b.bubbleUntil = 0; b.label.element.textContent = b.label.userData.orig as string; b.label.element.classList.remove('talk'); }
@@ -1115,12 +1289,12 @@ export class World {
     for (const c of this.clouds) { c.position.x += dt * 1.2; if (c.position.x > 240) c.position.x = -240; }
     if (t - this.lastOnline > 6) {
       this.lastOnline = t;
-      this.online = this.dest.explorers + Math.round(Math.random() * 40 - 20);
-      this.ev.onOnline(this.online);
+      this.countOnline();
       this.pushRank();
     }
 
     this.updateQuest(focus, focusRadius, dt, t);
+    if (this.driving) this.moveAmount = 0;
     this.drawMinimap(focus, t);
     this.renderer.render(this.scene, this.camera);
     this.labels.render(this.scene, this.camera);
@@ -1278,7 +1452,7 @@ export class World {
     if (this.meet && !this.meet.riding && !this.meet.knocked && !this.meet.reply && this.meet.av.group.position.distanceTo(p) < 6.5) return this.meet;
     let best: Bot | null = null, bd = 4;
     for (const b of this.bots) {
-      if (b.riding || b.knocked || b.reply) continue;
+      if (b.riding || b.knocked || b.reply || b.remote?.car) continue;
       const d = b.av.group.position.distanceTo(p);
       if (d < bd) { bd = d; best = b; }
     }
@@ -1291,8 +1465,12 @@ export class World {
     if (!b) return;
     const t = this.elapsed;
     switch (action) {
-      case 'friend': if (!b.friend && t - b.asked > 20) this.askFriend(b, t); break;
+      case 'friend':
+        if (b.remote) { if (!b.friend && t - b.asked > 20) { b.asked = t; this.net?.send({ t: 'f', id: this.selfId, to: b.remote.id, n: this.playerName }); this.ev.onCollect({ name: `Friend request sent to ${b.name}`, points: 0, color: 0x3fb7d9, shape: 'gem' }); this.sfx.checkpoint(); } }
+        else if (!b.friend && t - b.asked > 20) this.askFriend(b, t);
+        break;
       case 'hangout':
+        if (b.remote) { this.net?.send({ t: 'c', id: this.selfId, n: this.playerName, text: `${b.name}, let's hang out — follow me! 🚶` }); this.ev.onChat(this.playerName, `${b.name}, let's hang out — follow me! 🚶`, true); break; }
         if (this.hangout) this.endHangout();
         this.hangout = { bot: b, until: t + 90, nextLine: t + 3 };
         b.wait = 0;
@@ -1300,7 +1478,7 @@ export class World {
         this.botSays(b, 'Sure, let us walk! 🚶', 0.4);
         this.sfx.checkpoint();
         break;
-      case 'chat': this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
+      case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
       case 'race': this.botSays(b, 'See you on the grid 🏁', 0.2); this.ev.onGame('race', b.name); break;
       case 'hunt': this.startVersus('hunt', b); break;
       case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
@@ -1335,8 +1513,11 @@ export class World {
     text = text.trim().slice(0, 120);
     if (!text) return;
     this.ev.onChat(this.playerName, text, true);
+    this.net?.send({ t: 'c', id: this.selfId, n: this.playerName, text });
     const p = this.driving ? this.driving.group.position : this.player.group.position;
-    const near = this.bots.filter((b) => !b.knocked && b.av.group.position.distanceTo(p) < 22).sort((a, b) => a.av.group.position.distanceTo(p) - b.av.group.position.distanceTo(p)).slice(0, 2);
+    const pos = (b: Bot) => (b.remote?.car ? b.remote.car.group.position : b.av.group.position);
+    if (this.bots.some((b) => b.remote && pos(b).distanceTo(p) < 30)) return;   // real people nearby: let them answer
+    const near = this.bots.filter((b) => !b.remote && !b.knocked && b.av.group.position.distanceTo(p) < 22).sort((a, b) => a.av.group.position.distanceTo(p) - b.av.group.position.distanceTo(p)).slice(0, 2);
     if (!near.length) { this.ev.onChat('', 'No one close enough heard you — walk up to someone.', false); return; }
     near.forEach((b, i) => this.botSays(b, chatReply(text, { friend: b.friend, name: b.name, you: this.playerName }), 1 + i * 1.2 + Math.random()));
   }

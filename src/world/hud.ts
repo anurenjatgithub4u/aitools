@@ -18,14 +18,16 @@ export interface Hud {
   quest(q: QuestState | null): void;
   friends(n: number): void;
   rank(r: number, of: number): void;
-  meet(m: { name: string; friend: boolean } | null): void;
+  meet(m: { name: string; friend: boolean; real: boolean } | null): void;
   chat(from: string, text: string, mine: boolean): void;
+  friendRequest(req: { id: string; name: string } | null): void;
+  net(status: 'connecting' | 'online' | 'offline', kind: 'ws' | 'local'): void;
   minimap: HTMLCanvasElement;
   bigmap: HTMLCanvasElement;
   onMapToggle(fn: (open: boolean) => void): void;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
@@ -39,7 +41,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     </div>
     <div class="top-center">
       <div class="chip big">🏆 <b id="pts">${points}</b> points</div>
-      <div class="chip" id="online">👥 ${d.explorers} exploring together</div>
+      <div class="chip online" id="online"><i class="dot"></i> connecting…</div>
       <div class="row"><div class="chip rank" id="rank">🏅 Rank #–</div><div class="chip friends" id="friends">🤝 ${store.friends().length} friends</div></div>
     </div>
     <div class="top-right">
@@ -98,6 +100,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <button class="act" id="jump">⤒<small>Jump</small></button>
       <button class="act" id="run">🏃<small>Run</small></button>
     </div>
+    <div class="freq" id="freq" hidden><b id="freqname"></b> wants to be your friend<div><button id="freqyes">Accept 🤝</button><button id="freqno">Not now</button></div></div>
     <div class="chatbox" id="chat" hidden>
       <div class="chead"><b>💬 Chat</b><small>people nearby can hear you</small><button type="button" id="cclose" title="Close">✕</button></div>
       <div class="clog" id="clog"></div>
@@ -121,7 +124,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   </div>`;
 
   const pts = root.querySelector('#pts')!;
-  const online = root.querySelector('#online')!;
+  const online = root.querySelector<HTMLElement>('#online')!;
   const toasts = root.querySelector('#toasts')!;
   const helpbox = root.querySelector<HTMLElement>('#helpbox')!;
   const promptEl = root.querySelector<HTMLElement>('#prompt')!;
@@ -167,6 +170,11 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     if (a === 'chat') { chatEl.hidden = false; cinput.focus(); }
     actions.interact(a as MeetAction);
   });
+  // friend requests from real players
+  const freq = root.querySelector<HTMLElement>('#freq')!, freqName = root.querySelector<HTMLElement>('#freqname')!;
+  let freqId = '';
+  root.querySelector('#freqyes')!.addEventListener('click', () => actions.answerRequest(freqId, true));
+  root.querySelector('#freqno')!.addEventListener('click', () => actions.answerRequest(freqId, false));
   // chat
   const chatEl = root.querySelector<HTMLElement>('#chat')!, clog = root.querySelector<HTMLElement>('#clog')!;
   const cinput = root.querySelector<HTMLInputElement>('#cinput')!, bubble = root.querySelector<HTMLElement>('#bubble')!;
@@ -207,7 +215,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       toasts.appendChild(t);
       setTimeout(() => t.remove(), 1600);
     },
-    online(n) { online.textContent = `👥 ${n} exploring together`; },
+    online(n) { online.innerHTML = `<i class="dot"></i> ${n === 1 ? 'Only you here right now — invite a friend' : `${n} here right now`}`; },
     nearest() { /* the old 'where to next' card is gone; kept for the event signature */ },
     prompt(text, driving) {
       promptEl.hidden = !text;
@@ -262,11 +270,17 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     friends(n) { friendsChip.textContent = `🤝 ${n} friends`; },
     meet(m) {
+      meetEl.classList.toggle('real', !!m?.real);
       meetEl.hidden = !m;
       meetMain.hidden = false; meetGames.hidden = true;
       if (!m) return;
-      meetName.textContent = m.friend ? `🤝 ${m.name} · friend` : m.name;
+      meetName.textContent = (m.friend ? `🤝 ${m.name} · friend` : m.name) + (m.real ? ' · real player' : '');
       meetFriend.hidden = m.friend;
+    },
+    friendRequest(req) { freq.hidden = !req; if (req) { freqId = req.id; freqName.textContent = req.name; } },
+    net(status, kind) {
+      online.dataset.net = status;
+      online.title = kind === 'ws' ? (status === 'online' ? 'Connected — friends can see you' : status === 'connecting' ? 'Connecting…' : 'Offline — reconnecting') : 'Local mode: other tabs of this browser can see you';
     },
     chat(from, text, mine) {
       const row = document.createElement('div');

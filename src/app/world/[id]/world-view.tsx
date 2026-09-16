@@ -1,18 +1,32 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Gate } from "./gate";
 import { byId } from "@/world/destinations";
 import { renderHud } from "@/world/hud";
 import { store } from "@/world/store";
 import type { World } from "@/world/world";
+
+// Each open tab is its own explorer on the network (the same person in two tabs = two avatars).
+function tabId() {
+  try {
+    let t = sessionStorage.getItem('findurai.tab');
+    if (!t) { t = Math.random().toString(36).slice(2, 8); sessionStorage.setItem('findurai.tab', t); }
+    return `${store.id()}-${t}`;
+  } catch { return store.id(); }
+}
 
 // Mounts the Three.js world into a full-screen stage and the DOM HUD on top of it.
 // Everything 3D is loaded on the client only; the page itself is static.
 export function WorldView({ id }: { id: string }) {
   const stageRef = useRef<HTMLDivElement>(null);
   const hudRef = useRef<HTMLDivElement>(null);
+  // the 3D bundle starts downloading behind the splash; the world is built once the player has an explorer
+  const [loading] = useState(() => (typeof window === "undefined" ? Promise.resolve(null) : import("@/world/world")));
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
+    if (!entered) return;
     const dest = byId(id);
     const stage = stageRef.current, hudEl = hudRef.current;
     if (!dest || !stage || !hudEl) return;
@@ -34,10 +48,12 @@ export function WorldView({ id }: { id: string }) {
       befriend: () => world?.befriend(),
       interact: (a) => world?.interact(a),
       say: (text) => world?.say(text),
+      answerRequest: (id, yes) => world?.answerRequest(id, yes),
     });
 
-    import("@/world/world").then(({ World }) => {
-      if (cancelled) return;
+    loading.then((mod) => {
+      if (cancelled || !mod) return;
+      const { World } = mod;
       world = new World(
         stage,
         dest,
@@ -56,6 +72,8 @@ export function WorldView({ id }: { id: string }) {
           onRank: (r, of) => hud.rank(r, of),
           onMeet: (m) => hud.meet(m),
           onChat: (from, text, mine) => hud.chat(from, text, mine),
+          onFriendRequest: (req) => hud.friendRequest(req),
+          onNet: (s, kind) => hud.net(s, kind),
           onGame: (kind, opponent) => {
             const done = (win: boolean | null) => world?.gameResult(kind, win, opponent);
             const me = store.name();
@@ -68,6 +86,7 @@ export function WorldView({ id }: { id: string }) {
         },
         store.name(),
         store.points(),
+        { id: tabId(), gender: store.gender() ?? 'm' },
       );
       world.attachMinimap(hud.minimap);
       let stopBig: (() => void) | null = null;
@@ -82,12 +101,13 @@ export function WorldView({ id }: { id: string }) {
       world?.dispose();
       hudEl.innerHTML = "";
     };
-  }, [id]);
+  }, [id, entered, loading]);
 
   return (
     <div className="in-world">
       <div ref={stageRef} className="stage" />
       <div ref={hudRef} />
+      {!entered && <Gate loading={loading} onEnter={() => setEntered(true)} />}
     </div>
   );
 }

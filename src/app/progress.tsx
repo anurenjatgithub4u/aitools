@@ -30,6 +30,9 @@ export function NameField() {
         onChange={(e) => setName(e.target.value)}
         onBlur={(e) => store.setName(e.target.value)}
       />
+      <button type="button" className="linkbtn" onClick={() => { store.clearGender(); setName(store.name()); alert("You'll pick your avatar again when you enter the city."); }}>
+        🧍 change avatar
+      </button>
     </label>
   );
 }

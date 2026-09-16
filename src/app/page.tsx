@@ -21,8 +21,9 @@ export default function Home() {
         <p className="eyebrow">Step into the city</p>
         <h1>{CITY.tagline}</h1>
         <p className="lede">
-          Walk or ride through Vidhana Soudha, Brigade Road, Lalbagh, Whitefield and the airport. Hop in a tuk-tuk or
-          on a bike, run timed tasks, find hidden cash, give lifts and make friends with the explorers around you.
+          A whole low-poly city to hang out in with real people: meet at Downtown Plaza, bar-hop along Neon Lane,
+          wander the college campus, jog around Central Park and chill on Sunset Beach. Drive tuk-tuks and bikes, race,
+          play chess, Ludo, carrom and pool, hunt hidden cash, chat and make friends — live.
         </p>
         <div className="online">👥 {CITY.explorers.toLocaleString()} exploring right now</div>
         <NameField />

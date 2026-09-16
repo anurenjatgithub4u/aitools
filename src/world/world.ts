@@ -62,7 +62,7 @@ const NET_RATE = 1 / 8;
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
 interface Pickup { mesh: THREE.Mesh; label: CSS2DObject; item: Collectible; active: boolean; respawnAt: number; baseY: number; phase: number }
 
-const WORLD_RADIUS = 248;
+const WORLD_RADIUS = 300;
 const VEHICLE_OFFSETS: [number, number][] = [[-7, 3], [7, 8], [-12, -6], [13, -2], [-4, -10], [4, -11]];
 const GRAVITY = 24;
 const WALK_SPEED = 9.5;
@@ -344,7 +344,7 @@ export class World {
   private buildEnvironment() {
     const { theme } = this.dest;
     this.scene.background = new THREE.Color(theme.sky);
-    this.scene.fog = new THREE.Fog(theme.fog, 80, 320);
+    this.scene.fog = new THREE.Fog(theme.fog, 90, 360);
 
     this.scene.add(new THREE.HemisphereLight(theme.sky, theme.ground, 0.85));
     const sun = new THREE.DirectionalLight(theme.sun, 1.7);
@@ -358,7 +358,7 @@ export class World {
     this.sun = sun;
 
     // ground
-    const size = 540, segs = 130;
+    const size = 660, segs = 150;
     const geo = new THREE.PlaneGeometry(size, size, segs, segs);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position as THREE.BufferAttribute;
@@ -383,7 +383,7 @@ export class World {
     const [px0, pz0] = this.spawnPoint();
     const pump = this.pumpSpot();
     const avoid = [{ x: px0, z: pz0, r: 16 }, { x: pump.x, z: pump.z, r: 14 }, ...VEHICLE_OFFSETS.map(([ox, oz]) => ({ x: px0 + ox, z: pz0 + oz, r: 5 }))];
-    const decor = scatterDecor(this.dest, this.terrain, avoid);
+    const decor = scatterDecor(this.dest, this.terrain, [...avoid, ...((landmark.userData.clear ?? []) as { x: number; z: number; r: number }[])]);
     this.scene.add(landmark, decor);
     this.occluders = [landmark]; // decor is one baked mesh; raycasting it every frame is too costly
     this.decor = decor;
@@ -1302,7 +1302,8 @@ export class World {
 
   private rimHint(p: THREE.Vector3) {
     const rim = this.dest.terrain.rim;
-    return rim && Math.hypot(p.x, p.z) > rim - 10 ? 'City limits — the hills are too steep. Turn back!' : null;
+    const seaSide = this.dest.terrain.coast !== undefined && p.x > this.dest.terrain.coast - 90;
+    return rim && !seaSide && Math.hypot(p.x, p.z) > rim - 10 ? 'City limits — the hills are too steep. Turn back!' : null;
   }
 
   private liftPrompt(text: string | null) {
@@ -1312,7 +1313,7 @@ export class World {
   }
 
   // ---------- minimap ----------
-  private static MAP_SPAN = 500; // world units across the map
+  private static MAP_SPAN = 620; // world units across the map
 
   private drawMinimapBase(size: number, labels: boolean) {
     const c = document.createElement('canvas');
@@ -1329,9 +1330,10 @@ export class World {
       const k = (j * size + i) * 4;
       const r = Math.hypot(x, z);
       let col: THREE.Color;
-      if (r > WORLD_RADIUS) col = outside;
-      else if (r > rim) col = hill.clone().lerp(outside, (r - rim) / (WORLD_RADIUS - rim));
-      else if (water && h < water.level) col = sea;
+      const seaSide = this.dest.terrain.coast !== undefined && x > this.dest.terrain.coast - 90;
+      if (water && h < water.level) col = sea.clone().multiplyScalar(r > WORLD_RADIUS ? 0.7 : 1);
+      else if (r > WORLD_RADIUS) col = outside;
+      else if (r > rim && !seaSide) col = hill.clone().lerp(outside, (r - rim) / (WORLD_RADIUS - rim));
       else col = land.clone().multiplyScalar(0.92 + Math.min(0.2, Math.max(-0.1, h * 0.01)));
       img.data[k] = col.r * 255; img.data[k + 1] = col.g * 255; img.data[k + 2] = col.b * 255; img.data[k + 3] = 255;
     }

@@ -3,6 +3,7 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { DecorKind, Destination } from './destinations';
 import type { Terrain } from './terrain';
+import { buildCity } from './city';
 
 type H = (x: number, z: number) => number;
 const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
@@ -758,12 +759,12 @@ export function scatterDecor(dest: Destination, terrain: Terrain, avoid: Avoid[]
     let placed = 0, tries = 0;
     while (placed < d.count && tries++ < d.count * 12) {
       const a = r() * Math.PI * 2;
-      const rad = d.kind === 'pine' && dest.terrain.rim ? dest.terrain.rim - 6 + r() * 30 : keepClear + r() * (235 - keepClear);
+      const rad = d.kind === 'pine' && dest.terrain.rim ? dest.terrain.rim - 6 + r() * 30 : keepClear + r() * ((dest.terrain.rim ?? 240) - 8 - keepClear);
       const x = Math.cos(a) * rad, z = Math.sin(a) * rad;
       if (!terrain.onLand(x, z)) continue;
       if (avoid.some((a) => Math.hypot(x - a.x, z - a.z) < a.r)) continue;
       if (dest.solids?.some((s) => Math.hypot(x - s[0], z - s[1]) < s[2] + 2)) continue;         // keep monuments clear
-      if ((dest.id === 'bengaluru' || dest.id === 'city') && (Math.abs(z - 80) < 12 || (Math.abs(x - 15) < 5 && z > -62 && z < 88)
+      if (dest.id === 'bengaluru' && (Math.abs(z - 80) < 12 || (Math.abs(x - 15) < 5 && z > -62 && z < 88)
         || Math.hypot(x - 88, z - 80) < 22 || Math.hypot(x + 75, z - 40) < 26
         || (Math.abs(z - 64) < 6 && x > -52 && x < 70) || (Math.abs(z - 96) < 6 && x > 52 && x < 104)      // shop strips
         || (Math.abs(z - 80) < 5 && x < -56) || Math.hypot(x + 110, z - 80) < 30 || Math.hypot(x + 105, z - 110) < 20
@@ -795,7 +796,7 @@ export function buildLandmark(dest: Destination, terrain: Terrain): THREE.Group 
     case 'eiffel-tower': eiffel(g); break;
     case 'pyramids-of-giza': pyramids(g); break;
     case 'kochi': kochi(g, h); break;
-    case 'city':
+    case 'city': buildCity(g, h); break;
     case 'bengaluru': bengaluru(g, h); break;
   }
   return g;

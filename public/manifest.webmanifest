@@ -1,7 +1,7 @@
 {
   "name": "FindurAI — free 3D city game",
   "short_name": "FindurAI",
-  "description": "Explore a low-poly Bengaluru in your browser: drive, race, hunt cash and play chess, Ludo, carrom and pool with other explorers.",
+  "description": "A free multiplayer 3D city in your browser: hang out with friends, drive, race, hunt cash and play chess, Ludo, carrom and pool together.",
   "start_url": "/world/city/",
   "display": "standalone",
   "orientation": "any",

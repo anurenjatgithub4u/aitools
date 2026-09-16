@@ -12,8 +12,8 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   applicationName: SITE_NAME,
   keywords: [
-    "free browser game", "3D open world game online", "no download game", "city exploration game", "Bengaluru game",
-    "Bangalore virtual city", "multiplayer city game", "tuk-tuk driving game", "car racing game online", "chess online free",
+    "free browser game", "3D open world game online", "no download game", "virtual city to hang out with friends", "metaverse in browser",
+    "hangout with friends online game", "multiplayer city game", "tuk-tuk driving game", "car racing game online", "chess online free",
     "ludo online", "carrom online", "8 ball pool online", "treasure hunt game", "low poly game", "play in browser mobile game",
     "FindurAI",
   ],

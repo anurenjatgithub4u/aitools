@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { Collectible, Destination } from './destinations';
 import { makeTerrain, type Terrain } from './terrain';
-import { makeAvatar, animateWalk, poseJump, poseSit, poseRide, OUTFITS, FEMALE_OUTFITS, SKINS, type Avatar } from './avatar';
+import { makeAvatar, animateWalk, poseJump, poseSit, poseRide, OUTFITS, FEMALE_OUTFITS, SKINS, type Avatar, type AvatarStyle } from './avatar';
 import { store } from './store';
 import { buildLandmark, scatterDecor, makePickup } from './landmarks';
 import { makeVehicle, VEHICLE_COLORS, FUEL_RANGE, BOOST_MULT, type Vehicle, type VehicleKind } from './vehicles';
@@ -27,6 +27,7 @@ export interface WorldEvents {
   onQuest(q: QuestState | null): void;
   onFriends(n: number): void;
   onRank(rank: number, of: number): void;
+  onHurt(): void;
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
   onFriendRequest(req: { id: string; name: string } | null): void;
@@ -34,7 +35,7 @@ export interface WorldEvents {
   onGame(kind: GameKind, opponent: string): void;
 }
 export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football';
-export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | GameKind;
+export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | GameKind;
 
 const BOT_NAMES = [
   'Aarav (Kochi)', 'Mia (Berlin)', 'Kenji (Osaka)', 'Sofia (Lisbon)', 'Liam (Toronto)', 'Zara (Dubai)',
@@ -62,6 +63,15 @@ interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3;
 // formation slots relative to the centre spot for the side attacking +x (mirrored for the other side): captain, keeper, two backs, a winger
 const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
 const MATCH_SECONDS = 90;
+// Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
+interface Zombie { av: Avatar; hp: number; speed: number; dying: number; hitAt: number; groan: number }
+interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean }
+const ZOMBIE_STYLES: AvatarStyle[] = [
+  { shirt: 0x4a5a3a, pants: 0x3a3330, skin: 0x8fbf6a, hair: 0x1a1a1a, hat: 'none' },
+  { shirt: 0x5a4a6a, pants: 0x2b2b2b, skin: 0x9ccc7a, hair: 0x3a2a1a, hat: 'none' },
+  { shirt: 0x6a3a3a, pants: 0x33403a, skin: 0x7fb060, hair: 0x2a2a2a, hat: 'none', female: true },
+  { shirt: 0x3a4a5a, pants: 0x3a3330, skin: 0xa6d38a, hair: 0x555555, hat: 'cap' },
+];
 interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string }
 const RACE_LAPS = 3;
 
@@ -109,6 +119,10 @@ export class World {
   private race: RaceState | null = null;
   private field: { x: number; z: number; w: number; d: number; goal: number; goalH: number } | null = null;
   private match: MatchState | null = null;
+  private zombies: ZombieState | null = null;
+  private hemi!: THREE.HemisphereLight;
+  private daylight = { sky: 0, fog: 0, sun: 0, sunI: 1.7, hemiI: 0.85, near: 90, far: 360 };
+  private lastZombieHud = 0;
   private lastMatchHud = 0;
   private raceLock = false;
   private lastRaceHud = 0;
@@ -373,7 +387,9 @@ export class World {
     this.scene.background = new THREE.Color(theme.sky);
     this.scene.fog = new THREE.Fog(theme.fog, 90, 360);
 
-    this.scene.add(new THREE.HemisphereLight(theme.sky, theme.ground, 0.85));
+    this.hemi = new THREE.HemisphereLight(theme.sky, theme.ground, 0.85);
+    this.scene.add(this.hemi);
+    this.daylight = { sky: theme.sky, fog: theme.fog, sun: theme.sun, sunI: 1.7, hemiI: 0.85, near: 90, far: 360 };
     const sun = new THREE.DirectionalLight(theme.sun, 1.7);
     sun.position.set(70, 110, 50);
     sun.castShadow = true;
@@ -687,6 +703,7 @@ export class World {
       if (k === 'm' && !e.repeat) this.toggleMute();
       if (k === ' ') { e.preventDefault(); if (!e.repeat) this.wantJump = true; }
       if (k === 'e' && !e.repeat) this.wantToggleDrive = true;
+      if (k === 'z' && !e.repeat) this.toggleZombies();
       if (k === 'f' && !e.repeat) this.wantLift = true;
       this.keys.add(k);
     };
@@ -1127,7 +1144,7 @@ export class World {
       }
       this.moveAmount = moving;
       // --- jump
-      if (this.wantJump && this.airY <= 0) { if (!(this.match && !this.match.over && this.shoot())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
+      if (this.wantJump && this.airY <= 0) { if (!(this.match && !this.match.over && this.shoot()) && !(this.zombies && this.punch())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
       this.wantJump = false;
       if (this.airY > 0 || this.vy > 0) {
         this.vy -= GRAVITY * dt;
@@ -1140,12 +1157,14 @@ export class World {
       if (drop > 0.05 && this.airY <= 0) this.airY = drop;   // walked off a ledge: fall
       p.y = ground + this.airY;
       if (this.airY > 0) poseJump(this.player); else animateWalk(this.player, t, moving);
+      if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
 
       focus = p.clone().add(new THREE.Vector3(0, 1.7, 0));
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
       if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
+      else if (this.zombies && !this.zombies.ending) this.prompt(this.mobile ? '🧟 Jump button punches · cars crush them · Z ends the night' : '🧟 Space punches the zombie in front · cars crush them · Z ends the night', false);
       else if (!near && this.onPitch() && !this.match) this.prompt(this.mobile ? '⚽ Tap Drive to kick off a football match' : '⚽ Press E to kick off a football match', false);
       else this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
@@ -1306,6 +1325,7 @@ export class World {
 
     if (this.race) this.tickRace(dt, t);
     if (this.match) this.tickFootball(dt, t);
+    if (this.zombies) this.tickZombies(dt, t);
 
     // --- world labels + metro train
     const wp = new THREE.Vector3();
@@ -1711,6 +1731,160 @@ export class World {
     this.questCooldown = 10;
   }
 
+  // ---------- zombie night ----------
+  toggleZombies() {
+    if (this.zombies) { if (!this.zombies.ending) this.endZombies(false); return; }
+    if (this.race || this.match) return;
+    this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false };
+    this.clearQuest();
+    this.questCooldown = 30;
+    this.sfx.siren();
+    this.ev.onCollect({ name: '🧟 Zombie night — they are coming for you', points: 0, color: 0x7a1f1f, shape: 'box' });
+    document.getElementById('zombiebtn')?.classList.add('on');
+  }
+
+  private spawnWave() {
+    const z = this.zombies!;
+    z.wave++;
+    const n = Math.min(26, 3 + z.wave * 2);
+    const pp = this.driving ? this.driving.group.position : this.player.group.position;
+    for (let i = 0; i < n; i++) {
+      let x = pp.x, zz = pp.z;
+      for (let k = 0; k < 12; k++) {
+        const a = Math.random() * Math.PI * 2, r = rand(26, 44);
+        const tx = pp.x + Math.cos(a) * r, tz = pp.z + Math.sin(a) * r;
+        if (Math.hypot(tx, tz) < WORLD_RADIUS - 10 && this.terrain.onLand(tx, tz) && this.walkable(tx, tz)) { x = tx; zz = tz; break; }
+      }
+      const av = makeAvatar(ZOMBIE_STYLES[Math.floor(Math.random() * ZOMBIE_STYLES.length)]);
+      av.group.position.set(x, this.groundAt(x, zz, this.terrain.h(x, zz)), zz);
+      av.group.rotation.y = Math.atan2(pp.x - x, pp.z - zz);
+      this.scene.add(av.group);
+      z.list.push({ av, hp: 2 + Math.floor(z.wave / 3), speed: Math.min(6.5, 2.4 + z.wave * 0.3 + Math.random() * 0.9), dying: 0, hitAt: -1, groan: this.elapsed + Math.random() * 6 });
+    }
+    this.sfx.groan();
+    this.ev.onCollect({ name: `Wave ${z.wave} · ${n} zombies`, points: 0, color: 0x7a1f1f, shape: 'box' });
+  }
+
+  /** Space during zombie night: punch the nearest zombie in front of you. */
+  private punch(): boolean {
+    const z = this.zombies!;
+    if (z.ending || this.driving || this.elapsed - z.punchAt < 0.25) return false;
+    const p = this.player.group.position, ry = this.player.group.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry);
+    let best: Zombie | null = null, bd = 2.6;
+    for (const zb of z.list) {
+      if (zb.dying) continue;
+      const q = zb.av.group.position, dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+      if (d < bd && (d < 1 || (dx * fx + dz * fz) / d > 0.2)) { bd = d; best = zb; }
+    }
+    if (!best) return false;
+    z.punchAt = this.elapsed;
+    best.hp--; best.hitAt = this.elapsed;   // staggered: no bite for a moment
+    const q = best.av.group.position, dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1;
+    const nx = q.x + (dx / d) * 1.6, nz = q.z + (dz / d) * 1.6;
+    if (this.walkable(nx, nz, q.y)) { q.x = nx; q.z = nz; }
+    if (best.hp <= 0) this.killZombie(best); else this.sfx.punch();
+    return true;
+  }
+
+  private killZombie(zb: Zombie) {
+    const z = this.zombies!;
+    zb.dying = 1.8; z.kills++;
+    this.points += 10; this.ev.onPoints(this.points);
+    this.sfx.thud();
+  }
+
+  private tickZombies(dt: number, t: number) {
+    const z = this.zombies!;
+    // night falls (and lifts again when the mode ends)
+    z.fade = Math.max(0, Math.min(1, z.fade + (z.ending ? -dt / 6 : dt / 2.5)));
+    const f = z.fade, dl = this.daylight;
+    const night = { sky: 0x151c22, fog: 0x1a2320, sun: 0x9fb8a0 };
+    (this.scene.background as THREE.Color).setHex(dl.sky).lerp(new THREE.Color(night.sky), f);
+    const fog = this.scene.fog as THREE.Fog; fog.color.setHex(dl.fog).lerp(new THREE.Color(night.fog), f); fog.near = dl.near + (40 - dl.near) * f; fog.far = dl.far + (170 - dl.far) * f;
+    this.sun.color.setHex(dl.sun).lerp(new THREE.Color(night.sun), f); this.sun.intensity = dl.sunI + (0.45 - dl.sunI) * f;
+    this.hemi.intensity = dl.hemiI + (0.35 - dl.hemiI) * f;
+    if (z.ending) { if (f <= 0) { this.zombies = null; this.ev.onQuest(null); } return; }
+
+    const driving = this.driving;
+    const pp = driving ? driving.group.position : this.player.group.position;
+    if (z.breather > 0) { z.breather -= dt; if (z.breather <= 0) this.spawnWave(); }
+    let alive = 0;
+    const close = z.list.filter((zb) => !zb.dying && zb.av.group.position.distanceTo(pp) < 1.6).length;   // a mob shares the bites
+    for (let i = z.list.length - 1; i >= 0; i--) {
+      const zb = z.list[i], g = zb.av.group, q = g.position;
+      if (zb.dying > 0) {
+        zb.dying -= dt;
+        g.rotation.x = Math.min(Math.PI / 2, g.rotation.x + dt * 5);   // keel over
+        if (zb.dying < 0.6) q.y -= dt * 2;                              // then sink away
+        if (zb.dying <= 0) { this.scene.remove(g); z.list.splice(i, 1); }
+        continue;
+      }
+      alive++;
+      const dx = pp.x - q.x, dz = pp.z - q.z, d = Math.hypot(dx, dz) || 1;
+      // crushed by a car
+      if (driving && Math.abs(driving.speed) > 3.5 && d < driving.spec.length / 2 + 1.1) { this.killZombie(zb); this.sfx.bump(); continue; }
+      if (d > 1.35) {
+        // shamble toward the player; slide along whatever is in the way; keep a little apart from each other
+        const sp = zb.speed * dt;
+        let nx = q.x + (dx / d) * sp, nz = q.z + (dz / d) * sp;
+        for (const o of z.list) { if (o === zb || o.dying) continue; const op = o.av.group.position, ox = q.x - op.x, oz = q.z - op.z, od = Math.hypot(ox, oz); if (od < 1 && od > 0) { nx += (ox / od) * (1 - od) * 0.5; nz += (oz / od) * (1 - od) * 0.5; } }
+        if (this.walkable(nx, nz, q.y) && this.terrain.onLand(nx, nz)) { q.x = nx; q.z = nz; }
+        else if (this.walkable(q.x - (dz / d) * sp, q.z + (dx / d) * sp, q.y)) { q.x -= (dz / d) * sp; q.z += (dx / d) * sp; }
+        else if (this.walkable(q.x + (dz / d) * sp, q.z - (dx / d) * sp, q.y)) { q.x += (dz / d) * sp; q.z -= (dx / d) * sp; }
+        animateWalk(zb.av, t * (zb.speed / 3) + i, 0.9);
+      } else {
+        animateWalk(zb.av, t * 2, 0.3);
+        // bite
+        if (!driving && t - zb.hitAt > 1.2) {
+          zb.hitAt = t;
+          z.hp -= (4 + Math.min(8, z.wave * 0.6)) * Math.min(1, 2.2 / Math.max(1, close));
+          this.ev.onHurt(); this.sfx.ouch();
+          const kx = pp.x + (dx / d) * 0.7, kz = pp.z + (dz / d) * 0.7;   // shoved back a step
+          if (this.walkable(kx, kz, pp.y)) { pp.x = kx; pp.z = kz; }
+          if (z.hp <= 0) { this.endZombies(true); return; }
+        }
+      }
+      zb.av.armL.rotation.x = zb.av.armR.rotation.x = -1.45 + Math.sin(t * 3 + i) * 0.15;   // arms out, always
+      g.rotation.y += wrapAngle(Math.atan2(dx, dz) - g.rotation.y) * Math.min(1, dt * 5);
+      q.y = this.groundAt(q.x, q.z, q.y);
+      if (t > zb.groan && d < 30) { zb.groan = t + 5 + Math.random() * 8; this.sfx.groan(); }
+    }
+    if (alive === 0 && z.breather <= 0 && z.wave > 0) {
+      z.breather = 6;
+      z.hp = Math.min(100, z.hp + 25);
+      this.points += 100; this.ev.onPoints(this.points);
+      this.sfx.questDone();
+      this.ev.onCollect({ name: `Wave ${z.wave} cleared! Next one is bigger`, points: 100, color: 0x2fa66a, shape: 'gem' });
+    }
+    if (t - this.lastZombieHud > 0.2) {
+      this.lastZombieHud = t;
+      this.ev.onQuest({ status: 'active', title: z.breather > 0 ? (z.wave ? `🧟 Wave ${z.wave + 1} in ${Math.ceil(z.breather)}s` : `🧟 They are coming... ${Math.ceil(z.breather)}`) : `🧟 Wave ${z.wave} · ${alive} left`, desc: `${z.kills} kills · Punch (Space / Jump) when they are close, or run them over. Clear a wave to heal.`, progress: `❤ ${Math.max(0, Math.round(z.hp))} / 100`, remaining: z.hp, total: 100, reward: 100, hint: null, fill: Math.max(0, z.hp) / 100, timeText: `❤ ${Math.max(0, Math.round(z.hp))}` });
+    }
+  }
+
+  private endZombies(died: boolean) {
+    const z = this.zombies!;
+    z.ending = true;
+    for (const zb of z.list) this.scene.remove(zb.av.group);
+    z.list = [];
+    document.getElementById('zombiebtn')?.classList.remove('on');
+    if (this.hangout && this.hangout.until - this.elapsed > 300) this.endHangout();
+    if (died) {
+      this.sfx.questFail();
+      this.ev.onCollect({ name: `You died on wave ${z.wave} · ${z.kills} kills`, points: 0, color: 0xd94a3d, shape: 'box' });
+      this.ev.onQuest({ status: 'failed', title: `You died on wave ${z.wave}`, desc: `${z.kills} kills. You wake up back downtown, a little shaken.`, progress: '', remaining: 0, total: 100, reward: 0, hint: null, fill: 0, timeText: '💀' });
+      if (this.driving) this.exitVehicle();
+      const [sx, sz] = this.spawnPoint();
+      this.player.group.position.set(sx, this.terrain.h(sx, sz), sz);
+      this.airY = 0; this.vy = 0;
+    } else {
+      this.sfx.questDone();
+      this.ev.onCollect({ name: `Survived ${z.wave} wave${z.wave === 1 ? '' : 's'} · ${z.kills} kills`, points: 0, color: 0x2fa66a, shape: 'gem' });
+      this.ev.onQuest({ status: 'done', title: `Dawn · survived ${z.wave} wave${z.wave === 1 ? '' : 's'}`, desc: `${z.kills} kills. The city is yours again.`, progress: '', remaining: 0, total: 100, reward: 0, hint: null, fill: 1, timeText: '☀️' });
+    }
+    this.questCooldown = 12;
+  }
+
   /** Dev helper: drop the player at a world position. */
   teleport(x: number, z: number) { const p = this.player.group.position; p.set(x, this.terrain.h(x, z), z); }
 
@@ -1849,6 +2023,7 @@ export class World {
       case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
       case 'race': this.botSays(b, 'See you on the grid 🏁', 0.2); this.startCircuitRace(b); break;
       case 'football': this.botSays(b, 'Kick-off at the stadium! ⚽', 0.2); this.startFootball(b); break;
+      case 'zombies': if (!this.zombies) { this.botSays(b, 'Stay close, they are coming! 🧟', 0.2); this.toggleZombies(); if (!b.remote) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: t + 600, nextLine: t + 8 }; b.wait = 0; } } break;
       case 'hunt': this.startVersus('hunt', b); break;
       case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
       case 'chess': this.botSays(b, 'White moves first — your go ♟️', 0.2); this.ev.onGame('chess', b.name); break;
@@ -2152,7 +2327,7 @@ export class World {
   }
 
   private updateQuest(focus: THREE.Vector3, radius: number, dt: number, t: number) {
-    if (this.race || this.match) { this.questCooldown = 8; return; }   // the race / match owns the task card
+    if (this.race || this.match || this.zombies) { this.questCooldown = 8; return; }   // the race / match / zombie night owns the task card
     if (this.wantQuest) { this.wantQuest = false; if (!this.quest || this.quest.status !== 'active') this.startQuest(); }
     const q = this.quest;
     if (!q || q.status !== 'active') {

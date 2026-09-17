@@ -138,6 +138,9 @@ export class Sfx {
   sputter() { for (let i = 0; i < 3; i++) this.tone('sawtooth', 70, 40, 0.09, 0.15, i * 0.14); }
   refuelDone() { this.tone('sine', 660, 660, 0.1, 0.2); this.tone('sine', 990, 990, 0.18, 0.2, 0.12); }
   ouch() { this.tone('triangle', 500, 200, 0.25, 0.15); }
+  punch() { this.burst(500, 0.07, 0.35); this.tone('sine', 160, 60, 0.14, 0.3); }
+  groan() { this.tone('sawtooth', 120 + Math.random() * 40, 70, 0.7, 0.07); this.tone('sawtooth', 90, 60, 0.6, 0.05, 0.1); }
+  siren() { for (let i = 0; i < 3; i++) this.tone('sine', 420, 640, 0.5, 0.08, i * 0.5); }
   questStart() { this.tone('sine', 523, 523, 0.12, 0.2); this.tone('sine', 659, 659, 0.12, 0.2, 0.12); this.tone('sine', 784, 784, 0.25, 0.22, 0.24); }
   checkpoint() { this.tone('triangle', 880, 1175, 0.15, 0.22); }
   questDone() { [523, 659, 784, 1047].forEach((f, i) => this.tone('sine', f, f, 0.35, 0.22, i * 0.11)); this.tone('sine', 1047, 1319, 0.5, 0.18, 0.5); }

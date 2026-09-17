@@ -23,6 +23,8 @@ export interface QuestState {
   total: number;
   reward: number;
   hint: string | null; // e.g. "Lalbagh · 120 m"
+  fill?: number;       // 0..1 bar override (health, progress) instead of remaining/total
+  timeText?: string;   // replaces the m:ss clock (e.g. "❤ 72")
 }
 
 const GIFT_COUNT = 5;

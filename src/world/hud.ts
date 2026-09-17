@@ -18,6 +18,7 @@ export interface Hud {
   quest(q: QuestState | null): void;
   friends(n: number): void;
   rank(r: number, of: number): void;
+  hurt(): void;
   meet(m: { name: string; friend: boolean; real: boolean } | null): void;
   chat(from: string, text: string, mine: boolean): void;
   friendRequest(req: { id: string; name: string } | null): void;
@@ -27,7 +28,7 @@ export interface Hud {
   onMapToggle(fn: (open: boolean) => void): void;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
@@ -42,7 +43,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     <div class="top-center">
       <div class="chip big">🏆 <b id="pts">${points}</b> points</div>
       <div class="chip online" id="online"><i class="dot"></i> connecting…</div>
-      <div class="row"><div class="chip rank" id="rank">🏅 Rank #–</div><div class="chip friends" id="friends">🤝 ${store.friends().length} friends</div></div>
+      <div class="row"><div class="chip rank" id="rank">🏅 Rank #–</div><div class="chip friends" id="friends">🤝 ${store.friends().length} friends</div><button class="chip zombie" id="zombiebtn" title="Zombie night (Z)">🧟 Zombie night</button></div>
     </div>
     <div class="top-right">
       <a class="round" href="/" title="All worlds">🌍</a>
@@ -73,6 +74,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
         <div class="mrow games" id="meetgames" hidden>
           <button data-a="race">🏁<small>Race</small></button>
           <button data-a="football">⚽<small>Football</small></button>
+          <button data-a="zombies">🧟<small>Zombies</small></button>
           <button data-a="hunt">💰<small>Prize hunt</small></button>
           <button data-a="pool">🎱<small>8-ball</small></button>
           <button data-a="carrom">🎯<small>Carrom</small></button>
@@ -116,9 +118,10 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       </div>
     </div>
     <div id="toasts"></div>
+    <div id="hurt" class="hurtflash"></div>
     <div class="help" id="helpbox" hidden>
       <h3>How to play</h3>
-      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, football, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Football</b> walk onto the City Stadium pitch and press <b>E</b> (or pick Football from an explorer's card): five-a-side, 90 seconds. Run into the ball to dribble (it sticks to your feet), <b>Space</b> / the Jump button to shoot — harder while running, and aimed toward the goal when you face it.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
+      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, football, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Football</b> walk onto the City Stadium pitch and press <b>E</b> (or pick Football from an explorer's card): five-a-side, 90 seconds. Run into the ball to dribble (it sticks to your feet), <b>Space</b> / the Jump button to shoot — harder while running, and aimed toward the goal when you face it.<br><b>Zombie night</b> press <b>Z</b> or the 🧟 chip: waves of zombies shamble toward you. <b>Space</b> / Jump punches the one in front of you (three hits each), vehicles crush them. Every bite drains your ❤ health — clear a wave to heal, die and you wake up back downtown.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
       <p>${d.blurb}</p>
       <button id="closehelp">Got it</button> <button id="changeavatar" class="ghost">🧍 Change my explorer</button>
     </div>
@@ -202,6 +205,9 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const qDesc = root.querySelector<HTMLElement>('#qdesc')!, qFill = root.querySelector<HTMLElement>('#qfill')!;
   const qProg = root.querySelector<HTMLElement>('#qprog')!, qHint = root.querySelector<HTMLElement>('#qhint')!, qBtn = root.querySelector<HTMLButtonElement>('#qbtn')!;
   qBtn.addEventListener('click', actions.task);
+  const zombieBtn = root.querySelector<HTMLButtonElement>('#zombiebtn')!, hurtEl = root.querySelector<HTMLElement>('#hurt')!;
+  zombieBtn.addEventListener('click', actions.zombies);
+  let hurtT = 0;
   root.querySelector('#help')!.addEventListener('click', () => (helpbox.hidden = !helpbox.hidden));
   root.querySelector('#closehelp')!.addEventListener('click', () => (helpbox.hidden = true));
   root.querySelector('#changeavatar')!.addEventListener('click', () => { store.clearGender(); location.reload(); });
@@ -255,10 +261,10 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       const m = Math.floor(q.remaining / 60), s = Math.floor(q.remaining % 60);
       qKick.textContent = q.status === 'active' ? `TASK · +${q.reward} pts` : q.status === 'done' ? 'TASK COMPLETE' : 'TIME\'S UP';
       qTitle.textContent = q.title;
-      qTime.textContent = q.status === 'active' ? `${m}:${s.toString().padStart(2, '0')}` : q.status === 'done' ? '✔' : '✖';
+      qTime.textContent = q.timeText ?? (q.status === 'active' ? `${m}:${s.toString().padStart(2, '0')}` : q.status === 'done' ? '✔' : '✖');
       qDesc.textContent = q.desc;
-      qFill.style.width = `${Math.min(100, (q.remaining / q.total) * 100)}%`;
-      qFill.classList.toggle('urgent', q.status === 'active' && q.remaining < 15);
+      qFill.style.width = `${Math.min(100, q.fill !== undefined ? q.fill * 100 : (q.remaining / q.total) * 100)}%`;
+      qFill.classList.toggle('urgent', q.status === 'active' && (q.fill !== undefined ? q.fill < 0.2 : q.remaining < 15));
       qProg.textContent = q.progress;
       qHint.textContent = q.hint ? `➜ ${q.hint}` : '';
       qBtn.hidden = q.status === 'active';
@@ -299,6 +305,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       }
     },
     rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
+    hurt() { hurtEl.classList.add('on'); clearTimeout(hurtT); hurtT = window.setTimeout(() => hurtEl.classList.remove('on'), 180); },
     minimap: root.querySelector<HTMLCanvasElement>('#minimap')!,
     bigmap: root.querySelector<HTMLCanvasElement>('#bigmapcv')!,
     onMapToggle(fn) { const box = root.querySelector<HTMLElement>('#bigmap')!; const open = () => { box.hidden = false; fn(true); }; const close = () => { box.hidden = true; fn(false); }; root.querySelector('#minimapbox')!.addEventListener('click', open); root.querySelector('#bmclose')!.addEventListener('click', close); box.addEventListener('click', (e) => { if (e.target === box) close(); }); },

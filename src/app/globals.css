@@ -419,3 +419,5 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 .chip.zombie.on { background: #7a1f1f; animation: blink 1.2s infinite; }
 .hurtflash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 45%, rgba(200, 30, 30, .6) 100%); opacity: 0; transition: opacity .12s; z-index: 5; }
 .hurtflash.on { opacity: 1; }
+
+.act.kick { background: rgba(232, 196, 106, .95); color: var(--ink); border-color: transparent; width: 72px; height: 72px; font-size: 26px; }

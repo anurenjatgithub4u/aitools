@@ -252,17 +252,17 @@ export function buildCity(g: THREE.Group, h: H) {
   const shell = (radius: number, hgt: number, y: number, c: number) => { const m = at(mesh(new THREE.CylinderGeometry(radius, radius, hgt, 48, 1, true), c, { side: THREE.DoubleSide }), stx, y, stz); m.userData.animated = true; g.add(m); };
   shell(40, 9, sty + 4.5, 0xd9d4c8);
   for (let r = 0; r < 3; r++) shell(40 - r * 1.6, 0.9, sty + 6.5 - r * 1.3, r % 2 ? 0x2c3e6b : 0x3f8fd6);   // tiers of seats
-  g.add(at(cyl(37, 37, 0.4, 0x5fa64f, 48), stx, sty + 0.2, stz));
-  for (let i = 0; i < 10; i++) g.add(at(box(PW / 10, 0.06, PD, i % 2 ? 0x6fb35e : 0x67ab57), stx - PW / 2 + (i + 0.5) * (PW / 10), sty + 0.42, stz));   // mown stripes
-  const line = (w: number, d: number, x: number, z: number) => g.add(at(box(w, 0.05, d, 0xffffff), stx + x, sty + 0.47, stz + z));
+  { const base = at(cyl(37, 37, 0.4, 0x5fa64f, 48), stx, sty - 0.15, stz); base.userData.noCollide = true; g.add(base); }
+  for (let i = 0; i < 10; i++) g.add(at(box(PW / 10, 0.06, PD, i % 2 ? 0x6fb35e : 0x67ab57), stx - PW / 2 + (i + 0.5) * (PW / 10), sty + 0.04, stz));   // mown stripes
+  const line = (w: number, d: number, x: number, z: number) => g.add(at(box(w, 0.05, d, 0xffffff), stx + x, sty + 0.09, stz + z));
   line(PW, 0.25, 0, -PD / 2); line(PW, 0.25, 0, PD / 2); line(0.25, PD, -PW / 2, 0); line(0.25, PD, PW / 2, 0); line(0.25, PD, 0, 0);
   for (const s of [-1, 1]) {
     line(0.25, 21, s * (PW / 2 - 8.8), 0); line(8.8, 0.25, s * (PW / 2 - 4.4), -10.5); line(8.8, 0.25, s * (PW / 2 - 4.4), 10.5);   // penalty area
     line(0.25, 9.7, s * (PW / 2 - 3), 0); line(3, 0.25, s * (PW / 2 - 1.5), -4.85); line(3, 0.25, s * (PW / 2 - 1.5), 4.85);         // goal area
-    g.add(at(cyl(0.25, 0.25, 0.05, 0xffffff, 10), stx + s * (PW / 2 - 5.9), sty + 0.47, stz));                                        // penalty spot
+    g.add(at(cyl(0.25, 0.25, 0.05, 0xffffff, 10), stx + s * (PW / 2 - 5.9), sty + 0.09, stz));                                        // penalty spot
   }
-  g.add(rot(at(mesh(new THREE.RingGeometry(4.9, 5.15, 40), 0xffffff, { side: THREE.DoubleSide }), stx, sty + 0.47, stz), 'x', -Math.PI / 2));
-  g.add(at(cyl(0.3, 0.3, 0.05, 0xffffff, 10), stx, sty + 0.47, stz));
+  g.add(rot(at(mesh(new THREE.RingGeometry(4.9, 5.15, 40), 0xffffff, { side: THREE.DoubleSide }), stx, sty + 0.1, stz), 'x', -Math.PI / 2));
+  g.add(at(cyl(0.3, 0.3, 0.05, 0xffffff, 10), stx, sty + 0.09, stz));
   // goals: white frame with back stanchions and a real net (transparent, so it never blocks anyone)
   const netTex = (() => {
     const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -473,7 +473,7 @@ export function buildCity(g: THREE.Group, h: H) {
     let placed = 0, tries = 0;
     while (placed < 170 && tries++ < 2000) {
       const a = r() * Math.PI * 2, d = 20 + r() * 108, x = 400 + Math.cos(a) * d, z = Math.sin(a) * d;
-      if (h(x, z) < 0.6 || nearRoad(x, z) || Math.hypot(x - 380, z - 60) < 26 || Math.hypot(x - 255, z - BZ) < 60) continue;
+      if (h(x, z) < 0.6 || nearRoad(x, z) || Math.hypot(x - 380, z - 60) < 26 || Math.hypot(x - 255, z - BZ) < 60 || Math.hypot(x - 425, z - 35) < 46) continue;
       if (clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.r)) continue;
       const hill = Math.hypot(x - 420, z + 30) < 42;
       if (hill) { const s = 0.9 + r() * 0.8; g.add(at(cyl(0.2 * s, 0.3 * s, 2 * s, 0x6b4a2a, 6), x, h(x, z) + s, z)); g.add(at(cone(1.5 * s, 4.5 * s, 0x2f6b3a, 6), x, h(x, z) + 2 * s + 2.2 * s, z)); }
@@ -481,7 +481,29 @@ export function buildCity(g: THREE.Group, h: H) {
       placed++;
     }
   }
-  g.userData.parked = [[348, BZ + 8, Math.PI / 2, 'jeep'], [354, BZ + 8, Math.PI / 2, 'bike'], [500 - 18, 8, 0, 'jeep']];
+  // ================= FINDURAI CRICKET GROUND (Eastside, inside the loop) =================
+  {
+    const cx = 425, cz = 35, cy = h(cx, cz), R = 34;
+    { const oval = at(cyl(R, R, 0.3, 0x6fb35e, 56), cx, cy - 0.1, cz); oval.userData.noCollide = true; g.add(oval); }
+    for (let i = 0; i < 12; i++) { const ring = at(cyl(R - i * 2.8, R - i * 2.8, 0.05, i % 2 ? 0x67ab57 : 0x74bb62, 56), cx, cy + 0.02 + i * 0.002, cz); ring.userData.noCollide = true; g.add(ring); }   // mown rings
+    g.add(rot(at(mesh(new THREE.RingGeometry(R - 0.5, R, 64), 0xffffff, { side: THREE.DoubleSide }), cx, cy + 0.1, cz), 'x', -Math.PI / 2));   // boundary rope
+    g.add(at(box(24, 0.06, 3.2, 0xd8c49a), cx, cy + 0.08, cz));                                                                              // the strip
+    for (const s of [-1, 1]) { g.add(at(box(0.06, 0.07, 3.2, 0xffffff), cx + s * 10, cy + 0.12, cz)); g.add(at(box(0.06, 0.07, 3.2, 0xffffff), cx + s * 8.8, cy + 0.12, cz)); }   // creases
+    for (const s of [-1, 1]) {
+      const stumps = new THREE.Group(); stumps.position.set(cx + s * 10, cy, cz); stumps.name = s < 0 ? 'stumps-bat' : 'stumps-bowl';
+      for (const dz of [-0.11, 0, 0.11]) { const st = at(cyl(0.025, 0.025, 0.72, 0xf4e6c8, 6), 0, 0.36, dz); st.userData.noCollide = true; stumps.add(st); }
+      const bail = at(box(0.02, 0.02, 0.3, 0xf4e6c8), 0, 0.74, 0); bail.userData.noCollide = true; stumps.add(bail);
+      stumps.userData.animated = true; g.add(stumps);
+      g.add(at(box(0.6, 6, 10, 0xffffff), cx + s * 45, h(cx + s * 45, cz) + 3, cz));                                                          // sightscreens
+    }
+    { const px = cx - 6, pz = cz + R + 10, py = h(px, pz); g.add(at(box(22, 4.4, 8, 0xf4f0e6), px, py + 2.2, pz)); g.add(at(box(23, 0.5, 9, 0x2c3e6b), px, py + 4.6, pz)); for (let i = -2; i <= 2; i++) g.add(at(box(2.6, 2.2, 0.2, 0x4a6b8a), px + i * 4.4, py + 2, pz - 4.1)); for (let i = -2; i <= 2; i++) g.add(at(cyl(0.12, 0.12, 4.2, 0xffffff, 6), px + i * 5, py + 2.1, pz - 6)); g.add(at(box(22, 0.3, 6, 0xf4f0e6), px, py + 4.2, pz - 3)); keep(px, pz, 14); shop('Pavilion', px, 6.5, pz); }
+    { const sx = cx + 20, sz = cz + R + 8, sy = h(sx, sz); g.add(at(box(8, 4, 0.6, 0x1e2a24), sx, sy + 4, sz)); for (const dx of [-3, 3]) g.add(at(cyl(0.15, 0.15, 4, 0x555555, 6), sx + dx, sy + 2, sz)); g.add(at(glow(7, 0.5, 0.1, 0xf2c31b), sx, sy + 5.5, sz - 0.35)); keep(sx, sz, 5); }   // scoreboard
+    for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + (i / 4) * Math.PI * 2, fx = cx + Math.cos(a) * (R + 6), fz = cz + Math.sin(a) * (R + 6); g.add(at(cyl(0.3, 0.4, 22, 0x888888, 8), fx, h(fx, fz) + 11, fz)); g.add(at(glow(3.4, 2.2, 0.4, 0xfff2a8), fx, h(fx, fz) + 22, fz)); }
+    place('FindurAI Cricket Ground', cx, 16, cz, 240);
+    keep(cx, cz, R + 10);
+    g.userData.cricket = { x: cx, z: cz, r: R, len: 20 };
+  }
+  g.userData.parked = [[348, BZ + 8, Math.PI / 2, 'jeep'], [354, BZ + 8, Math.PI / 2, 'bike'], [500 - 18, 8, 0, 'jeep'], [447, 76, Math.PI / 2, 'jeep']];
 
   // ================= main roads =================
   road(15, -100, 15, 86); road(15, 60, -60, 60);

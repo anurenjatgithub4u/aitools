@@ -28,13 +28,14 @@ export interface WorldEvents {
   onFriends(n: number): void;
   onRank(rank: number, of: number): void;
   onHurt(): void;
+  onMode(action: { icon: string; label: string } | null): void;
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
   onFriendRequest(req: { id: string; name: string } | null): void;
   onNet(status: 'connecting' | 'online' | 'offline', kind: 'ws' | 'local'): void;
   onGame(kind: GameKind, opponent: string): void;
 }
-export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football';
+export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football' | 'cricket';
 export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | GameKind;
 
 const BOT_NAMES = [
@@ -63,6 +64,10 @@ interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3;
 // formation slots relative to the centre spot for the side attacking +x (mirrored for the other side): captain, keeper, two backs, a winger
 const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
 const MATCH_SECONDS = 90;
+// Cricket: the bowler runs in, you time the shot. 12 balls, 3 wickets, beat the target.
+type CricketPhase = 'ready' | 'runup' | 'flight' | 'hit' | 'result' | 'over';
+interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; bowler: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string }
+const CRICKET_BALLS = 12;
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
@@ -121,6 +126,10 @@ export class World {
   private field: { x: number; z: number; w: number; d: number; goal: number; goalH: number } | null = null;
   private match: MatchState | null = null;
   private zombies: ZombieState | null = null;
+  private cricket: CricketState | null = null;
+  private oval: { x: number; z: number; r: number; len: number } | null = null;
+  private wantKick = false;
+  private lastCricketHud = 0;
   private hemi!: THREE.HemisphereLight;
   private daylight = { sky: 0, fog: 0, sun: 0, sunI: 1.7, hemiI: 0.85, near: 90, far: 360 };
   private lastZombieHud = 0;
@@ -436,6 +445,7 @@ export class World {
     this.placePetrolStation(landmark);
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
     this.landmarkData = landmark.userData;
+    if (landmark.userData.cricket) this.oval = { ...(landmark.userData.cricket as { x: number; z: number; r: number; len: number }) };
     if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number; goalH: number }; this.field = { ...p }; }
     if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
     this.collectBlockers(landmark);
@@ -1043,12 +1053,14 @@ export class World {
     if (k.has('a') || k.has('arrowleft')) ix -= 1;
     if (k.has('d') || k.has('arrowright')) ix += 1;
     if (this.stick) { ix += this.stick.dx; iz -= this.stick.dy; }
+    if (this.cricket) { ix = 0; iz = 0; }   // you are at the crease
+    if (this.wantKick) { this.wantKick = false; if (this.match && !this.match.over) this.shoot(); else if (this.cricket) this.swing(); else if (this.zombies && !this.zombies.ending) this.punch(); }
 
     // --- enter / leave vehicles
     if (this.wantToggleDrive) {
       this.wantToggleDrive = false;
       if (this.driving) this.exitVehicle();
-      else { const v = this.nearestVehicle(); if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); }
+      else { const v = this.nearestVehicle(); if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -1155,7 +1167,7 @@ export class World {
       }
       this.moveAmount = moving;
       // --- jump
-      if (this.wantJump && this.airY <= 0) { if (!(this.match && !this.match.over && this.shoot()) && !(this.zombies && this.punch())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
+      if (this.wantJump && this.airY <= 0) { if (!(this.match && !this.match.over && this.shoot()) && !(this.cricket && this.swing()) && !(this.zombies && this.punch())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
       this.wantJump = false;
       if (this.airY > 0 || this.vy > 0) {
         this.vy -= GRAVITY * dt;
@@ -1177,6 +1189,8 @@ export class World {
       if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
       else if (this.zombies && !this.zombies.ending) this.prompt(this.mobile ? '🧟 Jump button punches · cars crush them · Z ends the night' : '🧟 Space punches the zombie in front · cars crush them · Z ends the night', false);
       else if (!near && this.onPitch() && !this.match) this.prompt(this.mobile ? '⚽ Tap Drive to kick off a football match' : '⚽ Press E to kick off a football match', false);
+      else if (this.cricket) this.prompt(this.cricket.phase === 'over' ? null : this.mobile ? '🏏 Tap Bat as the ball reaches you' : '🏏 Space / Bat as the ball reaches you', false);
+      else if (!near && this.onStrip() && !this.cricket) this.prompt(this.mobile ? '🏏 Tap Drive to bat' : '🏏 Press E to bat an innings', false);
       else this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
       this.meet = this.nearestPerson(p);
@@ -1336,6 +1350,7 @@ export class World {
 
     if (this.race) this.tickRace(dt, t);
     if (this.match) this.tickFootball(dt, t);
+    if (this.cricket) this.tickCricket(dt, t);
     if (this.zombies) this.tickZombies(dt, t);
 
     // --- world labels + metro train
@@ -1562,7 +1577,7 @@ export class World {
     if (n < 2) { this.ev.onCollect({ name: 'Not enough people around for a match', points: 0, color: 0x999999, shape: 'box' }); return; }
     const rivals = pool.slice(0, n), mates = pool.slice(n, 2 * n - 1);
     const y = this.terrain.h(pt.x, pt.z);
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 14, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222, roughness: 0.6 }));
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 28, 20), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222, roughness: 0.5 }));
     for (let i = 0; i < 6; i++) { const patch = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 4), new THREE.MeshStandardMaterial({ color: 0x111111 })); const a = i * 1.05, b = (i % 2 ? 0.7 : -0.7); patch.position.set(Math.cos(a) * Math.cos(b) * 0.4, Math.sin(b) * 0.4, Math.sin(a) * Math.cos(b) * 0.4); ball.add(patch); }
     ball.castShadow = true;
     this.scene.add(ball);
@@ -1576,6 +1591,7 @@ export class World {
     if (this.hangout) this.endHangout();
     this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rivals[0].name, mates: mates.map((b) => b.name).join(', '), rivals: rivals.map((b) => b.name).join(', '), started: this.elapsed, lastKick: null };
     this.resetKickoff();
+    this.ev.onMode({ icon: '⚽', label: 'Kick' });
     this.yaw = -Math.PI / 2;   // look down the pitch toward the goal you attack (+x)
     this.clearQuest();
     this.questCooldown = 8;
@@ -1586,7 +1602,7 @@ export class World {
 
   private resetKickoff() {
     const m = this.match!, pt = this.field!;
-    m.ball.position.set(pt.x, this.terrain.h(pt.x, pt.z) + 0.45, pt.z); m.vel.set(0, 0, 0); m.lastKick = null;
+    m.ball.position.set(pt.x, this.terrain.h(pt.x, pt.z) + 0.52, pt.z); m.vel.set(0, 0, 0); m.lastKick = null;
     for (const f of m.side) {
       const g = f.bot ? f.bot.av.group : this.player.group;
       g.position.set(f.home.x, this.groundAt(f.home.x, f.home.z, f.home.y), f.home.z);
@@ -1630,7 +1646,7 @@ export class World {
     // --- ball physics: gravity, bounce, rolling friction, walls, goals
     v.y -= GRAVITY * 0.7 * dt;
     ball.addScaledVector(v, dt);
-    const gy = this.terrain.h(ball.x, ball.z) + R;
+    const gy = this.terrain.h(ball.x, ball.z) + 0.07 + R;   // on top of the turf
     if (ball.y < gy) { ball.y = gy; v.y = Math.abs(v.y) < 1.5 ? 0 : -v.y * 0.45; }
     const onGround = ball.y <= gy + 0.02;
     const fr = onGround ? 0.8 : 0.12;
@@ -1740,8 +1756,184 @@ export class World {
   private endFootball() {
     const m = this.match; if (!m) return;
     this.match = null;
+    this.ev.onMode(null);
     this.scene.remove(m.ball);
     for (const f of m.side) { f.bib.removeFromParent(); if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.randomLandPoint(8, 120); f.bot.speed = rand(1.8, 3.4); } }
+    this.ev.onQuest(null);
+    this.questCooldown = 10;
+  }
+
+  // ---------- cricket ----------
+  kick() { this.wantKick = true; }
+
+  private onStrip() {
+    const o = this.oval; if (!o) return false;
+    const q = this.player.group.position;
+    return Math.abs(q.x - o.x) < o.len / 2 + 4 && Math.abs(q.z - o.z) < 4;
+  }
+
+  /** Bat an innings at the cricket ground: `opp` (or a passer-by) bowls, six more field. */
+  startCricket(opp?: Bot) {
+    const o = this.oval;
+    if (!o || this.cricket || this.match || this.race) return;
+    if (this.driving) this.exitVehicle();
+    const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && !x.playing && x !== opp && this.hangout?.bot !== x);
+    const bowler = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
+    if (!bowler) return;
+    const fielders = pool.slice(0, 6).map((bot, i) => {
+      const a = [-2.2, -1.2, -0.5, 0.5, 1.2, 2.2][i], r = i === 2 || i === 3 ? 22 : 27;   // a ring around the batsman's end
+      return { bot, home: new THREE.Vector3(o.x - 10 + Math.cos(a) * r, 0, o.z + Math.sin(a) * r) };
+    });
+    for (const f of [{ bot: bowler }, ...fielders]) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; }
+    const y = this.terrain.h(o.x, o.z);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshStandardMaterial({ color: 0xe0392b, emissive: 0x5a0a0a, roughness: 0.5 }));
+    ball.visible = false; this.scene.add(ball);
+    // a bat in the right hand
+    const bat = new THREE.Group();
+    bat.add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.28, 0.06), new THREE.MeshStandardMaterial({ color: 0x222222 })));
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.62, 0.26), new THREE.MeshStandardMaterial({ color: 0xd8b98a })); blade.position.y = -0.42; bat.add(blade);
+    bat.position.set(0, -0.62, 0.05); this.player.armR.add(bat);
+    const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), bowler, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: CRICKET_BALLS, target: 30, bat, swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '' };
+    // everyone to their marks
+    this.player.group.position.set(o.x - 10 + 1.0, y, o.z + 0.85); this.player.group.rotation.y = Math.PI / 2;   // in front of the stumps, a touch to leg
+    this.airY = 0; this.vy = 0; this.yaw = -Math.PI / 2; this.pitch = 0.32;
+    for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
+    this.placeBowler();
+    this.clearQuest();
+    this.questCooldown = 8;
+    this.sfx.questStart();
+    this.ev.onMode({ icon: '🏏', label: 'Bat' });
+    this.ev.onCollect({ name: `${bowler.name} bowls · beat ${this.cricket.target} in ${CRICKET_BALLS} balls`, points: 0, color: 0x2fa66a, shape: 'gem' });
+    this.botSays(bowler, 'Watch the ball, not me 😏', 1.5);
+  }
+
+  private placeBowler() {
+    const c = this.cricket!, o = this.oval!, b = c.bowler.av.group;
+    b.position.set(o.x + 26, this.terrain.h(o.x + 26, o.z), o.z - 1.2); b.rotation.y = -Math.PI / 2;
+    c.ball.visible = false;
+  }
+
+  /** Space / Bat: swing at the ball. Timing decides everything. */
+  private swing(): boolean {
+    const c = this.cricket!;
+    if (c.phase !== 'flight' || c.hit) { if (c.phase === 'ready' || c.phase === 'runup') c.swingAt = this.elapsed; return true; }
+    c.swingAt = this.elapsed; c.hit = true;
+    const o = this.oval!, ball = c.ball.position, dx = ball.x - (o.x - 10);   // distance still to travel to the bat
+    const q = Math.max(0, 1 - Math.abs(dx - 1.1) / 1.4);                      // 1 = perfect
+    const early = dx > 1.1;
+    if (q < 0.12) { c.note = q < 0.05 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.05) this.wicket(); else { c.hit = false; } return true; }
+    const power = 14 + q * 20 + Math.random() * 3, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.7 ? 0.42 : 0.18;
+    const side = early ? 1 : -1, ang = (1 - q) * 0.9 * side + (Math.random() - 0.5) * 0.3;   // early pulls to leg, late squirts to off
+    c.vel.set(Math.cos(ang) * Math.cos(lift) * power, Math.sin(lift) * power, Math.sin(ang) * Math.cos(lift) * power);
+    ball.set(o.x - 10 + 0.6, this.terrain.h(ball.x, ball.z) + 0.8, o.z + 0.3);
+    c.airborne = lift > 0.3; c.bounced = false; c.phase = 'hit'; c.t0 = this.elapsed;
+    c.note = q > 0.85 ? 'Sweet timing!' : early ? 'Pulled high…' : 'Squeezed away';
+    c.chaser = null;
+    this.sfx.bump();
+    return true;
+  }
+
+  private wicket() {
+    const c = this.cricket!;
+    c.wkts++; c.phase = 'result'; c.t0 = this.elapsed; c.last = 'OUT';
+    if (c.stumps && c.note.startsWith('Bowled')) c.stumps.rotation.z = -1.3;
+    this.sfx.questFail();
+    this.ev.onCollect({ name: `${c.note} · WICKET`, points: 0, color: 0xd94a3d, shape: 'box' });
+    this.botSays(c.bowler, ['Gotcha! 🎯', 'Next! 😎', 'Timber! 🏏'][c.wkts % 3], 0.5);
+  }
+
+  private tickCricket(dt: number, t: number) {
+    const c = this.cricket!, o = this.oval!, ball = c.ball.position, batX = o.x - 10, y0 = this.terrain.h(o.x, o.z);
+    this.yaw += wrapAngle(-Math.PI / 2 - this.yaw) * Math.min(1, dt * 3);
+    // batting pose + swing
+    const swinging = t - c.swingAt < 0.28;
+    this.player.armR.rotation.x = swinging ? -0.6 - Math.sin(((t - c.swingAt) / 0.28) * Math.PI) * 2.2 : -0.55;
+    this.player.armL.rotation.x = swinging ? -0.6 - Math.sin(((t - c.swingAt) / 0.28) * Math.PI) * 1.6 : -0.55;
+    this.player.armR.rotation.z = -0.35; this.player.armL.rotation.z = 0.35;
+    this.player.group.rotation.y = Math.PI / 2 + (swinging ? Math.sin(((t - c.swingAt) / 0.28) * Math.PI) * 0.9 : 0);
+    const bw = c.bowler.av.group, bp = bw.position;
+    if (c.phase === 'ready' && t > c.t0) { c.phase = 'runup'; c.t0 = t; c.hit = false; c.line = (Math.random() < 0.6 ? (Math.random() - 0.5) * 0.5 : (Math.random() - 0.5) * 2.2); c.flightT = 0.8 + Math.random() * 0.35; if (c.stumps) c.stumps.rotation.z = 0; }
+    if (c.phase === 'runup') {
+      const u = Math.min(1, (t - c.t0) / 1.8);
+      bp.x = o.x + 26 - u * 15; bp.y = this.terrain.h(bp.x, bp.z);
+      animateWalk(c.bowler.av, t * 2.4, 1);
+      if (u > 0.85) { c.bowler.av.armR.rotation.x = -3.1 + (u - 0.85) * 8; }
+      if (u >= 1) { c.phase = 'flight'; c.t0 = t; c.ball.visible = true; ball.set(bp.x, bp.y + 2.2, o.z); c.hit = false; }
+    }
+    if (c.phase === 'flight') {
+      // a bounce two-thirds of the way, then up to bat height, along the chosen line
+      const u = Math.min(1, (t - c.t0) / c.flightT), sx = o.x + 11, ex = batX - 1.5;
+      ball.x = sx + (ex - sx) * u; ball.z = o.z + c.line * u;
+      const bounceU = 0.68;
+      ball.y = y0 + (u < bounceU ? 2.2 - (2.2 - 0.18) * (u / bounceU) + Math.sin((u / bounceU) * Math.PI) * 0.1 : 0.18 + Math.sin(((u - bounceU) / (1 - bounceU)) * Math.PI * 0.5) * (0.5 + Math.abs(c.line) * 0.3));
+      if (u >= 1 && !c.hit) {
+        const onStumps = Math.abs(c.line) < 0.45 && ball.y - y0 < 0.75;
+        c.note = onStumps ? 'Bowled him!' : 'Dot ball';
+        if (onStumps) this.wicket(); else { c.phase = 'result'; c.t0 = t; c.last = '·'; }
+        c.ball.visible = !onStumps;
+      }
+    }
+    if (c.phase === 'hit') {
+      // free flight, bounce, roll; fielders converge; boundary = 4 or 6
+      c.vel.y -= GRAVITY * 0.7 * dt; ball.addScaledVector(c.vel, dt);
+      const gy = this.terrain.h(ball.x, ball.z) + 0.16;
+      if (ball.y < gy) {
+        ball.y = gy;
+        if (!c.bounced && c.airborne) {   // first bounce: was anyone under it?
+          const catcher = c.fielders.find((f) => f.bot.av.group.position.distanceTo(ball) < 2.6);
+          if (catcher) { c.note = `Caught by ${catcher.bot.name}!`; this.botSays(catcher.bot, 'Got it! 🙌', 0.2); this.wicket(); c.ball.visible = false; return; }
+        }
+        c.bounced = true; c.vel.y = Math.abs(c.vel.y) < 2 ? 0 : -c.vel.y * 0.45; c.vel.x *= 0.85; c.vel.z *= 0.85;
+      }
+      if (ball.y <= gy + 0.02) { c.vel.x -= c.vel.x * Math.min(1, 0.7 * dt); c.vel.z -= c.vel.z * Math.min(1, 0.7 * dt); }
+      c.ball.rotation.x += c.vel.z * dt / 0.16; c.ball.rotation.z -= c.vel.x * dt / 0.16;
+      const dist = Math.hypot(ball.x - o.x, ball.z - o.z);
+      if (dist >= o.r) {   // over the rope
+        const six = !c.bounced;
+        c.runs += six ? 6 : 4; c.last = six ? 'SIX!' : 'FOUR!'; c.phase = 'result'; c.t0 = t;
+        this.points += six ? 30 : 20; this.ev.onPoints(this.points); this.sfx.questDone();
+        this.ev.onCollect({ name: c.last === 'SIX!' ? 'SIX! Over the rope on the full' : 'FOUR! Along the carpet', points: six ? 30 : 20, color: 0x2fa66a, shape: 'gem' });
+        return;
+      }
+      // nearest fielder chases; when they get there the ball is dead and runs are counted by how far it went
+      if (!c.chaser) c.chaser = c.fielders.reduce((a, b) => (a.bot.av.group.position.distanceTo(ball) < b.bot.av.group.position.distanceTo(ball) ? a : b)).bot;
+      const fp = c.chaser.av.group.position, fdx = ball.x - fp.x, fdz = ball.z - fp.z, fd = Math.hypot(fdx, fdz);
+      if (fd > 1 && ball.y - gy < 3) { const s = Math.min(fd, 6.5 * dt); fp.x += (fdx / fd) * s; fp.z += (fdz / fd) * s; c.chaser.av.group.rotation.y = Math.atan2(fdx, fdz); animateWalk(c.chaser.av, t * 2.2, 1); }
+      else if (fd <= 1) {
+        const far = Math.hypot(ball.x - batX, ball.z - o.z), runs = far < 12 ? (Math.random() < 0.5 ? 1 : 0) : far < 22 ? 1 : far < 30 ? 2 : 3;
+        c.runs += runs; c.last = runs ? `${runs} run${runs > 1 ? 's' : ''}` : 'no run'; c.phase = 'result'; c.t0 = t;
+        if (runs) { this.points += runs * 5; this.ev.onPoints(this.points); }
+        this.ev.onCollect({ name: `${c.note} · ${c.last}`, points: runs * 5, color: runs ? 0x2fa66a : 0x999999, shape: 'gem' });
+        c.chaser.av.group.position.set(fp.x, this.terrain.h(fp.x, fp.z), fp.z);
+      }
+      fp.y = this.terrain.h(fp.x, fp.z);
+    }
+    if (c.phase === 'result' && t > c.t0 + 2.4) {
+      c.balls++;
+      for (const f of c.fielders) { const g = f.bot.av.group; g.position.lerp(f.home, 0.5); g.position.y = this.terrain.h(g.position.x, g.position.z); }
+      if (c.balls >= c.total || c.wkts >= 3) {
+        c.phase = 'over'; c.t0 = t;
+        const win = c.runs >= c.target;
+        this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `Chased it! ${c.runs} / ${c.wkts}` : `All done · ${c.runs} / ${c.wkts}`, desc: win ? `Target ${c.target} beaten with ${c.total - c.balls} ball${c.total - c.balls === 1 ? '' : 's'} to spare` : `Target was ${c.target}. ${c.bowler.name} takes the honours`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
+        this.gameResult('cricket', win, c.bowler.name);
+      } else { c.phase = 'ready'; c.t0 = t + 1.2; this.placeBowler(); }
+    }
+    if (c.phase === 'over' && t > c.t0 + 4) { this.endCricket(); return; }
+    if (t - this.lastCricketHud > 0.2 && c.phase !== 'over') {
+      this.lastCricketHud = t;
+      this.ev.onQuest({ status: 'active', title: `🏏 ${c.runs} / ${c.wkts} · need ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls}`, desc: `${c.bowler.name} bowling · Space / Bat as the ball reaches you. Perfect timing = six, early = high, late = along the ground.`, progress: c.last ? `Last ball: ${c.last}` : 'First ball coming up', remaining: c.total - c.balls, total: c.total, reward: 200, hint: null, fill: c.balls / c.total, timeText: `${c.balls}/${c.total}` });
+    }
+  }
+
+  private endCricket() {
+    const c = this.cricket; if (!c) return;
+    this.cricket = null;
+    this.scene.remove(c.ball); c.bat.removeFromParent();
+    if (c.stumps) c.stumps.rotation.z = 0;
+    this.player.armR.rotation.z = 0; this.player.armL.rotation.z = 0;
+    for (const b of [c.bowler, ...c.fielders.map((f) => f.bot)]) { b.playing = false; b.wait = rand(1, 3); b.target = this.randomLandPoint(8, 120); b.speed = rand(1.8, 3.4); }
+    this.ev.onMode(null);
     this.ev.onQuest(null);
     this.questCooldown = 10;
   }
@@ -1755,6 +1947,7 @@ export class World {
     this.clearQuest();
     this.questCooldown = 30;
     this.sfx.siren();
+    this.ev.onMode({ icon: '🥊', label: 'Punch' });
     this.ev.onCollect({ name: '🧟 Zombie night — they are coming for you', points: 0, color: 0x7a1f1f, shape: 'box' });
     document.getElementById('zombiebtn')?.classList.add('on');
   }
@@ -1945,6 +2138,7 @@ export class World {
   private endZombies(died: boolean) {
     const z = this.zombies!;
     z.ending = true;
+    this.ev.onMode(null);
     for (const zb of z.list) this.scene.remove(zb.av.group);
     z.list = [];
     for (const b of z.blasts) this.scene.remove(b.mesh);
@@ -2074,7 +2268,7 @@ export class World {
     // stick with the current person until they are clearly out of reach
     if (this.meet && !this.meet.riding && !this.meet.knocked && !this.meet.playing && !this.meet.reply && this.meet.av.group.position.distanceTo(p) < 6.5) return this.meet;
     let best: Bot | null = null, bd = 4;
-    if ((this.match && !this.match.over) || (this.zombies && !this.zombies.ending)) return null;   // no meet card mid-match or during zombie night
+    if ((this.match && !this.match.over) || (this.zombies && !this.zombies.ending) || this.cricket) return null;   // no meet card mid-match, at the crease or during zombie night
     for (const b of this.bots) {
       if (b.riding || b.knocked || b.playing || b.reply || b.remote?.car) continue;
       const d = b.av.group.position.distanceTo(p);
@@ -2105,6 +2299,7 @@ export class World {
       case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
       case 'race': this.botSays(b, 'See you on the grid 🏁', 0.2); this.startCircuitRace(b); break;
       case 'football': this.botSays(b, 'Kick-off at the stadium! ⚽', 0.2); this.startFootball(b); break;
+      case 'cricket': this.botSays(b, 'I will bowl, you bat 🏏', 0.2); this.startCricket(b); break;
       case 'zombies': if (!this.zombies) { this.botSays(b, 'Stay close, they are coming! 🧟', 0.2); this.toggleZombies(); if (!b.remote) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: t + 600, nextLine: t + 8 }; b.wait = 0; } } break;
       case 'hunt': this.startVersus('hunt', b); break;
       case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
@@ -2151,8 +2346,8 @@ export class World {
   /** Result of a board / table game. */
   gameResult(kind: GameKind, win: boolean | null, opponent: string) {
     const b = this.bots.find((x) => x.name === opponent);
-    const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom', race: 'the race', football: 'the match' }[kind];
-    const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200, race: 250, football: 300 }[kind];
+    const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom', race: 'the race', football: 'the match', cricket: 'the chase' }[kind];
+    const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200, race: 250, football: 300, cricket: 200 }[kind];
     if (win === null) { this.ev.onCollect({ name: `Draw at ${name} vs ${opponent}`, points: 0, color: 0x999999, shape: 'box' }); return; }
     if (win) {
       this.points += prize; this.ev.onPoints(this.points);
@@ -2409,7 +2604,7 @@ export class World {
   }
 
   private updateQuest(focus: THREE.Vector3, radius: number, dt: number, t: number) {
-    if (this.race || this.match || this.zombies) { this.questCooldown = 8; return; }   // the race / match / zombie night owns the task card
+    if (this.race || this.match || this.zombies || this.cricket) { this.questCooldown = 8; return; }   // the race / match / zombie night owns the task card
     if (this.wantQuest) { this.wantQuest = false; if (!this.quest || this.quest.status !== 'active') this.startQuest(); }
     const q = this.quest;
     if (!q || q.status !== 'active') {

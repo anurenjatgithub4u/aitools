@@ -19,6 +19,7 @@ export interface Hud {
   friends(n: number): void;
   rank(r: number, of: number): void;
   hurt(): void;
+  mode(action: { icon: string; label: string } | null): void;
   meet(m: { name: string; friend: boolean; real: boolean } | null): void;
   chat(from: string, text: string, mine: boolean): void;
   friendRequest(req: { id: string; name: string } | null): void;
@@ -28,7 +29,7 @@ export interface Hud {
   onMapToggle(fn: (open: boolean) => void): void;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void; kick(): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
@@ -74,6 +75,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
         <div class="mrow games" id="meetgames" hidden>
           <button data-a="race">🏁<small>Race</small></button>
           <button data-a="football">⚽<small>Football</small></button>
+          <button data-a="cricket">🏏<small>Cricket</small></button>
           <button data-a="zombies">🧟<small>Zombies</small></button>
           <button data-a="hunt">💰<small>Prize hunt</small></button>
           <button data-a="pool">🎱<small>8-ball</small></button>
@@ -100,6 +102,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <button class="act" id="liftbtn" hidden>🙋<small>Lift</small></button>
       <button class="act" id="friendbtn" hidden>🤝<small>Add</small></button>
       <button class="act" id="drive" hidden>🚗<small>Drive</small></button>
+      <button class="act kick" id="kickbtn" hidden>⚽<small>Kick</small></button>
       <button class="act" id="jump">⤒<small>Jump</small></button>
       <button class="act" id="run">🏃<small>Run</small></button>
     </div>
@@ -121,7 +124,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     <div id="hurt" class="hurtflash"></div>
     <div class="help" id="helpbox" hidden>
       <h3>How to play</h3>
-      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, football, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Football</b> walk onto the City Stadium pitch and press <b>E</b> (or pick Football from an explorer's card): five-a-side, 90 seconds. Run into the ball to dribble (it sticks to your feet), <b>Space</b> / the Jump button to shoot — harder while running, and aimed toward the goal when you face it.<br><b>Zombie night</b> press <b>Z</b> or the 🧟 chip: waves of zombies shamble toward you — walkers, headless ones, runners, crawlers, hoppers that leap at you, bloaters that burst in a cloud, and brutes that take a beating and hit like a truck. <b>Space</b> / Jump punches the one in front of you (three hits each), vehicles crush them. Every bite drains your ❤ health — clear a wave to heal, die and you wake up back downtown.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
+      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, football, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Football</b> walk onto the City Stadium pitch and press <b>E</b> (or pick Football from an explorer's card): five-a-side, 90 seconds. Run into the ball to dribble (it sticks to your feet), <b>Space</b> / the Jump button to shoot — harder while running, and aimed toward the goal when you face it.<br><b>Cricket</b> walk onto the strip at the FindurAI Cricket Ground (Eastside) and press <b>E</b>, or pick Cricket on an explorer's card: they bowl, you bat 12 balls with 3 wickets. Press <b>Bat</b> / <b>Space</b> as the ball reaches you — perfect timing drives it for six, early pulls it high (catchable), late nicks it along the ground.<br><b>Zombie night</b> press <b>Z</b> or the 🧟 chip: waves of zombies shamble toward you — walkers, headless ones, runners, crawlers, hoppers that leap at you, bloaters that burst in a cloud, and brutes that take a beating and hit like a truck. <b>Space</b> / Jump punches the one in front of you (three hits each), vehicles crush them. Every bite drains your ❤ health — clear a wave to heal, die and you wake up back downtown.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
       <p>${d.blurb}</p>
       <button id="closehelp">Got it</button> <button id="changeavatar" class="ghost">🧍 Change my explorer</button>
     </div>
@@ -136,6 +139,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const jumpBtn = root.querySelector<HTMLButtonElement>('#jump')!;
   const press = (btn: HTMLElement, fn: () => void) => btn.addEventListener('pointerdown', (e) => { e.preventDefault(); fn(); });
   press(jumpBtn, actions.jump);
+  const kickBtn = root.querySelector<HTMLButtonElement>('#kickbtn')!;
+  press(kickBtn, actions.kick);
   // zoom buttons repeat while held
   const hold = (btn: HTMLElement, delta: number) => {
     let timer = 0;
@@ -305,6 +310,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       }
     },
     rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
+    mode(a) { kickBtn.hidden = !a; if (a) kickBtn.innerHTML = `${a.icon}<small>${a.label}</small>`; },
     hurt() { hurtEl.classList.add('on'); clearTimeout(hurtT); hurtT = window.setTimeout(() => hurtEl.classList.remove('on'), 180); },
     minimap: root.querySelector<HTMLCanvasElement>('#minimap')!,
     bigmap: root.querySelector<HTMLCanvasElement>('#bigmapcv')!,

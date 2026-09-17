@@ -732,7 +732,7 @@ function bake(group: THREE.Group): THREE.Mesh {
   group.traverse((o) => {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
-    const geo = m.geometry.toNonIndexed();
+    const geo = m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone();   // already non-indexed geometries (icosahedra) just get copied
     geo.applyMatrix4(m.matrixWorld);
     const col = (m.material as THREE.MeshStandardMaterial).color;
     const n = geo.attributes.position.count;

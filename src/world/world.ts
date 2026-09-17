@@ -64,8 +64,9 @@ interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3;
 const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
 const MATCH_SECONDS = 90;
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
-interface Zombie { av: Avatar; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean }
-interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean }
+type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
+interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
+interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean; blasts: { mesh: THREE.Mesh; t0: number }[] }
 const ZOMBIE_STYLES: AvatarStyle[] = [
   { shirt: 0x4a5a3a, pants: 0x3a3330, skin: 0x8fbf6a, hair: 0x1a1a1a, hat: 'none' },
   { shirt: 0x5a4a6a, pants: 0x2b2b2b, skin: 0x9ccc7a, hair: 0x3a2a1a, hat: 'none' },
@@ -1750,7 +1751,7 @@ export class World {
     if (this.zombies && !this.zombies.ending) { this.endZombies(false); return; }
     if (this.zombies) { this.applyNight(0); this.zombies = null; }   // still dawning: skip straight to day and start over
     if (this.race || this.match) return;
-    this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false };
+    this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false, blasts: [] };
     this.clearQuest();
     this.questCooldown = 30;
     this.sfx.siren();
@@ -1783,12 +1784,21 @@ export class World {
       av.group.position.set(x, this.groundAt(x, zz, this.terrain.h(x, zz)), zz);
       av.group.rotation.y = Math.atan2(pp.x - x, pp.z - zz);
       // every one of them is wrong in its own way: lanky or squat, hunched, head lolling, glowing eyes, a dragging leg
-      const runner = z.wave >= 2 && Math.random() < 0.25;
+      const roll = Math.random();
+      const kind: ZombieKind = z.wave >= 3 && roll < 0.08 ? 'brute' : z.wave >= 3 && roll < 0.2 ? 'bloater' : z.wave >= 2 && roll < 0.35 ? 'crawler' : z.wave >= 2 && roll < 0.47 ? 'hopper' : z.wave >= 2 && roll < 0.65 ? 'runner' : roll < 0.78 ? 'headless' : 'walker';
+      const runner = kind === 'runner';
       av.group.scale.set(rand(0.85, 1.15), runner ? rand(0.8, 0.95) : rand(0.9, 1.3), rand(0.85, 1.15));
-      av.body.rotation.x = runner ? 0.55 : rand(0.15, 0.45);
+      if (kind === 'brute') av.group.scale.set(1.6, 1.7, 1.6);
+      if (kind === 'bloater') av.group.scale.set(1.35, 1.0, 1.35);
+      if (kind === 'crawler') { av.legL.visible = av.legR.visible = false; av.body.position.y = 0.45; }
+      av.body.rotation.x = runner ? 0.55 : kind === 'crawler' ? 1.25 : kind === 'hopper' ? 0.6 : rand(0.15, 0.45);
+      let belly: THREE.Mesh | null = null;
+      if (kind === 'bloater') { belly = new THREE.Mesh(new THREE.SphereGeometry(0.48, 10, 8), new THREE.MeshStandardMaterial({ color: 0x9dff4a, emissive: 0x66ff33, emissiveIntensity: 1.2 })); belly.position.set(0, 0.32, 0.28); av.body.add(belly); }
       const head = av.body.children.find((c) => c.type === 'Group' && Math.abs(c.position.y - 1.02) < 0.01) ?? null;
       const tilt = rand(-0.5, 0.5);
-      if (head) {
+      if (head && kind === 'headless') head.visible = false;
+      if (head && kind !== 'headless' && Math.random() < 0.15) { const hat = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.95, 8), new THREE.MeshStandardMaterial({ color: 0xff7a1a })); hat.position.set(0, 0.95, 0); hat.rotation.z = rand(-0.4, 0.4); head.add(hat); }   // wandered through roadworks
+      if (head && kind !== 'headless') {
         head.rotation.z = tilt; head.rotation.x = rand(-0.2, 0.3);
         for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff3030, emissiveIntensity: 2 })); eye.position.set(sx * 0.13, 0.33, 0.32); head.add(eye); }
         if (Math.random() < 0.5) head.position.y += rand(0.05, 0.16);   // neck stretched
@@ -1796,10 +1806,14 @@ export class World {
       for (let k = 0; k < 2 + Math.floor(Math.random() * 3); k++) { const spot = new THREE.Mesh(new THREE.BoxGeometry(rand(0.1, 0.25), rand(0.1, 0.25), 0.03), new THREE.MeshStandardMaterial({ color: 0x5a0d0d })); spot.position.set(rand(-0.3, 0.3), rand(0.1, 0.75), 0.23); av.body.add(spot); }
       if (Math.random() < 0.3) av.armL.visible = false;   // lost an arm somewhere
       this.scene.add(av.group);
-      z.list.push({ av, hp: 2 + Math.floor(z.wave / 3), speed: runner ? Math.min(8, 5 + z.wave * 0.3) : Math.min(6, 2.2 + z.wave * 0.3 + Math.random() * 0.9), dying: 0, hitAt: -1, groan: this.elapsed + Math.random() * 6, head, limp: !runner && Math.random() < 0.5, tilt, sway: rand(0.6, 1.6), arms: Math.floor(Math.random() * 3), twitchAt: this.elapsed + rand(1, 4), runner });
+      const baseHp = 2 + Math.floor(z.wave / 3);
+      const hp = kind === 'brute' ? baseHp + 5 : kind === 'crawler' ? 1 : kind === 'bloater' ? baseHp + 1 : baseHp;
+      const speed = runner ? Math.min(8, 5 + z.wave * 0.3) : kind === 'brute' ? 1.9 : kind === 'crawler' ? Math.min(6.5, 3.4 + z.wave * 0.25) : kind === 'bloater' ? 1.8 : kind === 'hopper' ? 1.2 : Math.min(6, 2.2 + z.wave * 0.3 + Math.random() * 0.9);
+      z.list.push({ av, kind, hp, speed, dying: 0, hitAt: -1, groan: this.elapsed + Math.random() * 6, head, limp: kind === 'walker' && Math.random() < 0.5, tilt, sway: rand(0.6, 1.6), arms: kind === 'headless' ? 0 : Math.floor(Math.random() * 3), twitchAt: this.elapsed + rand(1, 4), runner, hop: null, hopAt: this.elapsed + rand(0.5, 2), belly });
     }
     this.sfx.groan();
-    this.ev.onCollect({ name: `Wave ${z.wave} · ${n} zombies`, points: 0, color: 0x7a1f1f, shape: 'box' });
+    const special = (['brute', 'bloater', 'crawler', 'hopper', 'runner', 'headless'] as ZombieKind[]).map((k) => [k, z.list.filter((zb) => zb.kind === k && !zb.dying).length] as const).filter(([, c]) => c > 0).map(([k, c]) => `${c} ${k}${c > 1 ? 's' : ''}`);
+    this.ev.onCollect({ name: `Wave ${z.wave} · ${n} zombies${special.length ? ' · ' + special.join(', ') : ''}`, points: 0, color: 0x7a1f1f, shape: 'box' });
   }
 
   /** Space during zombie night: punch the nearest zombie in front of you. */
@@ -1817,7 +1831,7 @@ export class World {
     z.punchAt = this.elapsed;
     best.hp--; best.hitAt = this.elapsed;   // staggered: no bite for a moment
     const q = best.av.group.position, dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz) || 1;
-    const nx = q.x + (dx / d) * 1.6, nz = q.z + (dz / d) * 1.6;
+    const kb = best.kind === 'brute' ? 0.4 : 1.6, nx = q.x + (dx / d) * kb, nz = q.z + (dz / d) * kb;
     if (this.walkable(nx, nz, q.y)) { q.x = nx; q.z = nz; }
     if (best.hp <= 0) this.killZombie(best); else this.sfx.punch();
     return true;
@@ -1826,8 +1840,17 @@ export class World {
   private killZombie(zb: Zombie) {
     const z = this.zombies!;
     zb.dying = 1.8; z.kills++;
-    this.points += 10; this.ev.onPoints(this.points);
+    this.points += zb.kind === 'brute' ? 40 : zb.kind === 'bloater' ? 20 : 10; this.ev.onPoints(this.points);
     this.sfx.thud();
+    if (zb.kind === 'bloater') {   // bursts: a cloud that hurts you and takes the mob around it down with it
+      const q = zb.av.group.position;
+      const blast = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshStandardMaterial({ color: 0x9dff4a, emissive: 0x66ff33, emissiveIntensity: 1.5, transparent: true, opacity: 0.7 }));
+      blast.position.set(q.x, q.y + 1, q.z); this.scene.add(blast); z.blasts.push({ mesh: blast, t0: this.elapsed });
+      const pp = this.driving ? this.driving.group.position : this.player.group.position;
+      if (!this.driving && pp.distanceTo(q) < 4) { z.hp -= 14; this.ev.onHurt(); this.sfx.ouch(); }
+      for (const o of z.list) if (o !== zb && !o.dying && o.av.group.position.distanceTo(q) < 4) this.killZombie(o);
+      this.ev.onCollect({ name: 'Bloater burst!', points: 0, color: 0x66ff33, shape: 'gem' });
+    }
   }
 
   private tickZombies(dt: number, t: number) {
@@ -1840,6 +1863,7 @@ export class World {
     const driving = this.driving;
     const pp = driving ? driving.group.position : this.player.group.position;
     if (z.breather > 0) { z.breather -= dt; if (z.breather <= 0) this.spawnWave(); }
+    for (let i = z.blasts.length - 1; i >= 0; i--) { const b = z.blasts[i], u = (t - b.t0) / 0.6; if (u >= 1) { this.scene.remove(b.mesh); z.blasts.splice(i, 1); continue; } b.mesh.scale.setScalar(0.6 + u * 4); (b.mesh.material as THREE.MeshStandardMaterial).opacity = 0.7 * (1 - u); }
     let alive = 0;
     const close = z.list.filter((zb) => !zb.dying && zb.av.group.position.distanceTo(pp) < 1.6).length;   // a mob shares the bites
     for (let i = z.list.length - 1; i >= 0; i--) {
@@ -1855,6 +1879,17 @@ export class World {
       const dx = pp.x - q.x, dz = pp.z - q.z, d = Math.hypot(dx, dz) || 1;
       // crushed by a car
       if (driving && Math.abs(driving.speed) > 3.5 && d < driving.spec.length / 2 + 1.1) { this.killZombie(zb); this.sfx.bump(); continue; }
+      if (zb.kind === 'hopper' && (zb.hop || (d > 1.35 && t > zb.hopAt))) {
+        // hoppers crouch, then spring at you in long low leaps
+        if (!zb.hop) { const len = Math.min(7, d - 0.6); let tx = q.x + (dx / d) * len, tz = q.z + (dz / d) * len; if (!this.walkable(tx, tz, q.y)) { tx = q.x + (dx / d) * 1.5; tz = q.z + (dz / d) * 1.5; } zb.hop = { t0: t, fx: q.x, fz: q.z, tx, tz }; this.sfx.groan(); }
+        const u = Math.min(1, (t - zb.hop.t0) / 0.55);
+        q.x = zb.hop.fx + (zb.hop.tx - zb.hop.fx) * u; q.z = zb.hop.fz + (zb.hop.tz - zb.hop.fz) * u;
+        q.y = this.groundAt(q.x, q.z, q.y) + Math.sin(u * Math.PI) * 2.4;
+        zb.av.legL.rotation.x = zb.av.legR.rotation.x = -1.4 + u; zb.av.armL.rotation.x = zb.av.armR.rotation.x = -2.6 + u * 1.2;
+        g.rotation.y += wrapAngle(Math.atan2(dx, dz) - g.rotation.y) * Math.min(1, dt * 8);
+        if (u >= 1) { zb.hop = null; zb.hopAt = t + rand(0.7, 1.6); }
+        continue;
+      }
       if (d > 1.35) {
         // shamble toward the player; slide along whatever is in the way; keep a little apart from each other
         const sp = zb.speed * dt;
@@ -1864,23 +1899,29 @@ export class World {
         if (this.walkable(nx, nz, q.y) && this.terrain.onLand(nx, nz)) { q.x = nx; q.z = nz; }
         else if (this.walkable(q.x - (dz / d) * sp, q.z + (dx / d) * sp, q.y)) { q.x -= (dz / d) * sp; q.z += (dx / d) * sp; }
         else if (this.walkable(q.x + (dz / d) * sp, q.z - (dx / d) * sp, q.y)) { q.x += (dz / d) * sp; q.z -= (dx / d) * sp; }
-        animateWalk(zb.av, t * (zb.speed / 3) + i, 0.9);
+        if (zb.kind === 'crawler') { zb.av.armL.rotation.x = -1.7 + Math.sin(t * 9 + i) * 0.6; zb.av.armR.rotation.x = -1.7 - Math.sin(t * 9 + i) * 0.6; g.rotation.z = Math.sin(t * 9 + i) * 0.06; }
+        else if (zb.kind === 'brute') animateWalk(zb.av, t * 0.9 + i, 1);
+        else animateWalk(zb.av, t * (zb.speed / 3) + i, 0.9);
         if (zb.limp) { zb.av.legR.rotation.x = 0.35 + Math.max(0, zb.av.legR.rotation.x) * 0.3; zb.av.group.rotation.z = Math.sin(t * zb.speed * 3.3 + i) * 0.08; }   // drags a leg, lists sideways
       } else {
-        animateWalk(zb.av, t * 2, 0.3);
+        if (zb.kind !== 'crawler') animateWalk(zb.av, t * 2, 0.3);
         // bite
         if (!driving && t - zb.hitAt > 1.2) {
           zb.hitAt = t;
-          z.hp -= (4 + Math.min(8, z.wave * 0.6)) * Math.min(1, 2.2 / Math.max(1, close));
+          z.hp -= (4 + Math.min(8, z.wave * 0.6)) * (zb.kind === 'brute' ? 2.4 : zb.kind === 'crawler' ? 0.7 : 1) * Math.min(1, 2.2 / Math.max(1, close));
           this.ev.onHurt(); this.sfx.ouch();
-          const kx = pp.x + (dx / d) * 0.7, kz = pp.z + (dz / d) * 0.7;   // shoved back a step
+          const shove = zb.kind === 'brute' ? 2.5 : 0.7, kx = pp.x + (dx / d) * shove, kz = pp.z + (dz / d) * shove;   // shoved back a step (a brute sends you flying)
           if (this.walkable(kx, kz, pp.y)) { pp.x = kx; pp.z = kz; }
           if (z.hp <= 0) { this.endZombies(true); return; }
         }
       }
       // arms: both out, one out one dangling, or clawing high — always twitching
       const tw = Math.sin(t * 3 + i) * 0.15;
-      if (zb.arms === 0) { zb.av.armL.rotation.x = zb.av.armR.rotation.x = -1.45 + tw; }
+      if (zb.belly) zb.belly.scale.setScalar(1 + Math.sin(t * 5 + i) * 0.12);
+      if (zb.kind === 'crawler') { /* arms drive the crawl */ }
+      else if (zb.kind === 'hopper') { zb.av.armL.rotation.x = zb.av.armR.rotation.x = -0.6 + tw; zb.av.legL.rotation.x = zb.av.legR.rotation.x = -1.1; zb.av.body.position.y = 0.55; }
+      else if (zb.kind === 'headless') { zb.av.armL.rotation.x = zb.av.armR.rotation.x = -1.5; zb.av.armL.rotation.z = 0.5 + Math.sin(t * 6 + i) * 0.4; zb.av.armR.rotation.z = -0.5 - Math.sin(t * 6 + i) * 0.4; zb.av.body.rotation.z = Math.sin(t * 2.3 + i) * 0.2; }
+      else if (zb.arms === 0) { zb.av.armL.rotation.x = zb.av.armR.rotation.x = -1.45 + tw; }
       else if (zb.arms === 1) { zb.av.armR.rotation.x = -1.6 + tw; zb.av.armL.rotation.x = 0.3 + Math.sin(t * 7 + i) * 0.1; }
       else { zb.av.armR.rotation.x = -2.2 + tw; zb.av.armL.rotation.x = -1.2 - tw; zb.av.armR.rotation.z = -0.4; zb.av.armL.rotation.z = 0.4; }
       if (zb.head) { zb.head.rotation.z = zb.tilt + Math.sin(t * 1.7 + i) * 0.12; if (t > zb.twitchAt) { zb.twitchAt = t + rand(1.5, 5); zb.head.rotation.y = rand(-0.9, 0.9); } else zb.head.rotation.y *= Math.max(0, 1 - dt * 3); }
@@ -1906,6 +1947,8 @@ export class World {
     z.ending = true;
     for (const zb of z.list) this.scene.remove(zb.av.group);
     z.list = [];
+    for (const b of z.blasts) this.scene.remove(b.mesh);
+    z.blasts = [];
     document.getElementById('zombiebtn')?.classList.remove('on');
     if (this.hangout && this.hangout.until - this.elapsed > 300) this.endHangout();
     if (died) {

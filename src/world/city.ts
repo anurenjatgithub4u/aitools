@@ -378,19 +378,27 @@ export function buildCity(g: THREE.Group, h: H) {
   const noCol = <T extends THREE.Object3D>(o: T) => { o.userData.noCollide = true; return o; };
   const hidden = <T extends THREE.Object3D>(o: T) => { o.visible = false; return o; };
   // a ramp is a smooth slab to look at (no collision) over a staircase of thin invisible steps to stand on
-  const ramp = (xa: number, xb: number) => {
-    const ya = h(xa, BZ) + 0.2, yb = DECK, n = 16;
-    for (let i = 0; i < n; i++) { const x0 = xa + (xb - xa) * (i / n), x1 = xa + (xb - xa) * ((i + 1) / n), top = ya + (yb - ya) * ((i + 1) / n); g.add(hidden(at(box(Math.abs(x1 - x0) + 0.3, 0.5, BW, 0x5f5f5f), (x0 + x1) / 2, top - 0.25, BZ))); }
+  const sandTop = (x: number, z: number) => (x >= 170 && x <= 210 && Math.abs(z) <= 150 ? Math.max(h(x, z), h(190, z) + 0.25) : h(x, z));   // the beach is a raised slab
+  const ramp = (xa: number, xb: number, gnd: (x: number, z: number) => number) => {
+    const ya = gnd(xa, BZ) + 0.15, yb = DECK, n = 16;
+    // side rails (and their hidden collision walls) only where the ramp is well above the ground beside it,
+    // so you can step onto the low end from the sand or the road
+    for (let i = 0; i < n; i++) {
+      const x0 = xa + (xb - xa) * (i / n), x1 = xa + (xb - xa) * ((i + 1) / n), top = ya + (yb - ya) * ((i + 1) / n), xm = (x0 + x1) / 2, len = Math.abs(x1 - x0);
+      g.add(hidden(at(box(len + 0.3, 0.5, BW - 0.4, 0x5f5f5f), xm, top - 0.25, BZ)));
+      for (const sd of [-1, 1]) {
+        if (top - gnd(xm, BZ + sd * (BW / 2 + 2)) < 1.3) { g.add(at(noCol(box(len - 0.6, 0.6, 0.25, 0xd94a3d)), xm, top + 0.3, BZ + sd * (BW / 2 - 0.1))); continue; }   // low: just a kerb
+        g.add(at(noCol(box(len + 0.2, 1.0, 0.15, 0xcfd6dc)), xm, top + 0.5, BZ + sd * (BW / 2 - 0.1)));
+        g.add(hidden(at(box(len + 0.2, 3, 0.3, 0xffffff), xm, top + 1.5, BZ + sd * (BW / 2 - 0.1))));
+      }
+    }
     const L = Math.hypot(xb - xa, yb - ya), ang = -Math.atan2(yb - ya, xb - xa);
     g.add(rot(at(noCol(box(L, 0.8, BW, 0x5f5f5f)), (xa + xb) / 2, (ya + yb) / 2 - 0.4, BZ), 'z', ang));
     for (let i = 1; i < n; i += 2) g.add(rot(at(noCol(box(2.4, 0.06, 0.3, 0xf4f4f4)), xa + (xb - xa) * (i / n), ya + (yb - ya) * (i / n) + 0.04, BZ), 'z', ang));
-    for (const sd of [-1, 1]) {
-      g.add(rot(at(noCol(box(L, 1.0, 0.15, 0xcfd6dc)), (xa + xb) / 2, (ya + yb) / 2 + 0.5, BZ + sd * (BW / 2 - 0.1)), 'z', ang));
-      g.add(rot(at(hidden(box(L, 3, 0.3, 0xffffff)), (xa + xb) / 2, (ya + yb) / 2 + 1.5, BZ + sd * (BW / 2 - 0.1)), 'z', ang));
-    }
+    g.add(at(noCol(box(10, 0.16, BW + 6, 0x5f5f5f)), xa + (xb > xa ? -3 : 3), ya - 0.1, BZ));   // apron at the foot
     keep((xa + xb) / 2, BZ, Math.abs(xb - xa) / 2 + 4);
   };
-  ramp(170, BX0); ramp(340, BX1);
+  ramp(172, BX0, sandTop); ramp(340, BX1, h);
   g.add(at(box(BX1 - BX0 + 0.6, 0.8, BW, 0x5f5f5f), (BX0 + BX1) / 2, DECK - 0.4, BZ));
   for (let x = BX0 + 3; x < BX1; x += 6) g.add(at(box(2.5, 0.06, 0.3, 0xf4f4f4), x, DECK + 0.03, BZ));
   for (const sd of [-1, 1]) {

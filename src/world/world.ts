@@ -72,12 +72,57 @@ interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel:
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
 interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean; blasts: { mesh: THREE.Mesh; t0: number }[] }
-const ZOMBIE_STYLES: AvatarStyle[] = [
-  { shirt: 0x4a5a3a, pants: 0x3a3330, skin: 0x8fbf6a, hair: 0x1a1a1a, hat: 'none' },
-  { shirt: 0x5a4a6a, pants: 0x2b2b2b, skin: 0x9ccc7a, hair: 0x3a2a1a, hat: 'none' },
-  { shirt: 0x6a3a3a, pants: 0x33403a, skin: 0x7fb060, hair: 0x2a2a2a, hat: 'none', female: true },
-  { shirt: 0x3a4a5a, pants: 0x3a3330, skin: 0xa6d38a, hair: 0x555555, hat: 'cap' },
+// Who they were before: office worker, chef, cop, patient, jogger, builder, bride, nurse, student, party girl…
+interface ZombieLook { style: AvatarStyle; prop?: 'tie' | 'chef' | 'gown' | 'hivis' | 'veil' | 'nursecap' | 'tiara' | 'apron' | 'party' | 'bandage' }
+const ZOMBIE_SKINS = [0x8fbf6a, 0x9ccc7a, 0x7fb060, 0xa6d38a, 0x8f9a8a, 0x9d8fb0, 0xb7c9a0, 0x7f8f6a];
+const ZOMBIE_LOOKS: ZombieLook[] = [
+  { style: { shirt: 0xd8d8d8, pants: 0x2b2b2b, hair: 0x1a1a1a, hat: 'none' }, prop: 'tie' },              // office
+  { style: { shirt: 0xf0f0f0, pants: 0x3a3a3a, hair: 0x3a2a1a, hat: 'none' }, prop: 'chef' },
+  { style: { shirt: 0x2c3e6b, pants: 0x1f2a44, hair: 0x2a2a2a, hat: 'cap' } },                              // cop
+  { style: { shirt: 0xd8e2f0, pants: 0xd8e2f0, hair: 0x555555, hat: 'none' }, prop: 'gown' },              // patient
+  { style: { shirt: 0x3fb7d9, pants: 0x1a1a1a, hair: 0x6b4a2a, hat: 'none' }, prop: 'bandage' },           // jogger
+  { style: { shirt: 0xf2c31b, pants: 0x4a4a4a, hair: 0x1a1a1a, hat: 'none' }, prop: 'hivis' },             // builder
+  { style: { shirt: 0x4a5a3a, pants: 0x3a3330, hair: 0x1a1a1a, hat: 'none' } },                             // just a guy
+  { style: { shirt: 0xf6f2ea, pants: 0xf6f2ea, hair: 0x3a2a1a, hat: 'none', female: true }, prop: 'veil' },   // bride
+  { style: { shirt: 0xe6f2f6, pants: 0x3fb7d9, hair: 0x1a1a1a, hat: 'none', female: true }, prop: 'nursecap' },
+  { style: { shirt: 0xffffff, pants: 0x6b1f3a, hair: 0x1a1a1a, hat: 'none', female: true } },              // student
+  { style: { shirt: 0xe75480, pants: 0xe75480, hair: 0x6b4a2a, hat: 'none', female: true }, prop: 'party' },
+  { style: { shirt: 0xf4f4f4, pants: 0x2b2b2b, hair: 0x2a2a2a, hat: 'none', female: true }, prop: 'tie' },   // office
+  { style: { shirt: 0xff7ab8, pants: 0x2b2b2b, hair: 0xb5651d, hat: 'none', female: true }, prop: 'bandage' },
+  { style: { shirt: 0x9d8fb0, pants: 0x3a3330, hair: 0x555555, hat: 'none', female: true }, prop: 'apron' },   // grandma from the bakery
 ];
+const dirty = (c: number) => new THREE.Color(c).multiplyScalar(0.55 + Math.random() * 0.25).offsetHSL(0, -0.2, 0).getHex();
+const zmesh = (geo: THREE.BufferGeometry, c: number, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) => new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, ...extra }));
+const put = (m: THREE.Mesh, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) => { m.position.set(x, y, z); m.rotation.set(rx, ry, rz); return m; };
+/** Rot, wounds and whatever they were wearing when it happened. */
+function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) {
+  const body = av.body, skin = av.group.userData.skin as number;
+  if (head) {
+    for (const sx of [-1, 1]) head.add(put(zmesh(new THREE.BoxGeometry(0.15, 0.14, 0.02), 0x1a1210), sx * 0.13, 0.33, 0.295));   // sunken sockets
+    head.add(put(zmesh(new THREE.BoxGeometry(0.34, 0.12, 0.28), skin), 0, 0.06, 0.06, 0.55));                                      // jaw hanging open
+    head.add(put(zmesh(new THREE.BoxGeometry(0.2, 0.05, 0.02), 0x5a0d0d), 0.04, 0.13, 0.31));                                       // blood at the mouth
+    if (Math.random() < 0.5) head.add(put(zmesh(new THREE.BoxGeometry(0.16, 0.12, 0.03), 0xe8e0c8), rand(-0.2, 0.2), rand(0.35, 0.55), 0.29));   // skull showing
+  }
+  // torn hem and wounds
+  for (let k = 0; k < 3; k++) body.add(put(zmesh(new THREE.BoxGeometry(0.1, rand(0.2, 0.4), 0.02), dirty(look.style.shirt)), rand(-0.3, 0.3), -0.1, 0.23 + k * 0.005, 0, 0, rand(-0.3, 0.3)));
+  for (let k = 0; k < 2 + Math.floor(Math.random() * 3); k++) body.add(put(zmesh(new THREE.BoxGeometry(rand(0.1, 0.25), rand(0.1, 0.25), 0.03), 0x5a0d0d), rand(-0.3, 0.3), rand(0.1, 0.75), 0.23));
+  if (Math.random() < 0.4) (Math.random() < 0.5 ? av.legL : av.legR).add(put(zmesh(new THREE.BoxGeometry(0.12, 0.2, 0.05), 0xe8e0c8), rand(-0.05, 0.05), -0.4, 0.15));   // bone through the trouser
+  const r = Math.random();
+  if (r < 0.25) av.armL.visible = false;                                                                                                        // lost an arm
+  else if (r < 0.45) { av.armR.scale.y = 0.55; av.armR.add(put(zmesh(new THREE.BoxGeometry(0.2, 0.06, 0.2), 0x5a0d0d), 0, -0.72, 0)); }        // or a hand
+  switch (look.prop) {
+    case 'tie': body.add(put(zmesh(new THREE.BoxGeometry(0.07, 0.42, 0.02), 0x8a1a1a), 0.02, 0.5, 0.235)); break;
+    case 'chef': if (head) head.add(put(zmesh(new THREE.CylinderGeometry(0.28, 0.22, 0.5, 10), 0xf4f4f4), 0, 0.82, 0, 0, 0, rand(-0.3, 0.3))); body.add(put(zmesh(new THREE.BoxGeometry(0.6, 0.5, 0.03), 0xf0f0f0), 0, 0.05, 0.235)); break;
+    case 'gown': body.add(put(zmesh(new THREE.BoxGeometry(0.8, 0.14, 0.03), 0xb8c8dc), 0, 0.62, 0.235)); body.add(put(zmesh(new THREE.BoxGeometry(0.16, 0.5, 0.02), 0xf4f4f4), 0.28, 0.4, 0.24)); break;
+    case 'hivis': for (const y of [0.3, 0.55]) body.add(put(zmesh(new THREE.BoxGeometry(0.8, 0.07, 0.02), 0xdedede, { emissive: 0xaaaaaa, emissiveIntensity: 0.6 }), 0, y, 0.24)); if (head) head.add(put(zmesh(new THREE.ConeGeometry(0.42, 0.95, 8), 0xff7a1a), 0, 0.95, 0, 0, 0, rand(-0.4, 0.4))); break;
+    case 'veil': if (head) { head.add(put(zmesh(new THREE.PlaneGeometry(0.9, 1.3), 0xffffff, { transparent: true, opacity: 0.45, side: THREE.DoubleSide }), 0, 0.1, -0.32, 0.15)); head.add(put(zmesh(new THREE.TorusGeometry(0.28, 0.03, 6, 16), 0xe8d59a, { emissive: 0x6a5a20, emissiveIntensity: 0.5 }), 0, 0.6, 0, Math.PI / 2)); } body.add(put(zmesh(new THREE.SphereGeometry(0.12, 8, 6), 0xf4c6cc), 0.28, 0.3, 0.26)); break;   // + a bouquet
+    case 'nursecap': if (head) { head.add(put(zmesh(new THREE.BoxGeometry(0.34, 0.14, 0.26), 0xffffff), 0, 0.66, 0.02)); head.add(put(zmesh(new THREE.BoxGeometry(0.12, 0.04, 0.03), 0xd94a3d), 0, 0.7, 0.16)); head.add(put(zmesh(new THREE.BoxGeometry(0.04, 0.12, 0.03), 0xd94a3d), 0, 0.7, 0.16)); } break;
+    case 'party': for (let k = 0; k < 10; k++) body.add(put(zmesh(new THREE.BoxGeometry(0.05, 0.05, 0.02), [0xfff2a8, 0x7ad7ff, 0xa6ff7a][k % 3], { emissive: 0x666666, emissiveIntensity: 0.8 }), rand(-0.34, 0.34), rand(0.05, 0.8), 0.235)); break;
+    case 'apron': body.add(put(zmesh(new THREE.BoxGeometry(0.62, 0.7, 0.03), 0xe8e8e0), 0, 0.15, 0.235)); break;
+    case 'bandage': if (head) head.add(put(zmesh(new THREE.BoxGeometry(0.64, 0.12, 0.62), 0xf0ead8), 0, rand(0.2, 0.45), 0, rand(-0.2, 0.2), 0, rand(-0.2, 0.2))); break;
+    case 'tiara': break;
+  }
+}
 interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string }
 const RACE_LAPS = 3;
 
@@ -2053,16 +2098,19 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private spawnWave() {
     const z = this.zombies!;
     z.wave++;
-    const n = Math.min(40, 5 + z.wave * 3);
+    const n = Math.min(this.mobile ? 30 : 48, 6 + z.wave * 4);
     const pp = this.driving ? this.driving.group.position : this.player.group.position;
+    const dirs = [0, 1, 2].map(() => Math.random() * Math.PI * 2);   // they come in packs from a few directions
     for (let i = 0; i < n; i++) {
       let x = pp.x, zz = pp.z;
       for (let k = 0; k < 12; k++) {
-        const a = Math.random() * Math.PI * 2, r = rand(26, 44);
+        const a = dirs[i % dirs.length] + rand(-0.6, 0.6), r = rand(26, 46);
         const tx = pp.x + Math.cos(a) * r, tz = pp.z + Math.sin(a) * r;
         if (Math.hypot(tx, tz) < WORLD_RADIUS - 10 && this.terrain.onLand(tx, tz) && this.walkable(tx, tz)) { x = tx; zz = tz; break; }
       }
-      const av = makeAvatar(ZOMBIE_STYLES[Math.floor(Math.random() * ZOMBIE_STYLES.length)]);
+      const look = ZOMBIE_LOOKS[Math.floor(Math.random() * ZOMBIE_LOOKS.length)], skin = ZOMBIE_SKINS[Math.floor(Math.random() * ZOMBIE_SKINS.length)];
+      const av = makeAvatar({ ...look.style, shirt: dirty(look.style.shirt), pants: dirty(look.style.pants), skin });
+      av.group.userData.skin = skin;
       av.group.position.set(x, this.groundAt(x, zz, this.terrain.h(x, zz)), zz);
       av.group.rotation.y = Math.atan2(pp.x - x, pp.z - zz);
       // every one of them is wrong in its own way: lanky or squat, hunched, head lolling, glowing eyes, a dragging leg
@@ -2079,14 +2127,12 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       const head = av.body.children.find((c) => c.type === 'Group' && Math.abs(c.position.y - 1.02) < 0.01) ?? null;
       const tilt = rand(-0.5, 0.5);
       if (head && kind === 'headless') head.visible = false;
-      if (head && kind !== 'headless' && Math.random() < 0.15) { const hat = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.95, 8), new THREE.MeshStandardMaterial({ color: 0xff7a1a })); hat.position.set(0, 0.95, 0); hat.rotation.z = rand(-0.4, 0.4); head.add(hat); }   // wandered through roadworks
+      dressZombie(av, look, kind === 'headless' ? null : head);
       if (head && kind !== 'headless') {
         head.rotation.z = tilt; head.rotation.x = rand(-0.2, 0.3);
         for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff3030, emissiveIntensity: 2 })); eye.position.set(sx * 0.13, 0.33, 0.32); head.add(eye); }
         if (Math.random() < 0.5) head.position.y += rand(0.05, 0.16);   // neck stretched
       }
-      for (let k = 0; k < 2 + Math.floor(Math.random() * 3); k++) { const spot = new THREE.Mesh(new THREE.BoxGeometry(rand(0.1, 0.25), rand(0.1, 0.25), 0.03), new THREE.MeshStandardMaterial({ color: 0x5a0d0d })); spot.position.set(rand(-0.3, 0.3), rand(0.1, 0.75), 0.23); av.body.add(spot); }
-      if (Math.random() < 0.3) av.armL.visible = false;   // lost an arm somewhere
       this.scene.add(av.group);
       const baseHp = 2 + Math.floor(z.wave / 3);
       const hp = kind === 'brute' ? baseHp + 5 : kind === 'crawler' ? 1 : kind === 'bloater' ? baseHp + 1 : baseHp;

@@ -57,7 +57,7 @@ export const ALL_DESTINATIONS: Destination[] = [
     explorers: 1342,
     theme: { sky: 0xc9def0, ground: 0x74b064, fog: 0xdbe8f0, sun: 0xfff2d8, accent: '#7b3fa0' },
     terrain: { amp: 1.6, flatRadius: 40, base: 3, rim: 282, coast: 215, island: 300, flats: [{ x: 70, z: 200, r: 41, blend: 14 }, { x: 425, z: 35, r: 38, blend: 14 }], water: { level: 0, color: 0x3a8fc4 },
-      lands: [{ cx: 400, cz: 0, r: 135, base: 4, amp: 2.2, hills: [{ x: 420, z: -30, r: 40, h: 14 }, { x: 380, z: 60, r: 26, h: -10 }, { x: 500, z: 0, r: 30, h: 7 }] }] },
+      lands: [{ cx: -105, cz: 330, r: 150, base: 3, amp: 1.4, hills: [{ x: -200, z: 430, r: 40, h: 9 }, { x: 10, z: 420, r: 40, h: 8 }] }, { cx: 400, cz: 0, r: 135, base: 4, amp: 2.2, hills: [{ x: 420, z: -30, r: 40, h: 14 }, { x: 380, z: 60, r: 26, h: -10 }, { x: 500, z: 0, r: 30, h: 7 }] }] },
     decor: [{ kind: 'rain', count: 70 }, { kind: 'tree', count: 120 }, { kind: 'cherry', count: 40 }, { kind: 'bush', count: 90 }, { kind: 'palm', count: 30 }, { kind: 'pine', count: 150 }],
     collectibles: [
       { name: 'Cold coffee', points: 10, color: 0x8a5a2b, shape: 'ring' },

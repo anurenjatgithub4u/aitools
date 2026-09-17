@@ -453,3 +453,7 @@ body.inmode .labels .place, body.inmode .labels .shop, body.inmode .labels .pill
 .hud .pick .popts button { font: inherit; font-size: 15px; font-weight: 600; padding: 12px 8px; border-radius: 12px; border: 0; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; }
 .hud .pick .popts button:hover, .hud .pick .popts button:active { background: var(--gold); color: var(--ink); }
 .hud .pick .pcancel { margin-top: 10px; font: inherit; font-size: 12px; background: none; border: 0; color: rgba(255,255,255,.7); cursor: pointer; }
+
+/* ---- cricket ◀ ▶ ---- */
+.act.arrow { width: 52px; height: 52px; font-size: 18px; background: rgba(20, 40, 34, .78); }
+@media (max-width: 720px) { .act.arrow { width: 50px; height: 50px; font-size: 16px; } }

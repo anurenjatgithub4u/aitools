@@ -18,6 +18,7 @@ export interface Terrain {
   profile: TerrainProfile;
   h(x: number, z: number): number;
   onLand(x: number, z: number): boolean;
+  inLand(x: number, z: number): boolean;   // inside one of the extra landmasses (no rim hills, no city-limits)
 }
 
 const smooth = (t: number) => {
@@ -34,6 +35,7 @@ function noise(x: number, z: number) {
 }
 
 export function makeTerrain(p: TerrainProfile): Terrain {
+  const inLand = (x: number, z: number) => (p.lands ?? []).some((l) => Math.hypot(x - l.cx, z - l.cz) < l.r + 30);
   const raw = (x: number, z: number) => {
     const r = Math.hypot(x, z);
     let y = (p.base ?? 0) + noise(x, z) * p.amp * smooth((r - p.flatRadius) / 25);
@@ -41,7 +43,7 @@ export function makeTerrain(p: TerrainProfile): Terrain {
     if (p.island !== undefined) y -= Math.max(0, r - p.island) * 0.5;
     if (p.coast !== undefined) y -= Math.max(0, x - p.coast) * 0.45;
     const seaSide = p.coast !== undefined && x > p.coast - 90;
-    if (p.rim !== undefined && r > p.rim && !seaSide) y += (r - p.rim) ** 2 * 0.06 + noise(x * 3, z * 3) * (r - p.rim) * 0.4;
+    if (p.rim !== undefined && r > p.rim && !seaSide && !inLand(x, z)) y += (r - p.rim) ** 2 * 0.06 + noise(x * 3, z * 3) * (r - p.rim) * 0.4;
     for (const l of p.lands ?? []) {
       const d = Math.hypot(x - l.cx, z - l.cz);
       if (d > l.r + 60) continue;
@@ -61,5 +63,5 @@ export function makeTerrain(p: TerrainProfile): Terrain {
     return y;
   };
   const onLand = (x: number, z: number) => !p.water || h(x, z) > p.water.level - 0.35;
-  return { profile: p, h, onLand };
+  return { profile: p, h, onLand, inLand };
 }

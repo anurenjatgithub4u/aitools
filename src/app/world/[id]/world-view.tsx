@@ -52,6 +52,7 @@ export function WorldView({ id }: { id: string }) {
       task: () => world?.startTask(),
       zombies: () => world?.toggleZombies(),
       kick: () => world?.kick(),
+      batMove: (dir) => world?.batMove(dir),
       befriend: () => world?.befriend(),
       interact: (a) => world?.interact(a),
       say: (text) => world?.say(text),

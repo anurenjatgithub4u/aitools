@@ -322,13 +322,19 @@ export function buildCity(g: THREE.Group, h: H) {
   // A GP-style circuit: pit straight past the grandstand, a fast sweeper, a chicane, a long back
   // straight and a hairpin. Centre line is a closed Catmull-Rom spline through the control points.
   const scx = -62, scz = 192, TW = 14;
+  // world-space control points: the old GP loop in the north, then a long run south into the valley and back
   const ctrl: [number, number][] = [
-    [-70, 34], [-20, 34], [30, 34], [62, 30], [78, 12], [76, -10], [60, -24],      // pit straight → Sunset sweeper
-    [42, -16], [30, -30], [12, -34],                                                // Neon chicane
-    [-30, -34], [-60, -34], [-82, -26], [-90, -6], [-86, 14], [-80, 30],            // back straight → Palm hairpin
+    [-125, 226], [-80, 226], [-35, 226], [-6, 222], [8, 204], [6, 184], [-8, 170],   // pit straight → Sunset sweeper
+    [-24, 178], [-35, 165], [-51, 158],                                              // Neon chicane
+    [-90, 158], [-116, 158], [-140, 170],                                            // back straight
+    [-156, 195], [-168, 240], [-176, 300], [-172, 355],                              // Valley straight (south)
+    [-152, 400], [-112, 422], [-66, 412], [-34, 380],                                // Big Bend
+    [-24, 335], [-38, 300],                                                          // Return run
+    [-64, 280], [-92, 268], [-116, 256],                                             // Esses
+    [-140, 248], [-148, 234],                                                        // Grandstand hairpin
   ];
-  const curve = new THREE.CatmullRomCurve3(ctrl.map(([x, z]) => V(scx + x * 0.9, 0, scz + z)), true, 'catmullrom', 0.6);
-  const N = 300;
+  const curve = new THREE.CatmullRomCurve3(ctrl.map(([x, z]) => V(x, 0, z)), true, 'catmullrom', 0.6);
+  const N = 480;
   const pts: [number, number][] = curve.getPoints(N - 1).slice(0, N).map((p) => [p.x, p.z]);
   for (let i = 0; i < N; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % N];
@@ -345,7 +351,8 @@ export function buildCity(g: THREE.Group, h: H) {
   }
   // boost pads: glowing chevrons on the straights; driving over one gives a burst of speed
   const pads: [number, number, number][] = [];
-  for (const idx of [16, 46, 172, 200]) {   // pit straight ×2, back straight ×2 (samples are uniform in spline t: ~18.75 per control segment)
+  const segIdx = (seg: number, f = 0.5) => Math.round(((seg + f) / ctrl.length) * N) % N;   // sample index at a fraction of a control segment
+  for (const idx of [segIdx(0, 0.4), segIdx(1, 0.4), segIdx(10, 0.3), segIdx(14, 0.2), segIdx(15, 0.3), segIdx(21, 0.3)]) {   // pit straight ×2, back straight, Valley ×2, Return
     const [px, pz] = pts[idx], [qx, qz] = pts[(idx + 2) % N], dir = V(qx - px, 0, qz - pz).normalize(), ang = Math.atan2(dir.x, dir.z);
     for (let k = 0; k < 3; k++) {
       const pad = glow(6, 0.12, 2.2, 0x3fd36f); pad.position.set(px + dir.x * k * 3, h(px, pz) + 0.3, pz + dir.z * k * 3); pad.rotation.y = ang; g.add(pad);
@@ -366,9 +373,18 @@ export function buildCity(g: THREE.Group, h: H) {
   for (const dx of [-40, -20, 0, 20, 36]) g.add(at(cyl(0.3, 0.3, 6, 0x555555, 8), scx + dx, h(scx, scz + 50) + 3, scz + 54));
   g.add(at(box(44, 5, 9, 0xe8e2d6), scx - 20, h(scx, scz + 20) + 2.5, scz + 20)); g.add(at(box(45, 0.5, 10, 0xd94a3d), scx - 20, h(scx, scz + 20) + 5.2, scz + 20));
   for (let i = -3; i <= 3; i++) g.add(at(box(4.5, 3.4, 0.2, 0x333333), scx - 20 + i * 6, h(scx, scz + 20) + 1.7, scz + 24.6));
-  for (const [tx, tz] of [[scx - 92, scz - 6], [scx - 90, scz + 12], [scx + 20, scz - 24], [scx + 45, scz - 8], [scx + 78, scz + 2]]) for (let k = 0; k < 6; k++) g.add(at(cyl(0.8, 0.8, 0.7, k % 2 ? 0x222222 : 0xf4f4f4, 10), tx + (k % 3) * 1.7, h(tx, tz) + 0.35 + Math.floor(k / 3) * 0.7, tz));
+  for (const [tx, tz] of [[-160, 244], [-30, 168], [12, 196], [-158, 400], [-100, 430], [-20, 372], [-18, 320], [-100, 280]]) for (let k = 0; k < 6; k++) g.add(at(cyl(0.8, 0.8, 0.7, k % 2 ? 0x222222 : 0xf4f4f4, 10), tx + (k % 3) * 1.7, h(tx, tz) + 0.35 + Math.floor(k / 3) * 0.7, tz));
   g.add(at(mesh(new THREE.BoxGeometry(10, 0.2, 10), 0x6d6d6d), scx - 20, h(scx - 20, scz) + 0.1, scz)); shop('Pit lane', scx - 20, 8, scz + 20);
-  place('FindurAI Speedway', scx, 14, scz, 170);
+  place('FindurAI Speedway', scx, 14, scz, 170); place('Big Bend', -110, 12, 415, 200); shop('Valley straight', -176, 8, 300);
+  // the valley south of the city: pines along the track, none on it
+  { const r = rng(11); let placed = 0, tries = 0;
+    while (placed < 140 && tries++ < 2500) {
+      const a = r() * Math.PI * 2, d = 20 + r() * 128, x = -105 + Math.cos(a) * d, z = 330 + Math.sin(a) * d;
+      if (Math.hypot(x, z) < 262 || h(x, z) < 0.6 || pts.some(([px, pz]) => Math.hypot(px - x, pz - z) < 16)) continue;
+      if (clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.r)) continue;
+      const s = 0.9 + r() * 0.9; g.add(at(cyl(0.2 * s, 0.3 * s, 2 * s, 0x6b4a2a, 6), x, h(x, z) + s, z)); g.add(at(cone(1.5 * s, 4.5 * s, r() < 0.5 ? 0x2f6b3a : 0x3a7a45, 6), x, h(x, z) + 2 * s + 2.2 * s, z)); placed++;
+    }
+  }
   keep(scx - 20, scz + 20, 26); keep(scx - 4, scz + 50, 48); keep(scx - 20, scz, 8);
   g.userData.circuit = { pts, width: TW, pads };
   road(-60, 135, -60, 160);

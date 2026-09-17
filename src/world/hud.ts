@@ -20,7 +20,7 @@ export interface Hud {
   rank(r: number, of: number): void;
   hurt(): void;
   pick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
-  mode(action: { icon: string; label: string; button?: boolean } | null): void;
+  mode(action: { icon: string; label: string; button?: boolean; arrows?: boolean } | null): void;
   meet(m: { name: string; friend: boolean; real: boolean } | null): void;
   chat(from: string, text: string, mine: boolean): void;
   friendRequest(req: { id: string; name: string } | null): void;
@@ -30,7 +30,7 @@ export interface Hud {
   onMapToggle(fn: (open: boolean) => void): void;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void; kick(): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void; kick(): void; batMove(dir: number): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
@@ -103,6 +103,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <button class="act" id="liftbtn" hidden>🙋<small>Lift</small></button>
       <button class="act" id="friendbtn" hidden>🤝<small>Add</small></button>
       <button class="act" id="drive" hidden>🚗<small>Drive</small></button>
+      <button class="act arrow" id="batl" hidden>◀<small>Left</small></button>
+      <button class="act arrow" id="batr" hidden>▶<small>Right</small></button>
       <button class="act kick" id="kickbtn" hidden>⚽<small>Kick</small></button>
       <button class="act" id="jump">⤒<small>Jump</small></button>
       <button class="act" id="run">🏃<small>Run</small></button>
@@ -143,6 +145,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   press(jumpBtn, actions.jump);
   const kickBtn = root.querySelector<HTMLButtonElement>('#kickbtn')!;
   press(kickBtn, actions.kick);
+  const batL = root.querySelector<HTMLButtonElement>('#batl')!, batR = root.querySelector<HTMLButtonElement>('#batr')!;
+  for (const [btn, dir] of [[batL, -1], [batR, 1]] as const) { btn.addEventListener('pointerdown', (e) => { e.preventDefault(); actions.batMove(dir); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) btn.addEventListener(ev, () => actions.batMove(0)); }
   // zoom buttons repeat while held
   const hold = (btn: HTMLElement, delta: number) => {
     let timer = 0;
@@ -312,7 +316,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       }
     },
     rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
-    mode(a) { kickBtn.hidden = !a || a.button === false; if (a && a.button !== false) kickBtn.innerHTML = `${a.icon}<small>${a.label}</small>`; document.body.classList.toggle('inmode', !!a); },
+    mode(a) { kickBtn.hidden = !a || a.button === false; if (a && a.button !== false) kickBtn.innerHTML = `${a.icon}<small>${a.label}</small>`; batL.hidden = batR.hidden = !a?.arrows; document.body.classList.toggle('inmode', !!a); },
     pick(p, choose) {
       const el = root.querySelector<HTMLElement>('#pick')!, opts = root.querySelector<HTMLElement>('#pickopts')!;
       el.hidden = !p;

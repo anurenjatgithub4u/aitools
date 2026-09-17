@@ -66,7 +66,7 @@ const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [
 const MATCH_SECONDS = 90;
 // Cricket: the bowler runs in, you time the shot. 12 balls, 3 wickets, beat the target.
 type CricketPhase = 'ready' | 'runup' | 'flight' | 'hit' | 'result' | 'over';
-interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; bowler: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string }
+interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean }
 const CRICKET_BALLS = 12;
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
@@ -1189,8 +1189,8 @@ export class World {
       if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
       else if (this.zombies && !this.zombies.ending) this.prompt(this.mobile ? '🧟 Jump button punches · cars crush them · Z ends the night' : '🧟 Space punches the zombie in front · cars crush them · Z ends the night', false);
       else if (!near && this.onPitch() && !this.match) this.prompt(this.mobile ? '⚽ Tap Drive to kick off a football match' : '⚽ Press E to kick off a football match', false);
-      else if (this.cricket) this.prompt(this.cricket.phase === 'over' ? null : this.mobile ? '🏏 Tap Bat as the ball reaches you' : '🏏 Space / Bat as the ball reaches you', false);
-      else if (!near && this.onStrip() && !this.cricket) this.prompt(this.mobile ? '🏏 Tap Drive to bat' : '🏏 Press E to bat an innings', false);
+      else if (this.cricket) this.prompt(this.cricket.phase === 'over' ? null : this.cricket.innings === 2 ? (this.mobile ? '🏏 Tap Bowl at the top of your action' : '🏏 Space / Bowl at the top of your action') : this.mobile ? '🏏 Tap Bat as the ball reaches you' : '🏏 Space / Bat as the ball reaches you', false);
+      else if (!near && this.onStrip() && !this.cricket) this.prompt(this.mobile ? '🏏 Tap Drive to start a match' : '🏏 Press E to start a cricket match', false);
       else this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
       this.meet = this.nearestPerson(p);
@@ -1772,57 +1772,71 @@ export class World {
     return Math.abs(q.x - o.x) < o.len / 2 + 4 && Math.abs(q.z - o.z) < 4;
   }
 
-  /** Bat an innings at the cricket ground: `opp` (or a passer-by) bowls, six more field. */
+  /** A two-innings match at the cricket ground: you bat first, then `opp` (or a passer-by) chases while you bowl. */
   startCricket(opp?: Bot) {
     const o = this.oval;
     if (!o || this.cricket || this.match || this.race) return;
     if (this.driving) this.exitVehicle();
     const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && !x.playing && x !== opp && this.hangout?.bot !== x);
-    const bowler = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
-    if (!bowler) return;
+    const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
+    if (!rival) return;
     const fielders = pool.slice(0, 6).map((bot, i) => {
-      const a = [-2.2, -1.2, -0.5, 0.5, 1.2, 2.2][i], r = i === 2 || i === 3 ? 22 : 27;   // a ring around the batsman's end
+      const a = [-2.2, -1.2, -0.5, 0.5, 1.2, 2.2][i], r = i === 2 || i === 3 ? 22 : 27;   // a ring around the batting end
       return { bot, home: new THREE.Vector3(o.x - 10 + Math.cos(a) * r, 0, o.z + Math.sin(a) * r) };
     });
-    for (const f of [{ bot: bowler }, ...fielders]) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; }
-    const y = this.terrain.h(o.x, o.z);
+    for (const f of [{ bot: rival }, ...fielders]) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; }
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshStandardMaterial({ color: 0xe0392b, emissive: 0x5a0a0a, roughness: 0.5 }));
     ball.visible = false; this.scene.add(ball);
-    // a bat in the right hand
-    const bat = new THREE.Group();
-    bat.add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.28, 0.06), new THREE.MeshStandardMaterial({ color: 0x222222 })));
-    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.62, 0.26), new THREE.MeshStandardMaterial({ color: 0xd8b98a })); blade.position.y = -0.42; bat.add(blade);
-    bat.position.set(0, -0.62, 0.05); this.player.armR.add(bat);
     const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
-    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), bowler, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: CRICKET_BALLS, target: 30, bat, swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '' };
-    // everyone to their marks
-    this.player.group.position.set(o.x - 10 + 1.0, y, o.z + 0.85); this.player.group.rotation.y = Math.PI / 2;   // in front of the stumps, a touch to leg
-    this.airY = 0; this.vy = 0; this.yaw = -Math.PI / 2; this.pitch = 0.32;
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: CRICKET_BALLS, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false };
     for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
-    this.placeBowler();
+    this.setCreases();
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
     this.ev.onMode({ icon: '🏏', label: 'Bat' });
-    this.ev.onCollect({ name: `${bowler.name} bowls · beat ${this.cricket.target} in ${CRICKET_BALLS} balls`, points: 0, color: 0x2fa66a, shape: 'gem' });
-    this.botSays(bowler, 'Watch the ball, not me 😏', 1.5);
+    this.ev.onCollect({ name: `You bat first · ${CRICKET_BALLS} balls, 3 wickets · then ${rival.name} chases`, points: 0, color: 0x2fa66a, shape: 'gem' });
+    this.botSays(rival, 'Watch the ball, not me 😏', 1.5);
   }
 
-  private placeBowler() {
-    const c = this.cricket!, o = this.oval!, b = c.bowler.av.group;
-    b.position.set(o.x + 26, this.terrain.h(o.x + 26, o.z), o.z - 1.2); b.rotation.y = -Math.PI / 2;
+  private makeBat() {
+    const bat = new THREE.Group();
+    bat.add(new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.28, 0.06), new THREE.MeshStandardMaterial({ color: 0x222222 })));
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.62, 0.26), new THREE.MeshStandardMaterial({ color: 0xd8b98a })); blade.position.y = -0.42; bat.add(blade);
+    bat.position.set(0, -0.62, 0.05);
+    return bat;
+  }
+
+  /** Batter to the crease (in front of the stumps, a touch to leg), bowler to the top of the run-up. */
+  private setCreases() {
+    const c = this.cricket!, o = this.oval!, y = this.terrain.h(o.x, o.z);
+    const batter = c.innings === 1 ? this.player : c.opp.av, bowler = c.innings === 1 ? c.opp.av : this.player;
+    batter.group.position.set(o.x - 10 + 1.0, y, o.z + 0.85); batter.group.rotation.y = Math.PI / 2;
+    bowler.group.position.set(o.x + 26, this.terrain.h(o.x + 26, o.z), o.z - 1.2); bowler.group.rotation.y = -Math.PI / 2;
+    c.bat.removeFromParent(); batter.armR.add(c.bat);
+    this.airY = 0; this.vy = 0; this.yaw = c.innings === 1 ? -Math.PI / 2 : Math.PI / 2; this.pitch = 0.32;
     c.ball.visible = false;
   }
 
-  /** Space / Bat: swing at the ball. Timing decides everything. */
+  /** Space / Bat: innings 1 swings the bat, innings 2 releases the ball. Timing decides everything. */
   private swing(): boolean {
     const c = this.cricket!;
+    if (c.innings === 2) {
+      if (c.phase === 'runup' && c.released < 0) c.released = Math.min(1, (this.elapsed - c.t0) / 1.8);
+      return true;
+    }
     if (c.phase !== 'flight' || c.hit) { if (c.phase === 'ready' || c.phase === 'runup') c.swingAt = this.elapsed; return true; }
+    const o = this.oval!, dx = c.ball.position.x - (o.x - 10);   // distance still to travel to the bat
+    const q = Math.max(0, 1 - Math.abs(dx - 1.1) / 1.4);          // 1 = perfect
+    this.strike(q, dx > 1.1);
+    return true;
+  }
+
+  /** The bat meets the ball with quality q (0..1): sets the ball flying, or misses / edges it. */
+  private strike(q: number, early: boolean) {
+    const c = this.cricket!, o = this.oval!, ball = c.ball.position;
     c.swingAt = this.elapsed; c.hit = true;
-    const o = this.oval!, ball = c.ball.position, dx = ball.x - (o.x - 10);   // distance still to travel to the bat
-    const q = Math.max(0, 1 - Math.abs(dx - 1.1) / 1.4);                      // 1 = perfect
-    const early = dx > 1.1;
-    if (q < 0.12) { c.note = q < 0.05 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.05) this.wicket(); else { c.hit = false; } return true; }
+    if (q < 0.12) { c.note = q < 0.05 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.05) this.wicket(); else c.hit = false; return; }
     const power = 14 + q * 20 + Math.random() * 3, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.7 ? 0.42 : 0.18;
     const side = early ? 1 : -1, ang = (1 - q) * 0.9 * side + (Math.random() - 0.5) * 0.3;   // early pulls to leg, late squirts to off
     c.vel.set(Math.cos(ang) * Math.cos(lift) * power, Math.sin(lift) * power, Math.sin(ang) * Math.cos(lift) * power);
@@ -1831,35 +1845,47 @@ export class World {
     c.note = q > 0.85 ? 'Sweet timing!' : early ? 'Pulled high…' : 'Squeezed away';
     c.chaser = null;
     this.sfx.bump();
-    return true;
   }
 
   private wicket() {
     const c = this.cricket!;
     c.wkts++; c.phase = 'result'; c.t0 = this.elapsed; c.last = 'OUT';
     if (c.stumps && c.note.startsWith('Bowled')) c.stumps.rotation.z = -1.3;
-    this.sfx.questFail();
-    this.ev.onCollect({ name: `${c.note} · WICKET`, points: 0, color: 0xd94a3d, shape: 'box' });
-    this.botSays(c.bowler, ['Gotcha! 🎯', 'Next! 😎', 'Timber! 🏏'][c.wkts % 3], 0.5);
+    if (c.innings === 1) { this.sfx.questFail(); this.botSays(c.opp, ['Gotcha! 🎯', 'Next! 😎', 'Timber! 🏏'][c.wkts % 3], 0.5); }
+    else { this.sfx.questDone(); this.points += 25; this.ev.onPoints(this.points); this.botSays(c.opp, ['Argh! 😤', 'Lucky ball…', 'Fine, fine 🙄'][c.wkts % 3], 0.5); }
+    this.ev.onCollect({ name: `${c.note} · WICKET`, points: c.innings === 2 ? 25 : 0, color: c.innings === 2 ? 0x2fa66a : 0xd94a3d, shape: 'box' });
   }
 
   private tickCricket(dt: number, t: number) {
     const c = this.cricket!, o = this.oval!, ball = c.ball.position, batX = o.x - 10, y0 = this.terrain.h(o.x, o.z);
-    this.yaw += wrapAngle(-Math.PI / 2 - this.yaw) * Math.min(1, dt * 3);
-    // batting pose + swing
-    const swinging = t - c.swingAt < 0.28;
-    this.player.armR.rotation.x = swinging ? -0.6 - Math.sin(((t - c.swingAt) / 0.28) * Math.PI) * 2.2 : -0.55;
-    this.player.armL.rotation.x = swinging ? -0.6 - Math.sin(((t - c.swingAt) / 0.28) * Math.PI) * 1.6 : -0.55;
-    this.player.armR.rotation.z = -0.35; this.player.armL.rotation.z = 0.35;
-    this.player.group.rotation.y = Math.PI / 2 + (swinging ? Math.sin(((t - c.swingAt) / 0.28) * Math.PI) * 0.9 : 0);
-    const bw = c.bowler.av.group, bp = bw.position;
-    if (c.phase === 'ready' && t > c.t0) { c.phase = 'runup'; c.t0 = t; c.hit = false; c.line = (Math.random() < 0.6 ? (Math.random() - 0.5) * 0.5 : (Math.random() - 0.5) * 2.2); c.flightT = 0.8 + Math.random() * 0.35; if (c.stumps) c.stumps.rotation.z = 0; }
+    const batting = c.innings === 1, batter = batting ? this.player : c.opp.av, bowler = batting ? c.opp.av : this.player;
+    this.yaw += wrapAngle((batting ? -Math.PI / 2 : Math.PI / 2) - this.yaw) * Math.min(1, dt * 3);
+    // batting pose + swing (whoever holds the bat)
+    const swinging = t - c.swingAt < 0.28, sw = swinging ? Math.sin(((t - c.swingAt) / 0.28) * Math.PI) : 0;
+    batter.armR.rotation.x = -0.55 - sw * 2.2; batter.armL.rotation.x = -0.55 - sw * 1.6;
+    batter.armR.rotation.z = -0.35; batter.armL.rotation.z = 0.35;
+    batter.group.rotation.y = Math.PI / 2 + sw * 0.9;
+    const bp = bowler.group.position;
+    if (c.phase === 'ready' && t > c.t0) {
+      c.phase = 'runup'; c.t0 = t; c.hit = false; c.released = -1; c.decided = false;
+      c.line = Math.random() < 0.6 ? (Math.random() - 0.5) * 0.5 : (Math.random() - 0.5) * 2.2; c.flightT = 0.8 + Math.random() * 0.35;
+      if (c.stumps) c.stumps.rotation.z = 0;
+    }
     if (c.phase === 'runup') {
       const u = Math.min(1, (t - c.t0) / 1.8);
       bp.x = o.x + 26 - u * 15; bp.y = this.terrain.h(bp.x, bp.z);
-      animateWalk(c.bowler.av, t * 2.4, 1);
-      if (u > 0.85) { c.bowler.av.armR.rotation.x = -3.1 + (u - 0.85) * 8; }
-      if (u >= 1) { c.phase = 'flight'; c.t0 = t; c.ball.visible = true; ball.set(bp.x, bp.y + 2.2, o.z); c.hit = false; }
+      if (batting) animateWalk(bowler, t * 2.4, 1); else { this.moveAmount = 1; animateWalk(bowler, t * 2.4, 1); }
+      if (u > 0.85) bowler.armR.rotation.x = -3.1 + (u - 0.85) * 8;
+      if (u >= 1) {
+        if (!batting) {   // your release: how close to the top of the action was it?
+          const rel = c.released < 0 ? 0.55 : c.released;
+          c.quality = Math.max(0, 1 - Math.abs(rel - 0.93) / 0.22);     // 1 = released right at the top
+          c.line = c.quality > 0.7 ? (Math.random() - 0.5) * 0.5 : c.quality > 0.35 ? (Math.random() - 0.5) * 1.4 : (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random());
+          c.flightT = c.quality > 0.7 ? 0.75 + Math.random() * 0.15 : 0.95 + Math.random() * 0.3;
+          c.note = c.quality > 0.7 ? 'Good ball' : c.quality > 0.35 ? 'A bit loose' : 'Way down leg…';
+        }
+        c.phase = 'flight'; c.t0 = t; c.ball.visible = true; ball.set(bp.x, bp.y + 2.2, o.z); c.hit = false;
+      }
     }
     if (c.phase === 'flight') {
       // a bounce two-thirds of the way, then up to bat height, along the chosen line
@@ -1867,10 +1893,19 @@ export class World {
       ball.x = sx + (ex - sx) * u; ball.z = o.z + c.line * u;
       const bounceU = 0.68;
       ball.y = y0 + (u < bounceU ? 2.2 - (2.2 - 0.18) * (u / bounceU) + Math.sin((u / bounceU) * Math.PI) * 0.1 : 0.18 + Math.sin(((u - bounceU) / (1 - bounceU)) * Math.PI * 0.5) * (0.5 + Math.abs(c.line) * 0.3));
+      // the AI batter decides as the ball arrives
+      if (!batting && !c.decided && ball.x - batX < 1.6) {
+        c.decided = true;
+        const r = Math.random(), qb = c.quality;
+        if (qb > 0.7) { if (r < 0.45) { /* beaten */ } else this.strike(r < 0.8 ? 0.2 + Math.random() * 0.25 : 0.55 + Math.random() * 0.25, Math.random() < 0.3); }
+        else if (qb > 0.35) { if (r < 0.18) { /* beaten */ } else this.strike(r < 0.55 ? 0.35 + Math.random() * 0.3 : 0.7 + Math.random() * 0.25, Math.random() < 0.4); }
+        else { if (r < 0.06) { /* beaten */ } else this.strike(0.8 + Math.random() * 0.2, Math.random() < 0.5); }
+        if (c.phase === 'flight') c.swingAt = t;   // swung and missed, or left it
+      }
       if (u >= 1 && !c.hit) {
         const onStumps = Math.abs(c.line) < 0.45 && ball.y - y0 < 0.75;
-        c.note = onStumps ? 'Bowled him!' : 'Dot ball';
-        if (onStumps) this.wicket(); else { c.phase = 'result'; c.t0 = t; c.last = '·'; }
+        c.note = onStumps ? (batting ? 'Bowled him!' : `Bowled ${c.opp.name}!`) : batting ? 'Dot ball' : 'Beaten · dot ball';
+        if (onStumps) this.wicket(); else { c.phase = 'result'; c.t0 = t; c.last = '·'; if (!batting) { this.points += 5; this.ev.onPoints(this.points); } }
         c.ball.visible = !onStumps;
       }
     }
@@ -1892,8 +1927,9 @@ export class World {
       if (dist >= o.r) {   // over the rope
         const six = !c.bounced;
         c.runs += six ? 6 : 4; c.last = six ? 'SIX!' : 'FOUR!'; c.phase = 'result'; c.t0 = t;
-        this.points += six ? 30 : 20; this.ev.onPoints(this.points); this.sfx.questDone();
-        this.ev.onCollect({ name: c.last === 'SIX!' ? 'SIX! Over the rope on the full' : 'FOUR! Along the carpet', points: six ? 30 : 20, color: 0x2fa66a, shape: 'gem' });
+        if (batting) { this.points += six ? 30 : 20; this.ev.onPoints(this.points); this.sfx.questDone(); }
+        else this.botSays(c.opp, six ? 'Into the crowd! 💥' : 'Too easy 😎', 0.3);
+        this.ev.onCollect({ name: six ? (batting ? 'SIX! Over the rope on the full' : `${c.opp.name} launches it for SIX`) : batting ? 'FOUR! Along the carpet' : `${c.opp.name} finds the rope · FOUR`, points: batting ? (six ? 30 : 20) : 0, color: batting ? 0x2fa66a : 0xd94a3d, shape: 'gem' });
         return;
       }
       // nearest fielder chases; when they get there the ball is dead and runs are counted by how far it went
@@ -1903,8 +1939,9 @@ export class World {
       else if (fd <= 1) {
         const far = Math.hypot(ball.x - batX, ball.z - o.z), runs = far < 12 ? (Math.random() < 0.5 ? 1 : 0) : far < 22 ? 1 : far < 30 ? 2 : 3;
         c.runs += runs; c.last = runs ? `${runs} run${runs > 1 ? 's' : ''}` : 'no run'; c.phase = 'result'; c.t0 = t;
-        if (runs) { this.points += runs * 5; this.ev.onPoints(this.points); }
-        this.ev.onCollect({ name: `${c.note} · ${c.last}`, points: runs * 5, color: runs ? 0x2fa66a : 0x999999, shape: 'gem' });
+        if (batting && runs) { this.points += runs * 5; this.ev.onPoints(this.points); }
+        if (!batting && !runs) { this.points += 5; this.ev.onPoints(this.points); }
+        this.ev.onCollect({ name: `${c.note} · ${c.last}`, points: batting ? runs * 5 : runs ? 0 : 5, color: (batting ? runs : !runs) ? 0x2fa66a : 0x999999, shape: 'gem' });
         c.chaser.av.group.position.set(fp.x, this.terrain.h(fp.x, fp.z), fp.z);
       }
       fp.y = this.terrain.h(fp.x, fp.z);
@@ -1912,17 +1949,36 @@ export class World {
     if (c.phase === 'result' && t > c.t0 + 2.4) {
       c.balls++;
       for (const f of c.fielders) { const g = f.bot.av.group; g.position.lerp(f.home, 0.5); g.position.y = this.terrain.h(g.position.x, g.position.z); }
-      if (c.balls >= c.total || c.wkts >= 3) {
-        c.phase = 'over'; c.t0 = t;
-        const win = c.runs >= c.target;
-        this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `Chased it! ${c.runs} / ${c.wkts}` : `All done · ${c.runs} / ${c.wkts}`, desc: win ? `Target ${c.target} beaten with ${c.total - c.balls} ball${c.total - c.balls === 1 ? '' : 's'} to spare` : `Target was ${c.target}. ${c.bowler.name} takes the honours`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
-        this.gameResult('cricket', win, c.bowler.name);
-      } else { c.phase = 'ready'; c.t0 = t + 1.2; this.placeBowler(); }
+      const chased = !batting && c.runs >= c.target;
+      if (c.balls >= c.total || c.wkts >= 3 || chased) {
+        if (batting) {   // innings break: swap ends, they chase your total
+          c.first = c.runs; c.target = c.runs + 1; c.innings = 2; c.runs = 0; c.wkts = 0; c.balls = 0; c.last = ''; c.note = '';
+          this.setCreases();
+          c.phase = 'ready'; c.t0 = t + 3;
+          this.ev.onMode({ icon: '🏏', label: 'Bowl' });
+          this.ev.onCollect({ name: `Innings over · you made ${c.first}. Now bowl: tap Bowl at the top of your action`, points: 0, color: 0x3fb7d9, shape: 'gem' });
+          this.botSays(c.opp, `${c.first}? Easy 😏`, 1);
+          this.sfx.questStart();
+        } else {
+          c.phase = 'over'; c.t0 = t;
+          const win = c.runs < c.target;
+          this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}!` : `${c.opp.name} chased it down`, desc: `You ${c.first} · ${c.opp.name} ${c.runs}/${c.wkts}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
+          this.gameResult('cricket', win, c.opp.name);
+        }
+      } else { c.phase = 'ready'; c.t0 = t + 1.2; this.setCreases(); }
     }
     if (c.phase === 'over' && t > c.t0 + 4) { this.endCricket(); return; }
-    if (t - this.lastCricketHud > 0.2 && c.phase !== 'over') {
+    if (t - this.lastCricketHud > 0.15 && c.phase !== 'over') {
       this.lastCricketHud = t;
-      this.ev.onQuest({ status: 'active', title: `🏏 ${c.runs} / ${c.wkts} · need ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls}`, desc: `${c.bowler.name} bowling · Space / Bat as the ball reaches you. Perfect timing = six, early = high, late = along the ground.`, progress: c.last ? `Last ball: ${c.last}` : 'First ball coming up', remaining: c.total - c.balls, total: c.total, reward: 200, hint: null, fill: c.balls / c.total, timeText: `${c.balls}/${c.total}` });
+      const runupU = c.phase === 'runup' && !batting ? Math.min(1, (t - c.t0) / 1.8) : null;
+      this.ev.onQuest({
+        status: 'active',
+        title: batting ? `🏏 You ${c.runs} / ${c.wkts}` : `🏏 ${c.opp.name} ${c.runs} / ${c.wkts} · needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls}`,
+        desc: batting ? `${c.opp.name} bowling · Space / Bat as the ball reaches you. Perfect timing = six, early = high, late = along the ground.` : `You are bowling · tap Bowl / Space at the top of your action (bar in the green). Wickets +25, dot balls +5.`,
+        progress: runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : 'Running in…') : c.last ? `Last ball: ${c.last}` : 'First ball coming up',
+        remaining: c.total - c.balls, total: c.total, reward: 200, hint: null,
+        fill: runupU !== null ? runupU : c.balls / c.total, timeText: `${c.balls}/${c.total}`,
+      });
     }
   }
 
@@ -1932,7 +1988,7 @@ export class World {
     this.scene.remove(c.ball); c.bat.removeFromParent();
     if (c.stumps) c.stumps.rotation.z = 0;
     this.player.armR.rotation.z = 0; this.player.armL.rotation.z = 0;
-    for (const b of [c.bowler, ...c.fielders.map((f) => f.bot)]) { b.playing = false; b.wait = rand(1, 3); b.target = this.randomLandPoint(8, 120); b.speed = rand(1.8, 3.4); }
+    for (const b of [c.opp, ...c.fielders.map((f) => f.bot)]) { b.playing = false; b.av.armR.rotation.z = 0; b.av.armL.rotation.z = 0; b.wait = rand(1, 3); b.target = this.randomLandPoint(8, 120); b.speed = rand(1.8, 3.4); }
     this.ev.onMode(null);
     this.ev.onQuest(null);
     this.questCooldown = 10;

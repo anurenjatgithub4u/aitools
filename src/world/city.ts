@@ -224,7 +224,7 @@ export function buildCity(g: THREE.Group, h: H) {
   road(-60, 60, -125, 60);
 
   // ================= SUNSET BEACH (east coast) =================
-  for (let z = -150; z <= 150; z += 30) g.add(at(box(40, 0.3, 31, 0xf0dcb0), 190, h(190, z) + 0.1, z));       // sand
+  for (let z = -150; z <= 150; z += 30) { if (z === -90) { g.add(at(box(40, 0.3, 12, 0xf0dcb0), 190, h(190, z) + 0.1, -99)); g.add(at(box(40, 0.3, 3, 0xf0dcb0), 190, h(190, z) + 0.1, -76.5)); continue; } g.add(at(box(40, 0.3, 31, 0xf0dcb0), 190, h(190, z) + 0.1, z)); }   // sand (with a cut for the bridge approach)
   const lg = 200, lgz = -30;
   g.add(at(box(4, 4, 4, 0xffffff), lg, h(lg, lgz) + 6, lgz)); g.add(rot(at(cone(3.4, 1.8, 0xd94a3d, 4), lg, h(lg, lgz) + 9, lgz), 'y', Math.PI / 4));
   for (const [dx, dz] of [[-1.6, -1.6], [1.6, -1.6], [-1.6, 1.6], [1.6, 1.6]]) g.add(at(cyl(0.15, 0.15, 4, 0x8a6a4a, 6), lg + dx, h(lg, lgz) + 2, lgz + dz));
@@ -374,55 +374,82 @@ export function buildCity(g: THREE.Group, h: H) {
   road(-60, 135, -60, 160);
 
   // ================= HARBOUR BRIDGE (across the strait) =================
-  const BZ = -85, BX0 = 210, BX1 = 300, DECK = 8.4, BW = 12;
+  const BZ = -85, BX0 = 210, BX1 = 300, DECK = 8.4, BW = 13, ROADW = 9;   // deck width incl. walkways / road width
+  const ORANGE = 0xb8412b, STEEL = 0x3b3f44, CONCRETE = 0x9a9a94;
   const noCol = <T extends THREE.Object3D>(o: T) => { o.userData.noCollide = true; return o; };
   const hidden = <T extends THREE.Object3D>(o: T) => { o.visible = false; return o; };
+  const railing = (x0: number, x1: number, y0: number, y1: number, zz: number, sd: number, wall: boolean) => {
+    const L = Math.hypot(x1 - x0, y1 - y0), ang = Math.atan2(y1 - y0, x1 - x0), xm = (x0 + x1) / 2, ym = (y0 + y1) / 2;
+    for (const ry of [0.45, 1.0]) g.add(rot(at(noCol(box(L, 0.07, 0.07, 0xe8ecef)), xm, ym + ry, zz), 'z', ang));
+    for (let x = x0; x <= x1 + 0.01; x += 2.5) g.add(at(noCol(box(0.1, 1.1, 0.1, STEEL)), x, y0 + (y1 - y0) * ((x - x0) / (x1 - x0 || 1)) + 0.55, zz));
+    if (wall) g.add(rot(at(hidden(box(L + 0.2, 3, 0.3, 0xffffff)), xm, ym + 1.5, zz + sd * 0.1), 'z', ang));
+  };
   // a ramp is a smooth slab to look at (no collision) over a staircase of thin invisible steps to stand on
-  const sandTop = (x: number, z: number) => (x >= 170 && x <= 210 && Math.abs(z) <= 150 ? Math.max(h(x, z), h(190, z) + 0.25) : h(x, z));   // the beach is a raised slab
-  const ramp = (xa: number, xb: number, gnd: (x: number, z: number) => number) => {
-    const ya = gnd(xa, BZ) + 0.15, yb = DECK, n = 16;
-    // side rails (and their hidden collision walls) only where the ramp is well above the ground beside it,
-    // so you can step onto the low end from the sand or the road
+  const ramp = (xa: number, xb: number) => {
+    const ya = h(xa, BZ) + 0.15, yb = DECK, n = 16, dir = Math.sign(xb - xa);
     for (let i = 0; i < n; i++) {
       const x0 = xa + (xb - xa) * (i / n), x1 = xa + (xb - xa) * ((i + 1) / n), top = ya + (yb - ya) * ((i + 1) / n), xm = (x0 + x1) / 2, len = Math.abs(x1 - x0);
       g.add(hidden(at(box(len + 0.3, 0.5, BW - 0.4, 0x5f5f5f), xm, top - 0.25, BZ)));
+      const y0 = ya + (yb - ya) * (i / n), y1 = top;
       for (const sd of [-1, 1]) {
-        if (top - gnd(xm, BZ + sd * (BW / 2 + 2)) < 1.3) { g.add(at(noCol(box(len - 0.6, 0.6, 0.25, 0xd94a3d)), xm, top + 0.3, BZ + sd * (BW / 2 - 0.1))); continue; }   // low: just a kerb
-        g.add(at(noCol(box(len + 0.2, 1.0, 0.15, 0xcfd6dc)), xm, top + 0.5, BZ + sd * (BW / 2 - 0.1)));
-        g.add(hidden(at(box(len + 0.2, 3, 0.3, 0xffffff), xm, top + 1.5, BZ + sd * (BW / 2 - 0.1))));
+        const zz = BZ + sd * (BW / 2 - 0.1);
+        if (top - h(xm, BZ + sd * (BW / 2 + 2)) < 1.3) { g.add(at(noCol(box(len - 0.4, 0.5, 0.3, 0xd94a3d)), xm, top + 0.25, zz)); g.add(at(noCol(box(len - 0.4, 0.5, 0.3, 0xffffff)), xm, top + 0.25, zz + sd * 0.31)); continue; }   // low end: a red/white kerb you can step over
+        railing(Math.min(x0, x1), Math.max(x0, x1), dir > 0 ? y0 : y1, dir > 0 ? y1 : y0, zz, sd, true);
       }
     }
-    const L = Math.hypot(xb - xa, yb - ya), ang = -Math.atan2(yb - ya, xb - xa);
-    g.add(rot(at(noCol(box(L, 0.8, BW, 0x5f5f5f)), (xa + xb) / 2, (ya + yb) / 2 - 0.4, BZ), 'z', ang));
-    for (let i = 1; i < n; i += 2) g.add(rot(at(noCol(box(2.4, 0.06, 0.3, 0xf4f4f4)), xa + (xb - xa) * (i / n), ya + (yb - ya) * (i / n) + 0.04, BZ), 'z', ang));
-    g.add(at(noCol(box(10, 0.16, BW + 6, 0x5f5f5f)), xa + (xb > xa ? -3 : 3), ya - 0.1, BZ));   // apron at the foot
-    keep((xa + xb) / 2, BZ, Math.abs(xb - xa) / 2 + 4);
+    const L = Math.hypot(xb - xa, yb - ya), ang = Math.atan2(yb - ya, xb - xa), xm = (xa + xb) / 2, ym = (ya + yb) / 2;   // +x end of the box rises toward xb
+    g.add(rot(at(noCol(box(L, 0.9, BW, 0x4a4a4a)), xm, ym - 0.45, BZ), 'z', ang));                                        // slab
+    g.add(rot(at(noCol(box(L, 0.04, ROADW, 0x5a5a5a)), xm, ym + 0.02, BZ), 'z', ang));                                    // road surface
+    for (const sd of [-1, 1]) { g.add(rot(at(noCol(box(L, 0.05, 0.2, 0xf4f4f4)), xm, ym + 0.05, BZ + sd * (ROADW / 2 - 0.2)), 'z', ang)); g.add(rot(at(noCol(box(L, 0.06, (BW - ROADW) / 2 - 0.3, 0xb9b3a8)), xm, ym + 0.05, BZ + sd * (BW / 2 - (BW - ROADW) / 4 - 0.15)), 'z', ang)); }   // edge lines + walkways
+    for (let i = 1; i < n; i += 2) g.add(rot(at(noCol(box(2.4, 0.07, 0.3, 0xf4f4f4)), xa + (xb - xa) * (i / n), ya + (yb - ya) * (i / n) + 0.06, BZ), 'z', ang));
+    // flared apron at the foot so you can roll on from any angle
+    for (let k = 0; k < 2; k++) g.add(at(noCol(box(3, 0.14, BW + 4 + k * 4, 0x5a5a5a)), xa - dir * (1.5 + k * 3), ya - 0.08 - k * 0.03, BZ));
+    keep(xm, BZ, Math.abs(xb - xa) / 2 + 6);
+    // entrance portal: two pillars, a beam and a lit sign
+    const px = xa + dir * 6, py = h(px, BZ);
+    for (const sd of [-1, 1]) g.add(at(box(1, 7.5, 1, ORANGE), px, py + 3.75, BZ + sd * (BW / 2 + 1.2)));
+    g.add(at(box(1, 1.2, BW + 3.4, ORANGE), px, py + 7.4, BZ));
+    g.add(at(glow(0.3, 0.8, BW + 1, 0xfff2a8), px, py + 6.6, BZ));
   };
-  ramp(172, BX0, sandTop); ramp(340, BX1, h);
-  g.add(at(box(BX1 - BX0 + 0.6, 0.8, BW, 0x5f5f5f), (BX0 + BX1) / 2, DECK - 0.4, BZ));
-  for (let x = BX0 + 3; x < BX1; x += 6) g.add(at(box(2.5, 0.06, 0.3, 0xf4f4f4), x, DECK + 0.03, BZ));
+  ramp(166, BX0); ramp(344, BX1);
+  // deck: asphalt with walkways, edge lines, centre dashes, kerbs, railings, lamps
+  g.add(at(box(BX1 - BX0 + 0.6, 0.9, BW, 0x4a4a4a), (BX0 + BX1) / 2, DECK - 0.45, BZ));
+  g.add(at(noCol(box(BX1 - BX0, 0.04, ROADW, 0x5a5a5a)), (BX0 + BX1) / 2, DECK + 0.02, BZ));
+  for (let x = BX0 + 3; x < BX1; x += 6) g.add(at(noCol(box(2.5, 0.07, 0.3, 0xf4f4f4)), x, DECK + 0.06, BZ));
   for (const sd of [-1, 1]) {
-    g.add(at(noCol(box(BX1 - BX0, 1.0, 0.15, 0xcfd6dc)), (BX0 + BX1) / 2, DECK + 0.5, BZ + sd * (BW / 2 - 0.1)));
-    for (let x = BX0; x <= BX1; x += 3) g.add(at(noCol(box(0.08, 1.0, 0.08, 0xcfd6dc)), x, DECK + 0.5, BZ + sd * (BW / 2 - 0.1)));
-    g.add(at(hidden(box(BX1 - BX0, 3, 0.3, 0xffffff)), (BX0 + BX1) / 2, DECK + 1.5, BZ + sd * (BW / 2 - 0.1)));
+    g.add(at(noCol(box(BX1 - BX0, 0.05, 0.2, 0xf4f4f4)), (BX0 + BX1) / 2, DECK + 0.05, BZ + sd * (ROADW / 2 - 0.2)));
+    g.add(at(noCol(box(BX1 - BX0, 0.06, (BW - ROADW) / 2 - 0.3, 0xb9b3a8)), (BX0 + BX1) / 2, DECK + 0.05, BZ + sd * (BW / 2 - (BW - ROADW) / 4 - 0.15)));
+    g.add(at(noCol(box(BX1 - BX0, 0.22, 0.25, 0xd0d0d0)), (BX0 + BX1) / 2, DECK + 0.11, BZ + sd * (ROADW / 2 + 0.1)));   // kerb
+    railing(BX0, BX1, DECK, DECK, BZ + sd * (BW / 2 - 0.1), sd, true);
+    for (let x = BX0 + 8; x < BX1; x += 16) lamp(g, x + (sd > 0 ? 8 : 0), DECK, BZ + sd * (BW / 2 - 0.5));
   }
-  for (let x = BX0 + 10; x < BX1; x += 20) for (const sd of [-1, 1]) lamp(g, x, DECK, BZ + sd * (BW / 2 - 0.7));
-  const TX = [235, 275], TOP = 28, SAG = DECK + 3;
+  // structure under the deck: two girders and cross beams
+  for (const sd of [-1, 1]) g.add(at(box(BX1 - BX0, 1.2, 0.5, STEEL), (BX0 + BX1) / 2, DECK - 1.5, BZ + sd * 4));
+  for (let x = BX0 + 5; x < BX1; x += 10) g.add(at(box(0.4, 0.8, BW - 1, STEEL), x, DECK - 1.3, BZ));
+  // towers: portal frames of two tapered legs, three cross beams, beacons on top
+  const TX = [235, 275], TOP = 30, SAG = DECK + 3.5;
   for (const tx of TX) {
-    for (const sd of [-1, 1]) g.add(at(box(1.8, TOP + 8, 1.8, 0xc9502f), tx, (TOP - 8) / 2, BZ + sd * (BW / 2 + 1.6)));   // pylons from the seabed
-    for (const y of [TOP - 1, 15]) g.add(at(box(1.6, 1.6, BW + 5.2, 0xc9502f), tx, y, BZ));
-    g.add(at(cyl(3, 3.6, 12, 0x8a8a8a, 10), tx, -4, BZ));
+    for (const sd of [-1, 1]) {
+      const lz = BZ + sd * (BW / 2 + 1.7);
+      g.add(at(box(2.6, 12, 2.6, ORANGE), tx, 0, lz)); g.add(at(box(2.1, 14, 2.1, ORANGE), tx, 13, lz)); g.add(at(box(1.7, 12, 1.7, ORANGE), tx, 25, lz));
+      g.add(at(glow(0.5, 0.5, 0.5, 0xff4040), tx, TOP + 1.3, lz));
+    }
+    for (const y of [TOP - 0.6, 21, 13.5]) g.add(at(box(1.5, 1.4, BW + 5.5, ORANGE), tx, y, BZ));   // lowest beam clears traffic
+    for (const sd of [-1, 1]) g.add(rot(at(box(0.5, 9.5, 0.5, ORANGE), tx, 15, BZ + sd * 2.6), 'x', sd * 0.62));   // X bracing
+    g.add(at(cyl(4, 4.8, 12, CONCRETE, 12), tx, -4, BZ)); g.add(at(cyl(4.4, 4.4, 0.8, CONCRETE, 12), tx, 2.4, BZ));
   }
-  for (const x of [222, 288]) g.add(at(cyl(1.3, 1.6, 16, 0x8a8a8a, 10), x, 0, BZ));
-  const cableY = (x: number) => x <= TX[0] ? DECK + 1 + (TOP - DECK - 1) * ((x - BX0) / (TX[0] - BX0)) : x >= TX[1] ? TOP - (TOP - DECK - 1) * ((x - TX[1]) / (BX1 - TX[1])) : SAG + (TOP - SAG) * ((x - 255) / 20) ** 2;
+  for (const x of [222, 288]) { g.add(at(cyl(1.4, 1.8, 16, CONCRETE, 10), x, 0, BZ)); g.add(at(box(3.5, 1, BW - 1, CONCRETE), x, DECK - 2.4, BZ)); }
+  // main cables with hangers, anchored in concrete blocks at each end
+  const cableY = (x: number) => x <= TX[0] ? DECK + 1.2 + (TOP - DECK - 1.2) * ((x - BX0) / (TX[0] - BX0)) : x >= TX[1] ? TOP - (TOP - DECK - 1.2) * ((x - TX[1]) / (BX1 - TX[1])) : SAG + (TOP - SAG) * ((x - 255) / 20) ** 2;
   for (const sd of [-1, 1]) {
-    const zz = BZ + sd * (BW / 2 + 1.6);
-    for (let x = BX0; x < BX1; x += 5) g.add(bar(V(x, cableY(x), zz), V(x + 5, cableY(x + 5), zz), 0.12, 0x333333));
-    for (let x = BX0 + 5; x < BX1; x += 5) if (Math.abs(x - TX[0]) > 2 && Math.abs(x - TX[1]) > 2) g.add(bar(V(x, cableY(x), zz), V(x, DECK + 0.6, zz - sd * 1.5), 0.04, 0x555555));
+    const zz = BZ + sd * (BW / 2 + 1.7);
+    for (let x = BX0 - 6; x < BX1 + 6; x += 2.5) g.add(bar(V(x, x < BX0 ? DECK + 1.2 - (BX0 - x) * 0.6 : x > BX1 ? DECK + 1.2 - (x - BX1) * 0.6 : cableY(x), zz), V(x + 2.5, x + 2.5 < BX0 ? DECK + 1.2 - (BX0 - x - 2.5) * 0.6 : x + 2.5 > BX1 ? DECK + 1.2 - (x + 2.5 - BX1) * 0.6 : cableY(x + 2.5), zz), 0.16, STEEL));
+    for (let x = BX0 + 4; x < BX1; x += 4) if (Math.abs(x - TX[0]) > 2 && Math.abs(x - TX[1]) > 2) g.add(bar(V(x, cableY(x), zz), V(x, DECK + 1.05, zz - sd * 1.6), 0.045, 0x6a6f75));
+    for (const ax of [BX0 - 7, BX1 + 7]) g.add(at(box(3, 4, 2.4, CONCRETE), ax, DECK - 3.2, zz));   // anchor blocks
   }
-  road(165, BZ, 171, BZ);
-  ((g.userData.roads ??= []) as [number, number][][]).push([[171, BZ], [340, BZ]]);   // the bridge on the map
-  place('Harbour Bridge', 255, DECK + 20, BZ, 260);
+  road(165, BZ, 168, BZ);
+  ((g.userData.roads ??= []) as [number, number][][]).push([[168, BZ], [344, BZ]]);   // the bridge on the map
+  place('Harbour Bridge', 255, DECK + 22, BZ, 260);
   keep(255, BZ, 48);
 
   // ================= EASTSIDE (the island across the water) =================

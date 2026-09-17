@@ -240,7 +240,7 @@ export function buildCity(g: THREE.Group, h: H) {
   g.add(at(box(62, 0.4, 7, 0x8a6a4a), 233, 2.3, 40)); g.add(at(box(0.15, 1, 62, 0x6b4a2a), 233 - 31, 2.9, 43.5)); g.add(at(box(62, 1, 0.15, 0x6b4a2a), 233, 2.9, 43.5)); g.add(at(box(62, 1, 0.15, 0x6b4a2a), 233, 2.9, 36.5));
   g.add(at(box(8, 5, 8, 0xffffff), 262, 4.8, 40)); g.add(rot(at(cone(6.5, 3, 0xd94a3d, 4), 262, 8.8, 40), 'y', Math.PI / 4)); lamp(g, 233, 2.5, 44);
   for (const [bx2, bz2, ry] of [[230, 80, 0.6], [245, -20, -0.8], [222, 110, 1.4]] as const) { const bt = new THREE.Group(); bt.add(at(box(2.2, 0.8, 6, 0xffffff), 0, 0.4, 0)); bt.add(at(box(1.8, 0.4, 3, 0x3fb7d9), 0, 0.9, -0.5)); bt.add(at(cyl(0.06, 0.06, 5, 0xdddddd, 6), 0, 3, 0.5)); bt.add(at(mesh(new THREE.ConeGeometry(1.6, 4, 3), 0xffffff), 0.6, 3.2, 0.5)); bt.position.set(bx2, 0.3, bz2); bt.rotation.y = ry; g.add(bt); }
-  for (let z = -140; z <= 140; z += 20) palm(g, 172 + (z % 40 ? 3 : -3), h(172, z), z, 0.9 + ((z / 20) % 3) * 0.2);
+  for (let z = -140; z <= 140; z += 20) if (Math.abs(z + 85) > 10) palm(g, 172 + (z % 40 ? 3 : -3), h(172, z), z, 0.9 + ((z / 20) % 3) * 0.2);
   place('Sunset Beach', 195, 10, 0, 160); shop('Pier', 233, 8, 40);
   for (let z = -150; z <= 150; z += 25) keep(190, z, 26);
   road(15, 60, 165, 60); road(165, 60, 165, -120); road(165, 60, 165, 140);
@@ -372,6 +372,108 @@ export function buildCity(g: THREE.Group, h: H) {
   keep(scx - 20, scz + 20, 26); keep(scx - 4, scz + 50, 48); keep(scx - 20, scz, 8);
   g.userData.circuit = { pts, width: TW, pads };
   road(-60, 135, -60, 160);
+
+  // ================= HARBOUR BRIDGE (across the strait) =================
+  const BZ = -85, BX0 = 210, BX1 = 300, DECK = 8.4, BW = 12;
+  const noCol = <T extends THREE.Object3D>(o: T) => { o.userData.noCollide = true; return o; };
+  const hidden = <T extends THREE.Object3D>(o: T) => { o.visible = false; return o; };
+  // a ramp is a smooth slab to look at (no collision) over a staircase of thin invisible steps to stand on
+  const ramp = (xa: number, xb: number) => {
+    const ya = h(xa, BZ) + 0.2, yb = DECK, n = 16;
+    for (let i = 0; i < n; i++) { const x0 = xa + (xb - xa) * (i / n), x1 = xa + (xb - xa) * ((i + 1) / n), top = ya + (yb - ya) * ((i + 1) / n); g.add(hidden(at(box(Math.abs(x1 - x0) + 0.3, 0.5, BW, 0x5f5f5f), (x0 + x1) / 2, top - 0.25, BZ))); }
+    const L = Math.hypot(xb - xa, yb - ya), ang = -Math.atan2(yb - ya, xb - xa);
+    g.add(rot(at(noCol(box(L, 0.8, BW, 0x5f5f5f)), (xa + xb) / 2, (ya + yb) / 2 - 0.4, BZ), 'z', ang));
+    for (let i = 1; i < n; i += 2) g.add(rot(at(noCol(box(2.4, 0.06, 0.3, 0xf4f4f4)), xa + (xb - xa) * (i / n), ya + (yb - ya) * (i / n) + 0.04, BZ), 'z', ang));
+    for (const sd of [-1, 1]) {
+      g.add(rot(at(noCol(box(L, 1.0, 0.15, 0xcfd6dc)), (xa + xb) / 2, (ya + yb) / 2 + 0.5, BZ + sd * (BW / 2 - 0.1)), 'z', ang));
+      g.add(rot(at(hidden(box(L, 3, 0.3, 0xffffff)), (xa + xb) / 2, (ya + yb) / 2 + 1.5, BZ + sd * (BW / 2 - 0.1)), 'z', ang));
+    }
+    keep((xa + xb) / 2, BZ, Math.abs(xb - xa) / 2 + 4);
+  };
+  ramp(170, BX0); ramp(340, BX1);
+  g.add(at(box(BX1 - BX0 + 0.6, 0.8, BW, 0x5f5f5f), (BX0 + BX1) / 2, DECK - 0.4, BZ));
+  for (let x = BX0 + 3; x < BX1; x += 6) g.add(at(box(2.5, 0.06, 0.3, 0xf4f4f4), x, DECK + 0.03, BZ));
+  for (const sd of [-1, 1]) {
+    g.add(at(noCol(box(BX1 - BX0, 1.0, 0.15, 0xcfd6dc)), (BX0 + BX1) / 2, DECK + 0.5, BZ + sd * (BW / 2 - 0.1)));
+    for (let x = BX0; x <= BX1; x += 3) g.add(at(noCol(box(0.08, 1.0, 0.08, 0xcfd6dc)), x, DECK + 0.5, BZ + sd * (BW / 2 - 0.1)));
+    g.add(at(hidden(box(BX1 - BX0, 3, 0.3, 0xffffff)), (BX0 + BX1) / 2, DECK + 1.5, BZ + sd * (BW / 2 - 0.1)));
+  }
+  for (let x = BX0 + 10; x < BX1; x += 20) for (const sd of [-1, 1]) lamp(g, x, DECK, BZ + sd * (BW / 2 - 0.7));
+  const TX = [235, 275], TOP = 28, SAG = DECK + 3;
+  for (const tx of TX) {
+    for (const sd of [-1, 1]) g.add(at(box(1.8, TOP + 8, 1.8, 0xc9502f), tx, (TOP - 8) / 2, BZ + sd * (BW / 2 + 1.6)));   // pylons from the seabed
+    for (const y of [TOP - 1, 15]) g.add(at(box(1.6, 1.6, BW + 5.2, 0xc9502f), tx, y, BZ));
+    g.add(at(cyl(3, 3.6, 12, 0x8a8a8a, 10), tx, -4, BZ));
+  }
+  for (const x of [222, 288]) g.add(at(cyl(1.3, 1.6, 16, 0x8a8a8a, 10), x, 0, BZ));
+  const cableY = (x: number) => x <= TX[0] ? DECK + 1 + (TOP - DECK - 1) * ((x - BX0) / (TX[0] - BX0)) : x >= TX[1] ? TOP - (TOP - DECK - 1) * ((x - TX[1]) / (BX1 - TX[1])) : SAG + (TOP - SAG) * ((x - 255) / 20) ** 2;
+  for (const sd of [-1, 1]) {
+    const zz = BZ + sd * (BW / 2 + 1.6);
+    for (let x = BX0; x < BX1; x += 5) g.add(bar(V(x, cableY(x), zz), V(x + 5, cableY(x + 5), zz), 0.12, 0x333333));
+    for (let x = BX0 + 5; x < BX1; x += 5) if (Math.abs(x - TX[0]) > 2 && Math.abs(x - TX[1]) > 2) g.add(bar(V(x, cableY(x), zz), V(x, DECK + 0.6, zz - sd * 1.5), 0.04, 0x555555));
+  }
+  road(165, BZ, 171, BZ);
+  ((g.userData.roads ??= []) as [number, number][][]).push([[171, BZ], [340, BZ]]);   // the bridge on the map
+  place('Harbour Bridge', 255, DECK + 20, BZ, 260);
+  keep(255, BZ, 48);
+
+  // ================= EASTSIDE (the island across the water) =================
+  road(340, BZ, 470, BZ); road(470, BZ, 470, 100); road(470, 100, 340, 100); road(340, 100, 340, BZ); road(470, 0, 494, 0);
+  // Harbour Town: a row of cottages, a café, and a marina on the south shore
+  for (let i = 0; i < 6; i++) { const x = 352 + i * 15, z = BZ - 16; house(g, x, h(x, z), z, 0, [0xf4e1c1, 0xd6e6f2, 0xf2d0d0, 0xe4f0d0, 0xf7e7b0, 0xe0d6f2][i], [0xa33b2c, 0x2c3e6b, 0x6b4a2a, 0x2f6b4a, 0xa33b2c, 0x2c3e6b][i]); keep(x, z, 7); lamp(g, x + 7, h(x + 7, z + 9), z + 9); }
+  for (let i = 0; i < 4; i++) { const x = 360 + i * 18, z = BZ + 16; house(g, x, h(x, z), z, Math.PI, [0xe6f0f7, 0xf7f0e0, 0xdfe9d6, 0xf3dfe6][i], [0x6b4a2a, 0x2c3e6b, 0xa33b2c, 0x2f6b4a][i]); keep(x, z, 7); }
+  { const x = 440, z = BZ - 14, y = h(x, z); g.add(at(box(12, 4.2, 8, 0xf2c31b), x, y + 2.1, z)); g.add(at(box(12.6, 0.4, 8.6, 0x3a2418), x, y + 4.4, z)); g.add(at(box(9, 1.4, 0.15, 0x3a2418), x, y + 2.6, z + 4.1)); for (const dx of [-4, 0, 4]) umbrella(g, x + dx, y, z + 7, 0xd94a3d); shop('Harbour Café', x, 6.4, z); keep(x, z, 9); }
+  for (let z = -120; z >= -150; z -= 5) for (const dx of [-2.5, 2.5]) g.add(bar(V(400 + dx, -4, z), V(400 + dx, 2.4, z), 0.22, 0x6b4a2a));
+  g.add(at(box(7, 0.4, 34, 0x8a6a4a), 400, 2.5, -135)); g.add(at(box(0.15, 1, 34, 0x6b4a2a), 396.6, 3.1, -135)); g.add(at(box(0.15, 1, 34, 0x6b4a2a), 403.4, 3.1, -135));
+  for (const [bx2, bz2, ry] of [[390, -140, 0.4], [411, -146, -0.5], [388, -152, 1.2]] as const) { const bt = new THREE.Group(); bt.add(at(box(2.2, 0.8, 6, 0xffffff), 0, 0.4, 0)); bt.add(at(box(1.8, 0.4, 3, [0xd94a3d, 0x3fb7d9, 0xf2c31b][Math.abs(Math.round(ry * 2)) % 3]), 0, 0.9, -0.5)); bt.add(at(cyl(0.06, 0.06, 5, 0xdddddd, 6), 0, 3, 0.5)); bt.add(at(mesh(new THREE.ConeGeometry(1.6, 4, 3), 0xffffff), 0.6, 3.2, 0.5)); bt.position.set(bx2, 0.3, bz2); bt.rotation.y = ry; g.add(bt); }
+  place('Harbour Town', 395, 12, -100, 200); shop('Marina', 400, 8, -125);
+  keep(400, -135, 8);
+  // Windmill Hill: three windmills and a lookout on the island's highest point
+  for (const [wx, wz] of [[420, -30], [406, -18], [432, -14]]) {
+    const y = h(wx, wz);
+    g.add(at(cyl(1.6, 2.4, 14, 0xf4f0e6, 10), wx, y + 7, wz)); g.add(at(cone(2.4, 2.2, 0x6b4a2a, 10), wx, y + 15, wz));
+    g.add(at(cyl(0.35, 0.35, 2.2, 0x6b4a2a, 8), wx, y + 12.5, wz + 2.2));
+    for (let k = 0; k < 4; k++) { const bl = box(0.7, 10, 0.15, 0xeeeeee); bl.position.set(wx, y + 12.5, wz + 3.2); bl.rotation.z = (k * Math.PI) / 2 + 0.35; bl.geometry.translate(0, 5, 0); g.add(bl); for (let q = 1; q < 5; q++) { const sl = box(0.05, 1.6, 0.05, 0x6b4a2a); sl.geometry.translate(0, 2 + q * 1.7, 0); sl.position.copy(bl.position); sl.rotation.z = bl.rotation.z; sl.position.z += 0.1; g.add(sl); } }
+    keep(wx, wz, 5);
+  }
+  { const x = 418, z = -42, y = h(x, z); g.add(at(box(10, 0.4, 10, 0xd9d4c8), x, y + 0.2, z)); for (const [dx, dz] of [[-5, 0], [5, 0], [0, -5], [0, 5]]) g.add(at(noCol(box(dx ? 0.15 : 10, 1, dz ? 0.15 : 10, 0x8a8a8a)), x + dx, y + 0.9, z + dz)); bench(g, x - 2, y + 0.4, z, Math.PI / 2); bench(g, x + 2, y + 0.4, z, -Math.PI / 2); g.add(at(cyl(0.1, 0.1, 1.4, 0x555555, 6), x, y + 1.1, z + 3)); g.add(at(box(0.9, 0.5, 0.5, 0x333333), x, y + 1.9, z + 3)); }
+  place('Windmill Hill', 420, 22, -30, 240);
+  // Lakeside Camp: tents, a campfire and canoes by the water
+  { const cx = 352, cz = 62;
+    for (const [dx, dz, c] of [[-8, -6, 0xd94a3d], [8, -8, 0x3fb7d9], [-6, 8, 0xf2c31b], [9, 6, 0x6a3fb0], [0, -14, 0x2fa66a]] as const) { const x = cx + dx, z = cz + dz, y = h(x, z); g.add(rot(at(cone(3, 2.8, c, 4), x, y + 1.4, z), 'y', Math.PI / 4)); g.add(at(box(1.2, 1.6, 0.1, 0x222222), x, y + 0.8, z + 2.1)); keep(x, z, 4); }
+    const y = h(cx, cz); for (let k = 0; k < 8; k++) g.add(at(cyl(0.35, 0.35, 0.5, 0x777777, 6), cx + Math.cos(k * 0.785) * 1.4, y + 0.25, cz + Math.sin(k * 0.785) * 1.4)); for (let k = 0; k < 3; k++) g.add(rot(at(cyl(0.18, 0.18, 1.8, 0x6b4a2a, 6), cx, y + 0.3, cz), 'z', 1.2 + k * 2.1)); g.add(at(glow(0.9, 0.9, 0.9, 0xff8a3a), cx, y + 0.9, cz));
+    bench(g, cx - 3, y, cz + 3, 0.6); bench(g, cx + 3, y, cz + 3, -0.6);
+    for (const [bx2, bz2] of [[372, 52], [376, 66]]) { const b = new THREE.Group(); b.add(at(box(1, 0.5, 4.2, 0xd94a3d), 0, 0.25, 0)); b.add(at(box(0.8, 0.2, 3.4, 0x8a6a4a), 0, 0.55, 0)); b.position.set(bx2, h(bx2, bz2) + 0.1, bz2); b.rotation.y = 0.3; g.add(b); }
+    place('Lakeside Camp', cx, 9, cz, 190); shop('Mirror Lake', 380, 5, 60);
+    keep(cx, cz, 18);
+  }
+  // Orchard + barn along the south road
+  { for (let r = 0; r < 3; r++) for (let x = 396; x <= 444; x += 6) roundTree(g, x, h(x, 112 + r * 8), 112 + r * 8, 0.6, r % 2 ? 0x5fae4a : 0x7cbf4a);
+    const x = 456, z = 116, y = h(x, z); g.add(at(box(12, 5, 9, 0xa33b2c), x, y + 2.5, z)); g.add(rot(at(cone(8.5, 3.2, 0x6b4a2a, 4), x, y + 6.6, z), 'y', Math.PI / 4)); g.add(at(box(3, 3.4, 0.2, 0x3a2418), x, y + 1.7, z - 4.6)); g.add(at(box(0.3, 0.3, 4, 0x8a5a2b), x - 8, y + 0.6, z - 2)); g.add(at(box(0.3, 0.3, 4, 0x8a5a2b), x - 8, y + 1.1, z - 2));
+    place('Sunny Orchard', 424, 8, 120, 170); keep(456, 116, 9); }
+  // Lighthouse Point on the eastern cliff
+  { const x = 500, z = 0, y = h(x, z);
+    for (let k = 0; k < 6; k++) g.add(at(cyl(2.6 - k * 0.15, 2.75 - k * 0.15, 3.6, k % 2 ? 0xd94a3d : 0xffffff, 14), x, y + 1.8 + k * 3.6, z));
+    g.add(at(cyl(2.4, 2.4, 0.5, 0x333333, 14), x, y + 21.9, z)); g.add(at(glow(2.6, 2.4, 2.6, 0xfff2a8), x, y + 23.4, z)); g.add(at(cone(2.2, 1.8, 0xd94a3d, 14), x, y + 25.5, z));
+    house(g, x - 10, h(x - 10, z + 6), z + 6, Math.PI / 2, 0xffffff, 0xd94a3d); keep(x - 10, z + 6, 7);
+    for (const [dx, dz] of [[6, -6], [8, 4], [-3, -9]]) g.add(at(sph(1.6, 0x8a8a8a, 7), x + dx, h(x + dx, z + dz) + 0.6, z + dz));
+    place('Lighthouse Point', x, 30, z, 300); keep(x, z, 5); }
+  // woods across the island: pines on the hill, round trees elsewhere, none on roads or the lake
+  { const r = rng(7);
+    const roadsE = (g.userData.roads as [number, number][][]).filter((rd) => rd[0][0] > 330);
+    const nearRoad = (x: number, z: number) => roadsE.some(([[ax, az], [bx, bz]]) => { const l2 = (bx - ax) ** 2 + (bz - az) ** 2, t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / l2)); return Math.hypot(x - (ax + (bx - ax) * t), z - (az + (bz - az) * t)) < 8; });
+    let placed = 0, tries = 0;
+    while (placed < 170 && tries++ < 2000) {
+      const a = r() * Math.PI * 2, d = 20 + r() * 108, x = 400 + Math.cos(a) * d, z = Math.sin(a) * d;
+      if (h(x, z) < 0.6 || nearRoad(x, z) || Math.hypot(x - 380, z - 60) < 26 || Math.hypot(x - 255, z - BZ) < 60) continue;
+      if (clear.some((c) => Math.hypot(x - c.x, z - c.z) < c.r)) continue;
+      const hill = Math.hypot(x - 420, z + 30) < 42;
+      if (hill) { const s = 0.9 + r() * 0.8; g.add(at(cyl(0.2 * s, 0.3 * s, 2 * s, 0x6b4a2a, 6), x, h(x, z) + s, z)); g.add(at(cone(1.5 * s, 4.5 * s, 0x2f6b3a, 6), x, h(x, z) + 2 * s + 2.2 * s, z)); }
+      else roundTree(g, x, h(x, z), z, 0.8 + r() * 0.7, r() < 0.5 ? 0x4f9a3e : 0x6aa84f);
+      placed++;
+    }
+  }
+  g.userData.parked = [[348, BZ + 8, Math.PI / 2, 'jeep'], [354, BZ + 8, Math.PI / 2, 'bike'], [500 - 18, 8, 0, 'jeep']];
 
   // ================= main roads =================
   road(15, -100, 15, 86); road(15, 60, -60, 60);

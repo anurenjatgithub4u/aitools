@@ -10,6 +10,7 @@ export interface TerrainProfile {
   rim?: number;           // beyond this radius hills rise to wall the city in
   coast?: number;         // east of this x the land slopes into the sea (no rim hills on that side)
   flats?: { x: number; z: number; r: number; blend: number }[];   // level pads (stadium, pitch…) eased into the hills around them
+  lands?: { cx: number; cz: number; r: number; base: number; amp?: number; hills?: { x: number; z: number; r: number; h: number }[] }[];   // further islands: rolling land inside r, sinking into the sea beyond it
   water?: { level: number; color: number };
 }
 
@@ -41,6 +42,13 @@ export function makeTerrain(p: TerrainProfile): Terrain {
     if (p.coast !== undefined) y -= Math.max(0, x - p.coast) * 0.45;
     const seaSide = p.coast !== undefined && x > p.coast - 90;
     if (p.rim !== undefined && r > p.rim && !seaSide) y += (r - p.rim) ** 2 * 0.06 + noise(x * 3, z * 3) * (r - p.rim) * 0.4;
+    for (const l of p.lands ?? []) {
+      const d = Math.hypot(x - l.cx, z - l.cz);
+      if (d > l.r + 60) continue;
+      let ly = l.base + noise(x + 500, z - 300) * (l.amp ?? p.amp) - Math.max(0, d - l.r) * 0.5;
+      for (const hl of l.hills ?? []) { const hd = Math.hypot(x - hl.x, z - hl.z) / hl.r; ly += hl.h * Math.exp(-hd * hd); }
+      y = Math.max(y, ly);
+    }
     return y;
   };
   const flats = (p.flats ?? []).map((f) => ({ ...f, y: raw(f.x, f.z) }));

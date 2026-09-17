@@ -83,7 +83,7 @@ const NET_RATE = 1 / 8;
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
 interface Pickup { mesh: THREE.Mesh; label: CSS2DObject; item: Collectible; active: boolean; respawnAt: number; baseY: number; phase: number }
 
-const WORLD_RADIUS = 300;
+const WORLD_RADIUS = 560;
 const VEHICLE_OFFSETS: [number, number][] = [[-7, 3], [7, 8], [-12, -6], [13, -2], [-4, -10], [4, -11]];
 const GRAVITY = 24;
 const WALK_SPEED = 9.5;
@@ -123,6 +123,7 @@ export class World {
   private hemi!: THREE.HemisphereLight;
   private daylight = { sky: 0, fog: 0, sun: 0, sunI: 1.7, hemiI: 0.85, near: 90, far: 360 };
   private lastZombieHud = 0;
+  private landmarkData: Record<string, unknown> = {};
   private lastMatchHud = 0;
   private raceLock = false;
   private lastRaceHud = 0;
@@ -181,7 +182,7 @@ export class World {
     this.terrain = makeTerrain(dest.terrain);
 
     const w = container.clientWidth, h = container.clientHeight;
-    this.camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 600);
+    this.camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 900);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     // phones: fewer pixels and a smaller shadow map keep the frame rate smooth
@@ -401,7 +402,7 @@ export class World {
     this.sun = sun;
 
     // ground
-    const size = 660, segs = 150;
+    const size = 1240, segs = 230;
     const geo = new THREE.PlaneGeometry(size, size, segs, segs);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position as THREE.BufferAttribute;
@@ -414,7 +415,7 @@ export class World {
     const water = this.dest.terrain.water;
     if (water) {
       const wm = new THREE.Mesh(
-        new THREE.PlaneGeometry(1200, 1200),
+        new THREE.PlaneGeometry(1800, 1800),
         new THREE.MeshStandardMaterial({ color: water.color, roughness: 0.35, metalness: 0.1, transparent: true, opacity: 0.9 }),
       );
       wm.rotation.x = -Math.PI / 2;
@@ -433,6 +434,7 @@ export class World {
     landmark.traverse((o) => { if (o instanceof CSS2DObject) this.worldLabels.push(o); });
     this.placePetrolStation(landmark);
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
+    this.landmarkData = landmark.userData;
     if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number; goalH: number }; this.field = { ...p }; }
     if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
     this.collectBlockers(landmark);
@@ -498,7 +500,7 @@ export class World {
     const size = new THREE.Vector3();
     landmark.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (!m.isMesh) return;
+      if (!m.isMesh || m.userData.noCollide) return;
       const geo = m.geometry as THREE.BufferGeometry & { parameters?: { openEnded?: boolean; radius?: number; radiusBottom?: number } };
       if (geo.type === 'CylinderGeometry' && geo.parameters?.openEnded) return;          // arena walls, shells
       if ((m.material as THREE.Material).transparent) return;                            // nets, glass
@@ -530,15 +532,19 @@ export class World {
 
   /** Can something standing at height `y` move to (x, z)? */
   private walkable(x: number, z: number, y = this.terrain.h(x, z)) {
-    if (Math.hypot(x, z) >= WORLD_RADIUS || !this.terrain.onLand(x, z)) return false;
-    if (this.dest.terrain.rim && this.terrain.h(x, z) - y > 1.1) return false;             // hillside too steep
+    if (Math.hypot(x, z) >= WORLD_RADIUS) return false;
+    let platform = false;   // standing on a deck, pier or ramp: fine even over water or a steep slope
     for (const b of this.blockers) {
       if (!this.hits(b, x, z)) continue;
       const { min, max } = b.box;
-      if (min.y > y + HEAD || max.y < y + 0.7) continue;                                 // overhead / underfoot
-      if (max.y - min.y <= LOW_PLATFORM && min.y <= y + STEP_UP) continue;               // a ledge we can step onto
+      const low = max.y - min.y <= LOW_PLATFORM;
+      if (min.y > y + HEAD || max.y < y + 0.7) { if (low && max.y <= y + STEP_UP && max.y >= y - 1.5) platform = true; continue; }   // overhead / underfoot
+      if (low && min.y <= y + STEP_UP) { platform = true; continue; }                     // a ledge we can step onto
       return false;
     }
+    if (platform) return true;
+    if (!this.terrain.onLand(x, z)) return false;
+    if (this.dest.terrain.rim && this.terrain.h(x, z) - y > 1.1) return false;             // hillside too steep
     return true;
   }
 
@@ -655,6 +661,10 @@ export class World {
       this.scene.add(v.group);
       this.vehicles.push(v);
     });
+    for (const [x, z, heading, kind] of (this.landmarkData.parked ?? []) as [number, number, number, VehicleKind][]) {
+      const v = makeVehicle(kind, VEHICLE_COLORS[(x + z) % VEHICLE_COLORS.length]);
+      v.heading = heading; v.group.position.set(x, 0, z); this.settleVehicle(v); this.scene.add(v.group); this.vehicles.push(v);
+    }
   }
 
   private spawnLife() {
@@ -859,9 +869,9 @@ export class World {
     const fx = Math.sin(heading), fz = Math.cos(heading);
     vp.y = this.groundAt(vp.x, vp.z, vp.y);
     const L = length / 2, W = width / 2;
-    const hf = this.terrain.h(vp.x + fx * L, vp.z + fz * L), hb = this.terrain.h(vp.x - fx * L, vp.z - fz * L);
+    const hf = this.groundAt(vp.x + fx * L, vp.z + fz * L, vp.y), hb = this.groundAt(vp.x - fx * L, vp.z - fz * L, vp.y);
     const rx = fz, rz = -fx;
-    const hr = this.terrain.h(vp.x + rx * W, vp.z + rz * W), hl = this.terrain.h(vp.x - rx * W, vp.z - rz * W);
+    const hr = this.groundAt(vp.x + rx * W, vp.z + rz * W, vp.y), hl = this.groundAt(vp.x - rx * W, vp.z - rz * W, vp.y);
     group.rotation.set(-Math.atan2(hf - hb, length), heading, Math.atan2(hr - hl, width));
   }
 
@@ -1376,7 +1386,8 @@ export class World {
   }
 
   // ---------- minimap ----------
-  private static MAP_SPAN = 620; // world units across the map
+  private static MAP_SPAN = 960; // world units across the map
+  private static MAP_CX = 110;   // the map is centred between the city and Eastside
 
   private drawMinimapBase(size: number, labels: boolean) {
     const c = document.createElement('canvas');
@@ -1388,7 +1399,7 @@ export class World {
     const land = new THREE.Color(0xb9d99a), sea = new THREE.Color(water?.color ?? 0x3a7fb0), hill = new THREE.Color(0x7fa86a), outside = new THREE.Color(0x2b4a3a);
     const rim = this.dest.terrain.rim ?? WORLD_RADIUS;
     for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
-      const x = (i / size - 0.5) * span, z = (j / size - 0.5) * span;
+      const x = (i / size - 0.5) * span + World.MAP_CX, z = (j / size - 0.5) * span;
       const h = this.terrain.h(x, z);
       const k = (j * size + i) * 4;
       const r = Math.hypot(x, z);
@@ -1401,7 +1412,7 @@ export class World {
       img.data[k] = col.r * 255; img.data[k + 1] = col.g * 255; img.data[k + 2] = col.b * 255; img.data[k + 3] = 255;
     }
     ctx.putImageData(img, 0, 0);
-    const P = (x: number, z: number) => [size / 2 + x * px, size / 2 + z * px] as const;
+    const P = (x: number, z: number) => [size / 2 + (x - World.MAP_CX) * px, size / 2 + z * px] as const;
     // building footprints
     ctx.fillStyle = 'rgba(90, 80, 70, .55)';
     for (const b of this.blockers) {
@@ -1474,10 +1485,13 @@ export class World {
     if (t - m.last < 0.1) return;
     m.last = t;
     const { ctx, canvas, base } = m;
-    const k = big ? 2.2 : 1;
-    const size = canvas.width, px = size / World.MAP_SPAN;
-    const P = (x: number, z: number) => [size / 2 + x * px, size / 2 + z * px] as const;
-    ctx.drawImage(base, 0, 0);
+    const k = big ? 2.2 : 1, zoom = big ? 1 : 2.4;
+    const size = canvas.width, px = (size / World.MAP_SPAN) * zoom;
+    const cx = big ? World.MAP_CX : focus.x, cz = big ? 0 : focus.z;
+    const P = (x: number, z: number) => [size / 2 + (x - cx) * px, size / 2 + (z - cz) * px] as const;
+    const bpx = size / World.MAP_SPAN, win = size / zoom;
+    ctx.fillStyle = '#0e1a14'; ctx.fillRect(0, 0, size, size);
+    ctx.drawImage(base, size / 2 + (cx - World.MAP_CX) * bpx - win / 2, size / 2 + cz * bpx - win / 2, win, win, 0, 0, size, size);
     for (const b of this.bots) { if (b.riding) continue; const [a, c] = P(b.av.group.position.x, b.av.group.position.z); ctx.fillStyle = b.friend ? '#e75480' : 'rgba(255,255,255,.95)'; ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(a, c, 1.8 * k, 0, 7); ctx.fill(); ctx.stroke(); }
     ctx.fillStyle = '#f27d3a';
     for (const r of this.roads) { const [a, c] = P(r.t.group.position.x, r.t.group.position.z); ctx.fillRect(a - 2 * k, c - 2 * k, 4 * k, 4 * k); }
@@ -1756,7 +1770,7 @@ export class World {
   private spawnWave() {
     const z = this.zombies!;
     z.wave++;
-    const n = Math.min(26, 3 + z.wave * 2);
+    const n = Math.min(40, 5 + z.wave * 3);
     const pp = this.driving ? this.driving.group.position : this.player.group.position;
     for (let i = 0; i < n; i++) {
       let x = pp.x, zz = pp.z;

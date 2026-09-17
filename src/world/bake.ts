@@ -18,7 +18,7 @@ function nonIndexed(geo: THREE.BufferGeometry) {
 
 export function bakeable(m: THREE.Mesh) {
   const mat = m.material as THREE.MeshStandardMaterial;
-  return !Array.isArray(m.material) && mat.isMeshStandardMaterial && !mat.transparent && !mat.vertexColors && mat.emissive.getHex() === 0 && !!m.geometry.attributes.position;
+  return m.visible && !Array.isArray(m.material) && mat.isMeshStandardMaterial && !mat.transparent && !mat.vertexColors && mat.emissive.getHex() === 0 && !!m.geometry.attributes.position;
 }
 
 /**

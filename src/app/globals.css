@@ -414,7 +414,7 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 }
 
 /* ---- zombie night ---- */
-.chip.zombie { background: rgba(70, 110, 60, .85); color: #fff; border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; }
+.chip.zombie { pointer-events: auto; background: rgba(70, 110, 60, .85); color: #fff; border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; }
 .chip.zombie:hover { background: rgba(90, 140, 70, .95); }
 .chip.zombie.on { background: #7a1f1f; animation: blink 1.2s infinite; }
 .hurtflash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 45%, rgba(200, 30, 30, .6) 100%); opacity: 0; transition: opacity .12s; z-index: 5; }

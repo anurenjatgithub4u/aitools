@@ -64,7 +64,7 @@ interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3;
 const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
 const MATCH_SECONDS = 90;
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
-interface Zombie { av: Avatar; hp: number; speed: number; dying: number; hitAt: number; groan: number }
+interface Zombie { av: Avatar; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean }
 interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean }
 const ZOMBIE_STYLES: AvatarStyle[] = [
   { shirt: 0x4a5a3a, pants: 0x3a3330, skin: 0x8fbf6a, hair: 0x1a1a1a, hat: 'none' },
@@ -1733,7 +1733,8 @@ export class World {
 
   // ---------- zombie night ----------
   toggleZombies() {
-    if (this.zombies) { if (!this.zombies.ending) this.endZombies(false); return; }
+    if (this.zombies && !this.zombies.ending) { this.endZombies(false); return; }
+    if (this.zombies) { this.applyNight(0); this.zombies = null; }   // still dawning: skip straight to day and start over
     if (this.race || this.match) return;
     this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false };
     this.clearQuest();
@@ -1741,6 +1742,15 @@ export class World {
     this.sfx.siren();
     this.ev.onCollect({ name: '🧟 Zombie night — they are coming for you', points: 0, color: 0x7a1f1f, shape: 'box' });
     document.getElementById('zombiebtn')?.classList.add('on');
+  }
+
+  /** Blend the sky, fog and lights between day (0) and zombie night (1). */
+  private applyNight(f: number) {
+    const dl = this.daylight, night = { sky: 0x151c22, fog: 0x1a2320, sun: 0x9fb8a0 };
+    (this.scene.background as THREE.Color).setHex(dl.sky).lerp(new THREE.Color(night.sky), f);
+    const fog = this.scene.fog as THREE.Fog; fog.color.setHex(dl.fog).lerp(new THREE.Color(night.fog), f); fog.near = dl.near + (40 - dl.near) * f; fog.far = dl.far + (170 - dl.far) * f;
+    this.sun.color.setHex(dl.sun).lerp(new THREE.Color(night.sun), f); this.sun.intensity = dl.sunI + (0.45 - dl.sunI) * f;
+    this.hemi.intensity = dl.hemiI + (0.35 - dl.hemiI) * f;
   }
 
   private spawnWave() {
@@ -1758,8 +1768,21 @@ export class World {
       const av = makeAvatar(ZOMBIE_STYLES[Math.floor(Math.random() * ZOMBIE_STYLES.length)]);
       av.group.position.set(x, this.groundAt(x, zz, this.terrain.h(x, zz)), zz);
       av.group.rotation.y = Math.atan2(pp.x - x, pp.z - zz);
+      // every one of them is wrong in its own way: lanky or squat, hunched, head lolling, glowing eyes, a dragging leg
+      const runner = z.wave >= 2 && Math.random() < 0.25;
+      av.group.scale.set(rand(0.85, 1.15), runner ? rand(0.8, 0.95) : rand(0.9, 1.3), rand(0.85, 1.15));
+      av.body.rotation.x = runner ? 0.55 : rand(0.15, 0.45);
+      const head = av.body.children.find((c) => c.type === 'Group' && Math.abs(c.position.y - 1.02) < 0.01) ?? null;
+      const tilt = rand(-0.5, 0.5);
+      if (head) {
+        head.rotation.z = tilt; head.rotation.x = rand(-0.2, 0.3);
+        for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), new THREE.MeshStandardMaterial({ color: 0xff2020, emissive: 0xff3030, emissiveIntensity: 2 })); eye.position.set(sx * 0.13, 0.33, 0.32); head.add(eye); }
+        if (Math.random() < 0.5) head.position.y += rand(0.05, 0.16);   // neck stretched
+      }
+      for (let k = 0; k < 2 + Math.floor(Math.random() * 3); k++) { const spot = new THREE.Mesh(new THREE.BoxGeometry(rand(0.1, 0.25), rand(0.1, 0.25), 0.03), new THREE.MeshStandardMaterial({ color: 0x5a0d0d })); spot.position.set(rand(-0.3, 0.3), rand(0.1, 0.75), 0.23); av.body.add(spot); }
+      if (Math.random() < 0.3) av.armL.visible = false;   // lost an arm somewhere
       this.scene.add(av.group);
-      z.list.push({ av, hp: 2 + Math.floor(z.wave / 3), speed: Math.min(6.5, 2.4 + z.wave * 0.3 + Math.random() * 0.9), dying: 0, hitAt: -1, groan: this.elapsed + Math.random() * 6 });
+      z.list.push({ av, hp: 2 + Math.floor(z.wave / 3), speed: runner ? Math.min(8, 5 + z.wave * 0.3) : Math.min(6, 2.2 + z.wave * 0.3 + Math.random() * 0.9), dying: 0, hitAt: -1, groan: this.elapsed + Math.random() * 6, head, limp: !runner && Math.random() < 0.5, tilt, sway: rand(0.6, 1.6), arms: Math.floor(Math.random() * 3), twitchAt: this.elapsed + rand(1, 4), runner });
     }
     this.sfx.groan();
     this.ev.onCollect({ name: `Wave ${z.wave} · ${n} zombies`, points: 0, color: 0x7a1f1f, shape: 'box' });
@@ -1797,13 +1820,8 @@ export class World {
     const z = this.zombies!;
     // night falls (and lifts again when the mode ends)
     z.fade = Math.max(0, Math.min(1, z.fade + (z.ending ? -dt / 6 : dt / 2.5)));
-    const f = z.fade, dl = this.daylight;
-    const night = { sky: 0x151c22, fog: 0x1a2320, sun: 0x9fb8a0 };
-    (this.scene.background as THREE.Color).setHex(dl.sky).lerp(new THREE.Color(night.sky), f);
-    const fog = this.scene.fog as THREE.Fog; fog.color.setHex(dl.fog).lerp(new THREE.Color(night.fog), f); fog.near = dl.near + (40 - dl.near) * f; fog.far = dl.far + (170 - dl.far) * f;
-    this.sun.color.setHex(dl.sun).lerp(new THREE.Color(night.sun), f); this.sun.intensity = dl.sunI + (0.45 - dl.sunI) * f;
-    this.hemi.intensity = dl.hemiI + (0.35 - dl.hemiI) * f;
-    if (z.ending) { if (f <= 0) { this.zombies = null; this.ev.onQuest(null); } return; }
+    this.applyNight(z.fade);
+    if (z.ending) { if (z.fade <= 0) { this.zombies = null; this.ev.onQuest(null); } return; }
 
     const driving = this.driving;
     const pp = driving ? driving.group.position : this.player.group.position;
@@ -1826,12 +1844,14 @@ export class World {
       if (d > 1.35) {
         // shamble toward the player; slide along whatever is in the way; keep a little apart from each other
         const sp = zb.speed * dt;
-        let nx = q.x + (dx / d) * sp, nz = q.z + (dz / d) * sp;
+        const wob = Math.sin(t * zb.sway * 2 + i) * 0.45;   // lurching zig-zag
+        let nx = q.x + (dx / d) * sp - (dz / d) * sp * wob, nz = q.z + (dz / d) * sp + (dx / d) * sp * wob;
         for (const o of z.list) { if (o === zb || o.dying) continue; const op = o.av.group.position, ox = q.x - op.x, oz = q.z - op.z, od = Math.hypot(ox, oz); if (od < 1 && od > 0) { nx += (ox / od) * (1 - od) * 0.5; nz += (oz / od) * (1 - od) * 0.5; } }
         if (this.walkable(nx, nz, q.y) && this.terrain.onLand(nx, nz)) { q.x = nx; q.z = nz; }
         else if (this.walkable(q.x - (dz / d) * sp, q.z + (dx / d) * sp, q.y)) { q.x -= (dz / d) * sp; q.z += (dx / d) * sp; }
         else if (this.walkable(q.x + (dz / d) * sp, q.z - (dx / d) * sp, q.y)) { q.x += (dz / d) * sp; q.z -= (dx / d) * sp; }
         animateWalk(zb.av, t * (zb.speed / 3) + i, 0.9);
+        if (zb.limp) { zb.av.legR.rotation.x = 0.35 + Math.max(0, zb.av.legR.rotation.x) * 0.3; zb.av.group.rotation.z = Math.sin(t * zb.speed * 3.3 + i) * 0.08; }   // drags a leg, lists sideways
       } else {
         animateWalk(zb.av, t * 2, 0.3);
         // bite
@@ -1844,7 +1864,12 @@ export class World {
           if (z.hp <= 0) { this.endZombies(true); return; }
         }
       }
-      zb.av.armL.rotation.x = zb.av.armR.rotation.x = -1.45 + Math.sin(t * 3 + i) * 0.15;   // arms out, always
+      // arms: both out, one out one dangling, or clawing high — always twitching
+      const tw = Math.sin(t * 3 + i) * 0.15;
+      if (zb.arms === 0) { zb.av.armL.rotation.x = zb.av.armR.rotation.x = -1.45 + tw; }
+      else if (zb.arms === 1) { zb.av.armR.rotation.x = -1.6 + tw; zb.av.armL.rotation.x = 0.3 + Math.sin(t * 7 + i) * 0.1; }
+      else { zb.av.armR.rotation.x = -2.2 + tw; zb.av.armL.rotation.x = -1.2 - tw; zb.av.armR.rotation.z = -0.4; zb.av.armL.rotation.z = 0.4; }
+      if (zb.head) { zb.head.rotation.z = zb.tilt + Math.sin(t * 1.7 + i) * 0.12; if (t > zb.twitchAt) { zb.twitchAt = t + rand(1.5, 5); zb.head.rotation.y = rand(-0.9, 0.9); } else zb.head.rotation.y *= Math.max(0, 1 - dt * 3); }
       g.rotation.y += wrapAngle(Math.atan2(dx, dz) - g.rotation.y) * Math.min(1, dt * 5);
       q.y = this.groundAt(q.x, q.z, q.y);
       if (t > zb.groan && d < 30) { zb.groan = t + 5 + Math.random() * 8; this.sfx.groan(); }
@@ -1992,7 +2017,7 @@ export class World {
     // stick with the current person until they are clearly out of reach
     if (this.meet && !this.meet.riding && !this.meet.knocked && !this.meet.playing && !this.meet.reply && this.meet.av.group.position.distanceTo(p) < 6.5) return this.meet;
     let best: Bot | null = null, bd = 4;
-    if (this.match && !this.match.over) return null;   // no meet card mid-match
+    if ((this.match && !this.match.over) || (this.zombies && !this.zombies.ending)) return null;   // no meet card mid-match or during zombie night
     for (const b of this.bots) {
       if (b.riding || b.knocked || b.playing || b.reply || b.remote?.car) continue;
       const d = b.av.group.position.distanceTo(p);

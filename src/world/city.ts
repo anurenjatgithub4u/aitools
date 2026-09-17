@@ -276,53 +276,67 @@ export function buildCity(g: THREE.Group, h: H) {
   // ================= PALM GROVE HOMES (south-west) =================
   const hr = rng(9);
   for (let i = 0; i < 14; i++) {
-    const x = -150 + (i % 5) * 20, z = 120 + Math.floor(i / 5) * 22, y = h(x, z);
+    const x = -150 + (i % 5) * 20, z = 96 + Math.floor(i / 5) * 22, y = h(x, z);
     house(g, x, y, z, hr() * 0.4 - 0.2, [0xf4e8d0, 0xe8dcc8, 0xf0d9c0, 0xd8e8f0][i % 4], [0xa8503a, 0x8a5a2b, 0x2f6fd1, 0x3fa66a][i % 4]);
     keep(x, z, 7);
   }
   road(-60, 60, -60, 135); road(-60, 135, -160, 135);
-  place('Palm Grove Homes', -110, 12, 140);
+  place('Palm Grove Homes', -110, 12, 118);
 
   // ================= FINDURAI SPEEDWAY (south-west) =================
-  // a proper circuit: tarmac loop with kerbs, start/finish gantry, grandstand, pit garage, tyre walls
-  const scx = -70, scz = 206, N = 180, TW = 13;
-  const pts: [number, number][] = [];
-  for (let i = 0; i < N; i++) {
-    const t = (i / N) * Math.PI * 2;
-    const rx = 50 * (1 + 0.12 * Math.sin(3 * t + 0.6)), ry = 30 * (1 + 0.16 * Math.cos(2 * t));
-    pts.push([scx + Math.cos(t) * rx, scz + Math.sin(t) * ry]);
-  }
+  // A GP-style circuit: pit straight past the grandstand, a fast sweeper, a chicane, a long back
+  // straight and a hairpin. Centre line is a closed Catmull-Rom spline through the control points.
+  const scx = -62, scz = 192, TW = 14;
+  const ctrl: [number, number][] = [
+    [-70, 34], [-20, 34], [30, 34], [62, 30], [78, 12], [76, -10], [60, -24],      // pit straight → Sunset sweeper
+    [42, -16], [30, -30], [12, -34],                                                // Neon chicane
+    [-30, -34], [-60, -34], [-82, -26], [-90, -6], [-86, 14], [-80, 30],            // back straight → Palm hairpin
+  ];
+  const curve = new THREE.CatmullRomCurve3(ctrl.map(([x, z]) => V(scx + x * 0.9, 0, scz + z)), true, 'catmullrom', 0.6);
+  const N = 300;
+  const pts: [number, number][] = curve.getPoints(N - 1).slice(0, N).map((p) => [p.x, p.z]);
   for (let i = 0; i < N; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % N];
     const a = V(ax, h(ax, az) + 0.14, az), b = V(bx, h(bx, bz) + 0.14, bz);
-    const seg = mesh(new THREE.BoxGeometry(TW, 0.2, a.distanceTo(b) + 0.5), 0x4a4a4a);
+    const seg = mesh(new THREE.BoxGeometry(TW, 0.2, a.distanceTo(b) + 0.6), 0x4a4a4a);
     seg.position.copy(a).add(b).multiplyScalar(0.5); seg.lookAt(b); g.add(seg);
     const dir = b.clone().sub(a).normalize(), nx = -dir.z, nz = dir.x;
     for (const side of [-1, 1]) {
-      const kerb = mesh(new THREE.BoxGeometry(1.4, 0.24, a.distanceTo(b) + 0.5), i % 2 ? 0xd94a3d : 0xf4f4f4);
+      const kerb = mesh(new THREE.BoxGeometry(1.4, 0.24, a.distanceTo(b) + 0.6), i % 2 ? 0xd94a3d : 0xf4f4f4);
       kerb.position.copy(seg.position).add(V(nx * side * (TW / 2 + 0.6), 0.02, nz * side * (TW / 2 + 0.6))); kerb.rotation.copy(seg.rotation); g.add(kerb);
     }
-    if (i % 9 === 0) { const dash = mesh(new THREE.BoxGeometry(0.3, 0.22, 2.5), 0xf4f4f4); dash.position.copy(seg.position); dash.rotation.copy(seg.rotation); g.add(dash); }
-    if (i % 6 === 0) keep(ax, az, 12);
+    if (i % 10 === 0) { const dash = mesh(new THREE.BoxGeometry(0.3, 0.22, 2.5), 0xf4f4f4); dash.position.copy(seg.position); dash.rotation.copy(seg.rotation); g.add(dash); }
+    if (i % 5 === 0) keep(ax, az, 13);
+  }
+  // boost pads: glowing chevrons on the straights; driving over one gives a burst of speed
+  const pads: [number, number, number][] = [];
+  for (const idx of [16, 46, 172, 200]) {   // pit straight ×2, back straight ×2 (samples are uniform in spline t: ~18.75 per control segment)
+    const [px, pz] = pts[idx], [qx, qz] = pts[(idx + 2) % N], dir = V(qx - px, 0, qz - pz).normalize(), ang = Math.atan2(dir.x, dir.z);
+    for (let k = 0; k < 3; k++) {
+      const pad = glow(6, 0.12, 2.2, 0x3fd36f); pad.position.set(px + dir.x * k * 3, h(px, pz) + 0.3, pz + dir.z * k * 3); pad.rotation.y = ang; g.add(pad);
+      const chev = mesh(new THREE.BoxGeometry(2.4, 0.14, 0.9), 0xffffff, { emissive: 0xffffff, emissiveIntensity: 0.6 }); chev.position.set(px + dir.x * (k * 3 + 0.6), h(px, pz) + 0.38, pz + dir.z * (k * 3 + 0.6)); chev.rotation.y = ang; g.add(chev);
+    }
+    pads.push([px + dir.x * 3, pz + dir.z * 3, ang]);
   }
   // start / finish: chequered strip + gantry
   const [s0x, s0z] = pts[0], [s1x, s1z] = pts[1], sdir = V(s1x - s0x, 0, s1z - s0z).normalize(), snx = -sdir.z, snz = sdir.x, sy0 = h(s0x, s0z);
   for (let k = -6; k < 6; k++) for (let r = 0; r < 2; r++) { const c = mesh(new THREE.BoxGeometry(1.1, 0.26, 1.1), (k + r) % 2 ? 0x111111 : 0xffffff); c.position.set(s0x + snx * k * 1.1 + sdir.x * r * 1.1, sy0 + 0.16, s0z + snz * k * 1.1 + sdir.z * r * 1.1); c.rotation.y = Math.atan2(sdir.x, sdir.z); g.add(c); }
-  for (const side of [-1, 1]) g.add(at(box(0.8, 9, 0.8, 0x333333), s0x + snx * side * 9, sy0 + 4.5, s0z + snz * side * 9));
-  const beam = box(19, 1.4, 1.6, 0x333333); beam.position.set(s0x, sy0 + 9.2, s0z); beam.rotation.y = Math.atan2(sdir.x, sdir.z) + Math.PI / 2; g.add(beam);
+  for (const side of [-1, 1]) g.add(at(box(0.8, 9, 0.8, 0x333333), s0x + snx * side * 9.5, sy0 + 4.5, s0z + snz * side * 9.5));
+  const beam = box(20, 1.4, 1.6, 0x333333); beam.position.set(s0x, sy0 + 9.2, s0z); beam.rotation.y = Math.atan2(sdir.x, sdir.z) + Math.PI / 2; g.add(beam);
   for (let k = -3; k <= 3; k++) g.add(at(glow(0.9, 0.5, 0.9, k % 2 ? 0xd94a3d : 0x3fd36f), s0x + snx * k * 2.4, sy0 + 8.2, s0z + snz * k * 2.4));
   const banner = glow(12, 1.2, 0.2, 0xf2c31b); banner.position.set(s0x, sy0 + 10.6, s0z); banner.rotation.y = beam.rotation.y; g.add(banner);
-  // grandstand along the south straight, pit garage on the inside, tyre walls at the corners
-  for (let i = 0; i < 8; i++) { const x = scx - 28 + i * 8, z = scz + 44, y = h(x, z); for (let r = 0; r < 4; r++) g.add(at(box(8, 1.2, 2, r % 2 ? 0x2c3e6b : 0x3f8fd6), x, y + 0.6 + r * 1.2, z + r * 2)); }
-  g.add(at(box(66, 0.6, 10, 0xd9d4c8), scx, h(scx, scz + 50) + 6.2, scz + 50));
-  for (const dx of [-30, -10, 10, 30]) g.add(at(cyl(0.3, 0.3, 6, 0x555555, 8), scx + dx, h(scx, scz + 50) + 3, scz + 54));
-  g.add(at(box(30, 5, 9, 0xe8e2d6), scx, h(scx, scz) + 2.5, scz)); g.add(at(box(31, 0.5, 10, 0xd94a3d), scx, h(scx, scz) + 5.2, scz));
-  for (let i = -2; i <= 2; i++) g.add(at(box(4.5, 3.4, 0.2, 0x333333), scx + i * 6, h(scx, scz) + 1.7, scz + 4.6));
-  for (const [tx, tz] of [[scx + 58, scz - 6], [scx - 60, scz + 4], [scx + 6, scz - 36], [scx - 20, scz + 38]]) for (let k = 0; k < 4; k++) g.add(at(cyl(0.8, 0.8, 0.7, k % 2 ? 0x222222 : 0xf4f4f4, 10), tx + (k % 2) * 1.7, h(tx, tz) + 0.35 + Math.floor(k / 2) * 0.7, tz));
-  place('FindurAI Speedway', scx, 14, scz - 20, 150);
-  keep(scx, scz, 22); keep(scx, scz + 50, 40);
-  g.userData.circuit = { pts, width: TW };
-  road(-60, 135, -60, 172);
+  // grandstand outside the pit straight, pit garages inside it, tyre walls at the hairpin and chicane
+  for (let i = 0; i < 9; i++) { const x = scx - 40 + i * 9, z = scz + 44, y = h(x, z); for (let r = 0; r < 4; r++) g.add(at(box(9, 1.2, 2, r % 2 ? 0x2c3e6b : 0x3f8fd6), x, y + 0.6 + r * 1.2, z + r * 2)); }
+  g.add(at(box(84, 0.6, 10, 0xd9d4c8), scx - 4, h(scx, scz + 50) + 6.2, scz + 50));
+  for (const dx of [-40, -20, 0, 20, 36]) g.add(at(cyl(0.3, 0.3, 6, 0x555555, 8), scx + dx, h(scx, scz + 50) + 3, scz + 54));
+  g.add(at(box(44, 5, 9, 0xe8e2d6), scx - 20, h(scx, scz + 20) + 2.5, scz + 20)); g.add(at(box(45, 0.5, 10, 0xd94a3d), scx - 20, h(scx, scz + 20) + 5.2, scz + 20));
+  for (let i = -3; i <= 3; i++) g.add(at(box(4.5, 3.4, 0.2, 0x333333), scx - 20 + i * 6, h(scx, scz + 20) + 1.7, scz + 24.6));
+  for (const [tx, tz] of [[scx - 92, scz - 6], [scx - 90, scz + 12], [scx + 20, scz - 24], [scx + 45, scz - 8], [scx + 78, scz + 2]]) for (let k = 0; k < 6; k++) g.add(at(cyl(0.8, 0.8, 0.7, k % 2 ? 0x222222 : 0xf4f4f4, 10), tx + (k % 3) * 1.7, h(tx, tz) + 0.35 + Math.floor(k / 3) * 0.7, tz));
+  g.add(at(mesh(new THREE.BoxGeometry(10, 0.2, 10), 0x6d6d6d), scx - 20, h(scx - 20, scz) + 0.1, scz)); shop('Pit lane', scx - 20, 8, scz + 20);
+  place('FindurAI Speedway', scx, 14, scz, 170);
+  keep(scx - 20, scz + 20, 26); keep(scx - 4, scz + 50, 48); keep(scx - 20, scz, 8);
+  g.userData.circuit = { pts, width: TW, pads };
+  road(-60, 135, -60, 160);
 
   // ================= main roads =================
   road(15, -100, 15, 86); road(15, 60, -60, 60);

@@ -98,7 +98,8 @@ export class World {
   private online = 0;
   private ev: WorldEvents;
   private lastRank = -1;
-  private circuit: { pts: THREE.Vector3[]; width: number } | null = null;
+  private circuit: { pts: THREE.Vector3[]; width: number; pads: { x: number; z: number; ang: number; cool: number }[] } | null = null;
+  private padBurst = 0;   // seconds of boost-pad speed left
   private race: RaceState | null = null;
   private raceLock = false;
   private lastRaceHud = 0;
@@ -407,7 +408,7 @@ export class World {
     landmark.traverse((o) => { if (o instanceof CSS2DObject) this.worldLabels.push(o); });
     this.placePetrolStation(landmark);
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
-    if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width }; }
+    if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
     this.collectBlockers(landmark);
     bakeStatic(landmark);   // collision is captured above, so the visuals can be merged into a few draw calls
     if (landmark.userData.train) this.train = { ...landmark.userData.train, idx: 0, dir: 1, pause: 2 };
@@ -1023,20 +1024,28 @@ export class World {
       const boosting = !empty && (this.boostHeld || k.has('shift') || k.has('b')) && v.boost > 0 && throttle > 0;
       if (boosting && !this.wasBoosting) this.sfx.boost();
       this.wasBoosting = boosting;
-      const maxSpeed = s.maxSpeed * (boosting ? BOOST_MULT : 1);
+      if (this.circuit) for (const pad of this.circuit.pads) {
+        pad.cool = Math.max(0, pad.cool - dt);
+        if (pad.cool === 0 && Math.abs(v.group.position.x - pad.x) < 4.5 && Math.abs(v.group.position.z - pad.z) < 4.5) {
+          pad.cool = 2; this.padBurst = 2.2; v.boost = 1; v.speed = Math.max(v.speed, s.maxSpeed * 0.9) + 6;
+          this.sfx.boost(); this.ev.onCollect({ name: 'Boost pad!', points: 0, color: 0x3fd36f, shape: 'gem' });
+        }
+      }
+      this.padBurst = Math.max(0, this.padBurst - dt);
+      const maxSpeed = s.maxSpeed * (boosting ? BOOST_MULT : this.padBurst > 0 ? 1.45 : 1);
       const accel = s.accel * (boosting ? 2.2 : 1);
       if (throttle > 0) v.speed += accel * throttle * dt;
       else if (throttle < 0) v.speed += (v.speed > 0.5 ? -22 : s.accel * throttle * 0.6) * dt; // brake, then reverse
       else v.speed -= Math.sign(v.speed) * Math.min(Math.abs(v.speed), (empty ? 3 : 6) * dt);
       if (k.has(' ')) v.speed -= Math.sign(v.speed) * Math.min(Math.abs(v.speed), 30 * dt);
-      if (!boosting && v.speed > s.maxSpeed) v.speed -= Math.min(v.speed - s.maxSpeed, 10 * dt); // ease back after a boost
+      if (!boosting && this.padBurst <= 0 && v.speed > s.maxSpeed) v.speed -= Math.min(v.speed - s.maxSpeed, 10 * dt); // ease back after a boost
       v.speed = THREE.MathUtils.clamp(v.speed, -s.reverse, maxSpeed);
       // fuel burns with distance (boosting burns double); nitro drains while used and recharges slowly
       const wasEmpty = empty;
       if (s.fuel) v.fuel = Math.max(0, v.fuel - (Math.abs(v.speed) * dt * (boosting ? 2 : 1)) / FUEL_RANGE);
       if (!wasEmpty && v.fuel <= 0) this.sfx.sputter();
       v.boost = THREE.MathUtils.clamp(v.boost + (boosting ? -dt / 4 : dt / 12), 0, 1);
-      for (const f of v.flames) { f.visible = boosting; if (boosting) f.scale.setScalar(0.8 + Math.random() * 0.5); }
+      for (const f of v.flames) { f.visible = boosting || this.padBurst > 0; if (f.visible) f.scale.setScalar(0.8 + Math.random() * 0.5); }
       const steer = -Math.min(1, Math.max(-1, ix));
       v.heading += steer * s.turn * dt * THREE.MathUtils.clamp(v.speed / 8, -1, 1);
 
@@ -1378,6 +1387,13 @@ export class World {
     };
     drawRoads('#f4f1ea', Math.max(3, 7 * px));
     drawRoads('#6d6d6d', Math.max(1.6, 4.5 * px));
+    if (this.circuit) {   // the Speedway: tarmac loop with a red/white kerb halo and a start-line dot
+      const c = this.circuit.pts;
+      const loop = () => { ctx.beginPath(); c.forEach((q, i) => { const [a, b] = P(q.x, q.z); if (i) ctx.lineTo(a, b); else ctx.moveTo(a, b); }); ctx.closePath(); ctx.stroke(); };
+      ctx.strokeStyle = '#d94a3d'; ctx.lineWidth = Math.max(4, (this.circuit.width + 3) * px); loop();
+      ctx.strokeStyle = '#3a3a3a'; ctx.lineWidth = Math.max(2.4, this.circuit.width * px); loop();
+      const [sx, sz] = P(c[0].x, c[0].z); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(sx, sz, Math.max(2, 3 * px), 0, 7); ctx.fill();
+    }
     if (this.train) {
       const st = this.train.stops, [a, b] = P(st[0], this.train.z), [c2, d] = P(st[st.length - 1], this.train.z);
       ctx.strokeStyle = '#' + this.train.color.toString(16).padStart(6, '0'); ctx.lineWidth = 2.5;
@@ -1481,6 +1497,9 @@ export class World {
   }
 
   /** Put everyone on the grid at the Speedway and count down. */
+  /** Dev helper: drop the player at a world position. */
+  teleport(x: number, z: number) { const p = this.player.group.position; p.set(x, this.terrain.h(x, z), z); }
+
   startCircuitRace(opp?: Bot) {
     if (!this.circuit || this.race) return;
     if (this.driving) this.exitVehicle();
@@ -1493,7 +1512,7 @@ export class World {
     drivers.push(pool.shift() ?? null, pool.shift() ?? null);
     const cars: RaceCar[] = drivers.map((bot, i) => {
       const car = makeVehicle('jeep', [0xe8c46a, 0xe75480, 0x3fb7d9, 0x2fa66a][i]);
-      const back = 6 + Math.floor(i / 2) * 7, side = (i % 2 ? 1 : -1) * 3.2;
+      const back = 8 + Math.floor(i / 2) * 8, side = (i % 2 ? 1 : -1) * 3.4;
       car.group.position.set(a.x - dir.x * back + nx * side, 0, a.z - dir.z * back + nz * side);
       car.heading = heading; car.fuel = 1;
       this.settleVehicle(car);
@@ -1532,7 +1551,8 @@ export class World {
         const want = Math.atan2(tx - vp.x, tz - vp.z);
         const diff = wrapAngle(want - v.heading);
         const bend = Math.abs(wrapAngle(Math.atan2(pts[a2].x - tp.x, pts[a2].z - tp.z) - Math.atan2(dir.x, dir.z)));
-        const target = v.spec.maxSpeed * c.skill * (bend > 0.35 ? 0.62 : 1);
+        let target = v.spec.maxSpeed * c.skill * (bend > 0.35 ? 0.62 : 1);
+        for (const pad of this.circuit!.pads) if (Math.abs(vp.x - pad.x) < 4.5 && Math.abs(vp.z - pad.z) < 4.5) target *= 1.35;
         v.speed += (target - v.speed) * Math.min(1, dt * (v.speed < target ? 1.1 : 3));
         v.heading += Math.max(-1, Math.min(1, diff * 2.5)) * v.spec.turn * dt * Math.min(1, v.speed / 6);
         vp.x += Math.sin(v.heading) * v.speed * dt; vp.z += Math.cos(v.heading) * v.speed * dt;
@@ -1561,8 +1581,9 @@ export class World {
       const order = [...r.cars].sort((a, b) => (a.done && b.done ? a.done - b.done : a.done ? -1 : b.done ? 1 : b.prog - a.prog));
       const me = r.cars[0], place = order.indexOf(me) + 1;
       const cd = Math.ceil(r.countdown - 1.2);
-      const title = r.countdown > 1.2 ? `On the grid... ${cd}` : r.countdown > 0 ? 'GO! GO! GO!' : r.over ? `Race over - P${me.done}` : `Lap ${Math.max(1, Math.min(r.laps, me.lap))} / ${r.laps} - P${place}`;
-      this.ev.onQuest({ status: r.over ? (me.done === 1 ? 'done' : 'failed') : 'active', title, desc: order.map((c, k) => `${k + 1}. ${c.name}`).join('   '), progress: `${r.laps} laps - FindurAI Speedway`, remaining: r.t0 ? t - r.t0 : 0, total: 600, reward: 250, hint: null });
+      const sector = ['Pit straight', 'Sunset sweeper', 'Neon chicane', 'Back straight', 'Palm hairpin'][Math.min(4, Math.floor((((me.idx + 6) % N) / N) * 5))];
+      const title = r.countdown > 1.2 ? `On the grid... ${cd}` : r.countdown > 0 ? 'GO! GO! GO!' : r.over ? `Race over - P${me.done}` : `Lap ${Math.max(1, Math.min(r.laps, me.lap))} / ${r.laps} - P${place} - ${sector}`;
+      this.ev.onQuest({ status: r.over ? (me.done === 1 ? 'done' : 'failed') : 'active', title, desc: order.map((c, k) => `${k + 1}. ${c.name}`).join('   '), progress: `${r.laps} laps - green pads = boost - Shift nitro`, remaining: r.t0 ? t - r.t0 : 0, total: 600, reward: 250, hint: null });
     }
   }
 

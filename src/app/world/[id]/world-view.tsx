@@ -100,6 +100,7 @@ export function WorldView({ id }: { id: string }) {
       hud.onMapToggle((open) => { stopBig?.(); stopBig = open ? world!.attachBigMap(hud.bigmap) : null; });
       hud.muted(world.sfx.muted);
       world.start();
+      if (process.env.NODE_ENV !== 'production') (window as unknown as { __findurai: unknown }).__findurai = world;   // dev console handle
       requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));   // first frame is on screen
       setTimeout(() => setReady(true), 2500);                                       // …or a background tab that never paints
       if (process.env.NODE_ENV === "development") (window as unknown as { __world: World }).__world = world;

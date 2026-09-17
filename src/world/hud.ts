@@ -211,7 +211,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       const t = document.createElement('div');
       t.className = 'toast';
       t.style.setProperty('--c', hex(item.color));
-      t.innerHTML = `${item.points < 0 ? '' : '+'}${item.points} <span>${item.name}</span>`;
+      t.innerHTML = `${item.points === 0 ? '' : `${item.points < 0 ? '' : '+'}${item.points} `}<span>${item.name}</span>`;
       if (item.points < 0) t.classList.add('bad');
       toasts.appendChild(t);
       setTimeout(() => t.remove(), 1600);

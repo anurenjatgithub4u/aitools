@@ -444,3 +444,12 @@ body.inmode .labels .place, body.inmode .labels .shop, body.inmode .labels .pill
 @media (max-height: 500px) {
   .hud .meet { left: auto; right: 90px; bottom: 70px; width: auto; max-width: 60%; }
 }
+
+/* ---- picker (overs, etc.) ---- */
+.hud .pick { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 8; pointer-events: auto; background: rgba(20, 40, 34, .94); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.15); border-radius: 18px; padding: 18px 18px 14px; width: min(92vw, 360px); text-align: center; box-shadow: 0 16px 40px rgba(0,0,0,.35); animation: meetin .18s ease; }
+.hud .pick b { display: block; font-size: 18px; margin-bottom: 4px; }
+.hud .pick small { display: block; font-size: 12px; opacity: .75; margin-bottom: 12px; }
+.hud .pick .popts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.hud .pick .popts button { font: inherit; font-size: 15px; font-weight: 600; padding: 12px 8px; border-radius: 12px; border: 0; background: rgba(255,255,255,.12); color: #fff; cursor: pointer; }
+.hud .pick .popts button:hover, .hud .pick .popts button:active { background: var(--gold); color: var(--ink); }
+.hud .pick .pcancel { margin-top: 10px; font: inherit; font-size: 12px; background: none; border: 0; color: rgba(255,255,255,.7); cursor: pointer; }

@@ -1,7 +1,7 @@
 {
   "name": "FindurAI — free 3D city game",
   "short_name": "FindurAI",
-  "description": "A free multiplayer 3D city in your browser: hang out with friends, drive, race, hunt cash and play chess, Ludo, carrom and pool together.",
+  "description": "A free multiplayer 3D city in your browser: hang out and date, drive, race the speedway, play football and cricket, survive zombie night, hunt cash and play chess, Ludo, carrom and pool together.",
   "start_url": "/world/city/",
   "display": "standalone",
   "orientation": "any",

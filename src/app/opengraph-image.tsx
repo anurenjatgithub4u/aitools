@@ -22,11 +22,11 @@ export default function OgImage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={{ fontSize: 76, fontWeight: 700, lineHeight: 1.05, maxWidth: 1000 }}>A whole city to explore. Free, in your browser.</div>
           <div style={{ fontSize: 32, maxWidth: 1000, opacity: 0.85 }}>
-            Drive tuk-tuks & bikes · race friends · hunt hidden cash · chess, Ludo, carrom & 8-ball · no download
+            Hang out & date · drive · 960 m speedway · football · cricket · zombie night · pool, chess, Ludo, carrom · no download
           </div>
         </div>
         <div style={{ display: "flex", gap: 14, fontSize: 26 }}>
-          {["🛺 Drive", "🏁 Race", "💰 Cash hunt", "♟️ Chess", "🎲 Ludo", "🎯 Carrom", "🎱 Pool"].map((t) => (
+          {["🛺 Drive", "🏁 Race", "⚽ Football", "🏏 Cricket", "🧟 Zombies", "💰 Cash hunt", "🎱 Pool", "♟️ Chess"].map((t) => (
             <div key={t} style={{ background: "rgba(23,51,43,.85)", color: "#fff", padding: "10px 20px", borderRadius: 999 }}>{t}</div>
           ))}
         </div>

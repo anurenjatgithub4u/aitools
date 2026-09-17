@@ -8,6 +8,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   return [
     { url: `${SITE}/`, lastModified: now, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE}/about/`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE}/games/`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE}/little-kerala/`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     ...DESTINATIONS.map((d) => ({ url: `${SITE}/world/${d.id}/`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.9 })),
   ];
 }

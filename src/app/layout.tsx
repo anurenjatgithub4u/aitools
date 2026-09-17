@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Playfair_Display } from "next/font/google";
 import "./globals.css";
-import { SITE, SITE_NAME, TAGLINE, DESCRIPTION } from "./seo";
+import { SITE, SITE_NAME, TAGLINE, DESCRIPTION, KEYWORDS } from "./seo";
 
 const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 const playfair = Playfair_Display({ subsets: ["latin"], display: "swap", weight: ["500", "600"], variable: "--font-playfair" });
@@ -11,12 +11,7 @@ export const metadata: Metadata = {
   title: { default: TAGLINE, template: `%s · ${SITE_NAME}` },
   description: DESCRIPTION,
   applicationName: SITE_NAME,
-  keywords: [
-    "free browser game", "3D open world game online", "no download game", "virtual city to hang out with friends", "metaverse in browser",
-    "hangout with friends online game", "multiplayer city game", "tuk-tuk driving game", "car racing game online", "chess online free",
-    "ludo online", "carrom online", "8 ball pool online", "treasure hunt game", "low poly game", "play in browser mobile game",
-    "FindurAI",
-  ],
+  keywords: KEYWORDS,
   authors: [{ name: SITE_NAME, url: SITE }],
   creator: SITE_NAME,
   publisher: SITE_NAME,
@@ -45,10 +40,31 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+// Structured data: the site, the game itself and what it is for. Helps the "free 3D city game" and
+// "games like Little Kerala" queries show a rich result.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "WebSite", "@id": `${SITE}/#website`, url: SITE, name: SITE_NAME, description: DESCRIPTION, inLanguage: "en-IN" },
+    {
+      "@type": "VideoGame", "@id": `${SITE}/#game`, name: "FindurAI City", url: SITE, description: DESCRIPTION,
+      applicationCategory: "GameApplication", operatingSystem: "Any (web browser)", gamePlatform: ["Web browser", "Android", "iOS", "Windows", "macOS"],
+      genre: ["Open world", "Social", "Racing", "Sports", "Survival"], playMode: ["MultiPlayer", "SinglePlayer"], numberOfPlayers: { "@type": "QuantitativeValue", minValue: 1 },
+      isAccessibleForFree: true, offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+      keywords: "free 3D city game, browser metaverse, virtual dating, hang out with friends, little kerala, kerala dhilber, kerala game, football, cricket, zombie survival, racing",
+      author: { "@type": "Organization", name: SITE_NAME, url: SITE }, image: `${SITE}/opengraph-image`,
+    },
+    { "@type": "Organization", "@id": `${SITE}/#org`, name: SITE_NAME, url: SITE, logo: `${SITE}/favicon.svg` },
+  ],
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      </body>
     </html>
   );
 }

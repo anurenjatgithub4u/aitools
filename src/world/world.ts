@@ -581,9 +581,21 @@ export class World {
   private vehicleFits(x: number, z: number, heading: number, length: number, width: number, y: number) {
     const fx = Math.sin(heading), fz = Math.cos(heading), rx = fz, rz = -fx;
     const L = length / 2 - 0.15, W = width / 2 - 0.05;
-    if (!this.walkable(x, z, y)) return false;
-    for (const [a, b] of [[L, W], [L, -W], [-L, W], [-L, -W]]) if (!this.walkable(x + fx * a + rx * b, z + fz * a + rz * b, y)) return false;
+    if (!this.walkable(x, z, y) || this.hitsVehicle(x, z)) return false;
+    for (const [a, b] of [[L, W], [L, -W], [-L, W], [-L, -W]]) { const cx = x + fx * a + rx * b, cz = z + fz * a + rz * b; if (!this.walkable(cx, cz, y) || this.hitsVehicle(cx, cz)) return false; }
     return true;
+  }
+
+  /** Is (x, z) inside the footprint of a parked vehicle or a bus? (The one you are driving does not count.) */
+  private hitsVehicle(x: number, z: number, margin = 0.45): { pos: THREE.Vector3; heading: number; speed: number; bus: boolean } | null {
+    const inside = (pos: THREE.Vector3, heading: number, length: number, width: number) => {
+      const dx = x - pos.x, dz = z - pos.z, fx = Math.sin(heading), fz = Math.cos(heading);
+      const along = dx * fx + dz * fz, across = dx * fz - dz * fx;
+      return Math.abs(along) < length / 2 + margin && Math.abs(across) < width / 2 + margin;
+    };
+    for (const v of this.vehicles) if (v !== this.driving && inside(v.group.position, v.heading, v.spec.length, v.spec.width)) return { pos: v.group.position, heading: v.heading, speed: v.speed, bus: false };
+    for (const r of this.roads) if (inside(r.t.group.position, r.t.group.rotation.y, r.t.length, 2.6)) return { pos: r.t.group.position, heading: r.t.group.rotation.y, speed: r.t.speed, bus: true };
+    return null;
   }
 
   /** Can something standing at height `y` move to (x, z)? */
@@ -874,6 +886,8 @@ export class World {
   private boostHeld = false;
   private lastDash = 0;
   private wasAirborne = false;
+  private knock: THREE.Vector3 | null = null;   // sent flying by a bus
+  private lastHit = -10;
   toggleDrive() { this.wantToggleDrive = true; }
   lift() { this.wantLift = true; }
   attachMinimap(canvas: HTMLCanvasElement) { this.minimap = { canvas, base: this.drawMinimapBase(canvas.width, false), ctx: canvas.getContext('2d')!, last: 0 }; }
@@ -1150,6 +1164,16 @@ export class World {
       const wedged = !this.vehicleFits(vp.x, vp.z, v.heading, s.length, s.width, vp.y);
       if ((wedged && Math.hypot(nx, nz) < WORLD_RADIUS && this.terrain.onLand(nx, nz)) || this.vehicleFits(nx, nz, v.heading, s.length, s.width, vp.y)) { vp.x = nx; vp.z = nz; }
       else { if (Math.abs(v.speed) > 4) this.sfx.bump(); v.speed *= -0.3; }
+      for (const r of this.roads) {   // a bus does not brake for you either
+        const bp = r.t.group.position, dx = vp.x - bp.x, dz = vp.z - bp.z, d = Math.hypot(dx, dz);
+        if (d < r.t.length / 2 + s.length / 2 && d > 0 && t - this.lastHit > 1.2) {
+          this.lastHit = t;
+          const push = (r.t.length / 2 + s.length / 2 - d) + 1.2, nx2 = vp.x + (dx / d) * push, nz2 = vp.z + (dz / d) * push;
+          if (this.vehicleFits(nx2, nz2, v.heading, s.length, s.width, vp.y)) { vp.x = nx2; vp.z = nz2; }
+          v.speed *= 0.4; this.sfx.thud(); this.ev.onHurt();
+          this.ev.onCollect({ name: 'Bus! That will leave a dent', points: 0, color: 0xd94a3d, shape: 'box' });
+        }
+      }
       this.settleVehicle(v);
       if (this.race && !this.race.over && this.trackDist(vp) > this.circuit!.width / 2 + 1.5) v.speed = Math.min(v.speed, s.maxSpeed * 0.4);   // on the grass
       this.runOverCheck(v, fx, fz);
@@ -1203,16 +1227,36 @@ export class World {
         const py = p.y - this.airY;
         // never get stuck: if we are already inside a wall (stepped onto something odd), any move out is allowed
         const free = !this.walkable(p.x, p.z, py) && Math.hypot(nx, nz) < WORLD_RADIUS && this.terrain.onLand(nx, nz);
-        if (free || this.walkable(nx, nz, py)) { p.x = nx; p.z = nz; }
-        else if (this.walkable(nx, p.z, py)) p.x = nx;        // slide along walls
-        else if (this.walkable(p.x, nz, py)) p.z = nz;
+        const ok = (ax: number, az: number) => this.walkable(ax, az, py) && !this.hitsVehicle(ax, az);
+        if (free || ok(nx, nz)) { p.x = nx; p.z = nz; }
+        else if (ok(nx, p.z)) p.x = nx;        // slide along walls
+        else if (ok(p.x, nz)) p.z = nz;
+        else if (this.hitsVehicle(nx, nz)) this.sfx.bump();
         this.player.group.rotation.y = Math.atan2(mx, mz);
         moving = Math.min(1, len) * (running ? 1.5 : 1);
         if (this.stick && !this.look && iz > 0.3) this.yaw += wrapAngle(Math.atan2(mx, mz) + Math.PI - this.yaw) * Math.min(1, dt * 1.2);
       }
       this.moveAmount = moving;
+      // --- run over by a bus: it does not stop for you
+      if (this.knock) {
+        p.x += this.knock.x * dt; p.z += this.knock.z * dt;
+        this.knock.multiplyScalar(Math.max(0, 1 - 2.5 * dt));
+        if (this.knock.length() < 0.6 && this.airY <= 0) this.knock = null;
+        this.player.group.rotation.y += dt * 9;   // tumbling
+      } else if (this.airY <= 0) {
+        const hit = this.hitsVehicle(p.x, p.z, 0.2);
+        if (hit && hit.bus && t - this.lastHit > 2.5) {
+          this.lastHit = t;
+          const fx = Math.sin(hit.heading), fz = Math.cos(hit.heading), side = Math.sign((p.x - hit.pos.x) * fz - (p.z - hit.pos.z) * fx) || 1;
+          this.knock = new THREE.Vector3(fx * 9 + fz * side * 5, 0, fz * 9 - fx * side * 5);
+          this.vy = 6.5; this.airY = 0.01;
+          this.points = Math.max(0, this.points - 20); this.ev.onPoints(this.points);
+          this.sfx.thud(); this.sfx.ouch(); this.ev.onHurt();
+          this.ev.onCollect({ name: 'Hit by the bus! Look both ways', points: -20, color: 0xd94a3d, shape: 'box' });
+        }
+      }
       // --- jump
-      if (this.wantJump && this.airY <= 0) { if (!(this.match && !this.match.over && this.shoot()) && !(this.cricket && this.swing()) && !(this.zombies && this.punch())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
+      if (this.wantJump && this.airY <= 0 && !this.knock) { if (!(this.match && !this.match.over && this.shoot()) && !(this.cricket && this.swing()) && !(this.zombies && this.punch())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
       this.wantJump = false;
       if (this.airY > 0 || this.vy > 0) {
         this.vy -= GRAVITY * dt;
@@ -1224,7 +1268,7 @@ export class World {
       const drop = p.y - this.airY - ground;
       if (drop > 0.05 && this.airY <= 0) this.airY = drop;   // walked off a ledge: fall
       p.y = ground + this.airY;
-      if (this.airY > 0) poseJump(this.player); else animateWalk(this.player, t, moving);
+      if (this.airY > 0 || this.knock) poseJump(this.player); else animateWalk(this.player, t, moving);
       if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
 
       focus = p.clone().add(new THREE.Vector3(0, 1.7, 0));

@@ -421,3 +421,26 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
 .hurtflash.on { opacity: 1; }
 
 .act.kick { background: rgba(232, 196, 106, .95); color: var(--ink); border-color: transparent; width: 72px; height: 72px; font-size: 26px; }
+
+/* ---- focus mode (football / cricket / race / zombie night): only what the game needs ---- */
+body.inmode .hud .top-left, body.inmode .hud .bottom-left, body.inmode .hints, body.inmode .hud #online, body.inmode .hud .bottom-right .chip { display: none !important; }
+body.inmode .hud .top-center .row .chip:not(.zombie.on) { display: none !important; }
+body.inmode .labels .place, body.inmode .labels .shop, body.inmode .labels .pill, body.inmode .labels .sign { display: none !important; }
+
+/* ---- phones: the meet card becomes a bottom sheet above the controls, action buttons stack in two columns ---- */
+@media (max-width: 720px) {
+  .hud .top-center { max-width: calc(100% - 128px); }
+  .hud .top-center .row { flex-wrap: wrap; }
+  .hud .actions { flex-wrap: wrap; width: 124px; justify-content: flex-end; }
+  .hud .meet { position: fixed; left: 10px; right: 10px; bottom: calc(232px + env(safe-area-inset-bottom)); max-width: none; width: auto; padding: 8px 8px 6px; z-index: 6; }
+  .hud .meet b { font-size: 13px; margin-bottom: 6px; }
+  .meet .mrow { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; max-width: none; gap: 6px; padding-bottom: 4px; scrollbar-width: none; }
+  .meet .mrow::-webkit-scrollbar { display: none; }
+  .meet .mrow.games { flex-wrap: nowrap; justify-content: flex-start; }
+  .meet button { flex: 0 0 auto; width: 58px; height: 52px; }
+  .hud .quest { width: 168px; top: 158px; }
+  body.inmode .hud .quest { top: 100px; }
+}
+@media (max-height: 500px) {
+  .hud .meet { left: auto; right: 90px; bottom: 70px; width: auto; max-width: 60%; }
+}

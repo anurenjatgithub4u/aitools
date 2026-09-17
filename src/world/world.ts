@@ -28,7 +28,7 @@ export interface WorldEvents {
   onFriends(n: number): void;
   onRank(rank: number, of: number): void;
   onHurt(): void;
-  onMode(action: { icon: string; label: string } | null): void;
+  onMode(action: { icon: string; label: string; button?: boolean } | null): void;
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
   onFriendRequest(req: { id: string; name: string } | null): void;
@@ -1252,7 +1252,7 @@ export class World {
         b.av.armR.rotation.x = -2.6 + Math.sin(t * 8) * 0.3;   // wave
         if (t >= b.reply.at) this.answerFriend(b);
       }
-      if (b.knocked) { this.updateKnocked(b, dt); b.label.visible = bp.distanceToSquared(focus) < this.labelRange * this.labelRange; continue; }
+      if (b.knocked) { this.updateKnocked(b, dt); b.label.visible = !this.inMode() && bp.distanceToSquared(focus) < this.labelRange * this.labelRange; continue; }
       if (b.wait > 0) { b.wait -= dt; b.walking = Math.max(0, b.walking - dt * 3); }
       else {
         const dx = b.target.x - bp.x, dz = b.target.z - bp.z;
@@ -1267,7 +1267,7 @@ export class World {
       }
       bp.y = this.groundAt(bp.x, bp.z, bp.y);
       animateWalk(b.av, t * (b.speed / 3), b.walking * 0.8);
-      b.label.visible = bp.distanceToSquared(focus) < this.labelRange * this.labelRange;
+      b.label.visible = !this.inMode() && bp.distanceToSquared(focus) < this.labelRange * this.labelRange;
     }
 
     // --- pickups
@@ -1743,7 +1743,8 @@ export class World {
     if (t - this.lastMatchHud > 0.25) {
       this.lastMatchHud = t;
       const mm = Math.floor(left / 60), ss = Math.floor(left % 60).toString().padStart(2, '0');
-      this.ev.onQuest({ status: 'active', title: `You ${m.score[0]} - ${m.score[1]} ${m.opp}'s team · ${mm}:${ss}`, desc: `Blue: ${this.playerName}, ${m.mates}\nRed: ${m.rivals}`, progress: 'Run into the ball to dribble · Space / Jump shoots (harder while running)', remaining: left, total: MATCH_SECONDS, reward: 300, hint: null });
+      this.ev.onQuest({ status: 'active', title: `⚽ You ${m.score[0]} - ${m.score[1]} ${m.opp}'s team`, desc: `Blue: ${this.playerName}, ${m.mates}
+Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 'Run into the ball to dribble · Space shoots (harder while running)', remaining: left, total: MATCH_SECONDS, reward: 300, hint: null, timeText: `${mm}:${ss}` });
     }
     if (left <= 0 || m.score[0] >= 5 || m.score[1] >= 5) {
       m.over = true; m.endAt = t + 3;
@@ -1765,6 +1766,9 @@ export class World {
 
   // ---------- cricket ----------
   kick() { this.wantKick = true; }
+
+  /** In a game, race or zombie night: the HUD and the world drop everything that is not the game. */
+  private inMode() { return !!(this.match || this.cricket || this.race || (this.zombies && !this.zombies.ending)); }
 
   private onStrip() {
     const o = this.oval; if (!o) return false;
@@ -2245,6 +2249,7 @@ export class World {
     this.yaw = heading + Math.PI;
     this.race = { cars, countdown: 4.2, laps: RACE_LAPS, finished: 0, over: false, t0: 0, endAt: 0, opp: opp?.name ?? 'the field' };
     this.raceLock = true;
+    this.ev.onMode({ icon: '', label: '', button: false });   // focus mode: fewer labels and chips
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
@@ -2310,6 +2315,7 @@ export class World {
   private endRace() {
     const r = this.race!;
     this.race = null; this.raceLock = false;
+    this.ev.onMode(null);
     for (const c of r.cars) {
       if (c.you) continue;
       if (c.bot) { c.car.group.remove(c.bot.av.group); this.scene.add(c.bot.av.group); const p = c.car.group.position; c.bot.av.group.position.set(p.x + 2, this.groundAt(p.x + 2, p.z, p.y), p.z); c.bot.av.group.rotation.set(0, c.car.heading, 0); c.bot.av.armL.rotation.x = c.bot.av.armR.rotation.x = 0; c.bot.riding = null; c.bot.wait = 2; c.bot.target = this.randomLandPoint(8, 120); }

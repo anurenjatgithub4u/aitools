@@ -19,7 +19,7 @@ export interface Hud {
   friends(n: number): void;
   rank(r: number, of: number): void;
   hurt(): void;
-  mode(action: { icon: string; label: string } | null): void;
+  mode(action: { icon: string; label: string; button?: boolean } | null): void;
   meet(m: { name: string; friend: boolean; real: boolean } | null): void;
   chat(from: string, text: string, mine: boolean): void;
   friendRequest(req: { id: string; name: string } | null): void;
@@ -234,7 +234,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       promptEl.hidden = !text;
       promptEl.textContent = text ?? '';
       promptEl.classList.toggle('driving', driving);
-      driveBtn.hidden = !text;
+      driveBtn.hidden = !text || document.body.classList.contains('inmode');   // Drive doubles as E; useless mid-game
       driveBtn.innerHTML = driving ? '🚶<small>Get out</small>' : '🚗<small>Drive</small>';
       jumpBtn.hidden = driving;
       runBtn.hidden = driving;
@@ -310,7 +310,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       }
     },
     rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
-    mode(a) { kickBtn.hidden = !a; if (a) kickBtn.innerHTML = `${a.icon}<small>${a.label}</small>`; },
+    mode(a) { kickBtn.hidden = !a || a.button === false; if (a && a.button !== false) kickBtn.innerHTML = `${a.icon}<small>${a.label}</small>`; document.body.classList.toggle('inmode', !!a); },
     hurt() { hurtEl.classList.add('on'); clearTimeout(hurtT); hurtT = window.setTimeout(() => hurtEl.classList.remove('on'), 180); },
     minimap: root.querySelector<HTMLCanvasElement>('#minimap')!,
     bigmap: root.querySelector<HTMLCanvasElement>('#bigmapcv')!,

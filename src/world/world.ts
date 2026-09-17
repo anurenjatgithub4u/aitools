@@ -71,7 +71,7 @@ interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel:
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
-interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean; blasts: { mesh: THREE.Mesh; t0: number }[] }
+interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean; blasts: { mesh: THREE.Mesh; t0: number }[]; nextSpawn: number }
 // Who they were before: office worker, chef, cop, patient, jogger, builder, bride, nurse, student, party girl…
 interface ZombieLook { style: AvatarStyle; prop?: 'tie' | 'chef' | 'gown' | 'hivis' | 'veil' | 'nursecap' | 'tiara' | 'apron' | 'party' | 'bandage' }
 const ZOMBIE_SKINS = [0x8fbf6a, 0x9ccc7a, 0x7fb060, 0xa6d38a, 0x8f9a8a, 0x9d8fb0, 0xb7c9a0, 0x7f8f6a];
@@ -1198,7 +1198,7 @@ export class World {
         const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
         const mx = fx * iz + rx * ix, mz = fz * iz + rz * ix;
         const running = this.runMode || k.has('shift');
-        const speed = running ? WALK_SPEED * 1.8 : WALK_SPEED;
+        const speed = running ? WALK_SPEED * (this.zombies && !this.zombies.ending ? 1.3 : 1.8) : WALK_SPEED;   // you cannot outrun the night for long
         const nx = p.x + mx * speed * dt, nz = p.z + mz * speed * dt;
         const py = p.y - this.airY;
         // never get stuck: if we are already inside a wall (stepped onto something odd), any move out is allowed
@@ -2082,7 +2082,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (this.zombies && !this.zombies.ending) { this.endZombies(false); return; }
     if (this.zombies) { this.applyNight(0); this.zombies = null; }   // still dawning: skip straight to day and start over
     if (this.race || this.match) return;
-    this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false, blasts: [] };
+    this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false, blasts: [], nextSpawn: 0 };
     this.clearQuest();
     this.questCooldown = 30;
     this.sfx.siren();
@@ -2106,13 +2106,28 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const n = Math.min(this.mobile ? 30 : 48, 6 + z.wave * 4);
     const pp = this.driving ? this.driving.group.position : this.player.group.position;
     const dirs = [0, 1, 2].map(() => Math.random() * Math.PI * 2);   // they come in packs from a few directions
+    let headless = 0;
     for (let i = 0; i < n; i++) {
       let x = pp.x, zz = pp.z;
       for (let k = 0; k < 12; k++) {
-        const a = dirs[i % dirs.length] + rand(-0.6, 0.6), r = rand(26, 46);
+        const a = dirs[i % dirs.length] + rand(-0.6, 0.6), r = rand(20, 40);
         const tx = pp.x + Math.cos(a) * r, tz = pp.z + Math.sin(a) * r;
         if (Math.hypot(tx, tz) < WORLD_RADIUS - 10 && this.terrain.onLand(tx, tz) && this.walkable(tx, tz)) { x = tx; zz = tz; break; }
       }
+      if (Math.hypot(x - pp.x, zz - pp.z) < 12) continue;   // nowhere free to put it
+      const kind = this.spawnZombie(x, zz, headless < 2 && Math.random() < 0.35);
+      if (kind === 'headless') headless++;
+    }
+    this.sfx.groan();
+    const special = (['brute', 'bloater', 'crawler', 'hopper', 'runner', 'headless'] as ZombieKind[]).map((k) => [k, z.list.filter((zb) => zb.kind === k && !zb.dying).length] as const).filter(([, c]) => c > 0).map(([k, c]) => `${c} ${k}${c > 1 ? 's' : ''}`);
+    this.ev.onCollect({ name: `Wave ${z.wave} · ${n} zombies${special.length ? ' · ' + special.join(', ') : ''}`, points: 0, color: 0x7a1f1f, shape: 'box' });
+  }
+
+  /** One zombie at (x, z). At most a couple per wave come without a head. */
+  private spawnZombie(x: number, zz: number, headlessOk: boolean): ZombieKind {
+    const z = this.zombies!;
+    const pp = this.driving ? this.driving.group.position : this.player.group.position;
+    {
       const look = ZOMBIE_LOOKS[Math.floor(Math.random() * ZOMBIE_LOOKS.length)], skin = ZOMBIE_SKINS[Math.floor(Math.random() * ZOMBIE_SKINS.length)];
       const av = makeAvatar({ ...look.style, shirt: dirty(look.style.shirt), pants: dirty(look.style.pants), skin });
       av.group.userData.skin = skin;
@@ -2120,7 +2135,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       av.group.rotation.y = Math.atan2(pp.x - x, pp.z - zz);
       // every one of them is wrong in its own way: lanky or squat, hunched, head lolling, glowing eyes, a dragging leg
       const roll = Math.random();
-      const kind: ZombieKind = z.wave >= 3 && roll < 0.08 ? 'brute' : z.wave >= 3 && roll < 0.2 ? 'bloater' : z.wave >= 2 && roll < 0.35 ? 'crawler' : z.wave >= 2 && roll < 0.47 ? 'hopper' : z.wave >= 2 && roll < 0.65 ? 'runner' : roll < 0.78 ? 'headless' : 'walker';
+      const kind: ZombieKind = z.wave >= 3 && roll < 0.08 ? 'brute' : z.wave >= 3 && roll < 0.2 ? 'bloater' : z.wave >= 2 && roll < 0.35 ? 'crawler' : z.wave >= 2 && roll < 0.47 ? 'hopper' : z.wave >= 2 && roll < 0.72 ? 'runner' : headlessOk ? 'headless' : 'walker';
       const runner = kind === 'runner';
       av.group.scale.set(rand(0.85, 1.15), runner ? rand(0.8, 0.95) : rand(0.9, 1.3), rand(0.85, 1.15));
       if (kind === 'brute') av.group.scale.set(1.6, 1.7, 1.6);
@@ -2141,12 +2156,10 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       this.scene.add(av.group);
       const baseHp = 2 + Math.floor(z.wave / 3);
       const hp = kind === 'brute' ? baseHp + 5 : kind === 'crawler' ? 1 : kind === 'bloater' ? baseHp + 1 : baseHp;
-      const speed = runner ? Math.min(8, 5 + z.wave * 0.3) : kind === 'brute' ? 1.9 : kind === 'crawler' ? Math.min(6.5, 3.4 + z.wave * 0.25) : kind === 'bloater' ? 1.8 : kind === 'hopper' ? 1.2 : Math.min(6, 2.2 + z.wave * 0.3 + Math.random() * 0.9);
-      z.list.push({ av, kind, hp, speed, dying: 0, hitAt: -1, groan: this.elapsed + Math.random() * 6, head, limp: kind === 'walker' && Math.random() < 0.5, tilt, sway: rand(0.6, 1.6), arms: kind === 'headless' ? 0 : Math.floor(Math.random() * 3), twitchAt: this.elapsed + rand(1, 4), runner, hop: null, hopAt: this.elapsed + rand(0.5, 2), belly });
+      const speed = runner ? Math.min(10, 6.5 + z.wave * 0.4) : kind === 'brute' ? 2.2 : kind === 'crawler' ? Math.min(7.5, 4 + z.wave * 0.3) : kind === 'bloater' ? 2 : kind === 'hopper' ? 1.6 : Math.min(7, 2.8 + z.wave * 0.35 + Math.random() * 1.2);
+      z.list.push({ av, kind, hp, speed, dying: 0, hitAt: -1, groan: this.elapsed + Math.random() * 6, head, limp: kind === 'walker' && Math.random() < 0.5, tilt, sway: rand(0.6, 1.6), arms: kind === 'headless' ? 0 : Math.floor(Math.random() * 3), twitchAt: this.elapsed + rand(1, 4), runner, hop: null, hopAt: this.elapsed + rand(0.5, 1.4), belly });
+      return kind;
     }
-    this.sfx.groan();
-    const special = (['brute', 'bloater', 'crawler', 'hopper', 'runner', 'headless'] as ZombieKind[]).map((k) => [k, z.list.filter((zb) => zb.kind === k && !zb.dying).length] as const).filter(([, c]) => c > 0).map(([k, c]) => `${c} ${k}${c > 1 ? 's' : ''}`);
-    this.ev.onCollect({ name: `Wave ${z.wave} · ${n} zombies${special.length ? ' · ' + special.join(', ') : ''}`, points: 0, color: 0x7a1f1f, shape: 'box' });
   }
 
   /** Space during zombie night: punch the nearest zombie in front of you. */
@@ -2196,6 +2209,15 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const driving = this.driving;
     const pp = driving ? driving.group.position : this.player.group.position;
     if (z.breather > 0) { z.breather -= dt; if (z.breather <= 0) this.spawnWave(); }
+    // no running away from it: while a wave is on, more keep appearing ahead of wherever you are heading
+    if (z.wave > 0 && z.breather <= 0 && t > z.nextSpawn && z.list.filter((zb) => !zb.dying).length < (this.mobile ? 34 : 56)) {
+      z.nextSpawn = t + 2.4;
+      const heading = driving ? driving.heading : this.player.group.rotation.y;
+      for (let k = 0; k < 2; k++) {
+        const a = heading + rand(-0.7, 0.7), r = rand(26, 38), tx = pp.x + Math.sin(a) * r, tz = pp.z + Math.cos(a) * r;
+        if (Math.hypot(tx, tz) < WORLD_RADIUS - 10 && this.terrain.onLand(tx, tz) && this.walkable(tx, tz)) this.spawnZombie(tx, tz, false);
+      }
+    }
     for (let i = z.blasts.length - 1; i >= 0; i--) { const b = z.blasts[i], u = (t - b.t0) / 0.6; if (u >= 1) { this.scene.remove(b.mesh); z.blasts.splice(i, 1); continue; } b.mesh.scale.setScalar(0.6 + u * 4); (b.mesh.material as THREE.MeshStandardMaterial).opacity = 0.7 * (1 - u); }
     let alive = 0;
     const close = z.list.filter((zb) => !zb.dying && zb.av.group.position.distanceTo(pp) < 1.6).length;   // a mob shares the bites
@@ -2214,7 +2236,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       if (driving && Math.abs(driving.speed) > 3.5 && d < driving.spec.length / 2 + 1.1) { this.killZombie(zb); this.sfx.bump(); continue; }
       if (zb.kind === 'hopper' && (zb.hop || (d > 1.35 && t > zb.hopAt))) {
         // hoppers crouch, then spring at you in long low leaps
-        if (!zb.hop) { const len = Math.min(7, d - 0.6); let tx = q.x + (dx / d) * len, tz = q.z + (dz / d) * len; if (!this.walkable(tx, tz, q.y)) { tx = q.x + (dx / d) * 1.5; tz = q.z + (dz / d) * 1.5; } zb.hop = { t0: t, fx: q.x, fz: q.z, tx, tz }; this.sfx.groan(); }
+        if (!zb.hop) { const len = Math.min(8.5, d - 0.6); let tx = q.x + (dx / d) * len, tz = q.z + (dz / d) * len; if (!this.walkable(tx, tz, q.y)) { tx = q.x + (dx / d) * 1.5; tz = q.z + (dz / d) * 1.5; } zb.hop = { t0: t, fx: q.x, fz: q.z, tx, tz }; this.sfx.groan(); }
         const u = Math.min(1, (t - zb.hop.t0) / 0.55);
         q.x = zb.hop.fx + (zb.hop.tx - zb.hop.fx) * u; q.z = zb.hop.fz + (zb.hop.tz - zb.hop.fz) * u;
         q.y = this.groundAt(q.x, q.z, q.y) + Math.sin(u * Math.PI) * 2.4;
@@ -2239,12 +2261,12 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       } else {
         if (zb.kind !== 'crawler') animateWalk(zb.av, t * 2, 0.3);
         // bite
-        if (!driving && t - zb.hitAt > 1.2) {
+        if ((!driving || Math.abs(driving.speed) < 4) && t - zb.hitAt > 1.2) {
           zb.hitAt = t;
-          z.hp -= (4 + Math.min(8, z.wave * 0.6)) * (zb.kind === 'brute' ? 2.4 : zb.kind === 'crawler' ? 0.7 : 1) * Math.min(1, 2.2 / Math.max(1, close));
+          z.hp -= (4 + Math.min(8, z.wave * 0.6)) * (zb.kind === 'brute' ? 2.4 : zb.kind === 'crawler' ? 0.7 : 1) * Math.min(1, 2.2 / Math.max(1, close)) * (driving ? 0.6 : 1);   // a stopped car is a tin can
           this.ev.onHurt(); this.sfx.ouch();
           const shove = zb.kind === 'brute' ? 2.5 : 0.7, kx = pp.x + (dx / d) * shove, kz = pp.z + (dz / d) * shove;   // shoved back a step (a brute sends you flying)
-          if (this.walkable(kx, kz, pp.y)) { pp.x = kx; pp.z = kz; }
+          if (!driving && this.walkable(kx, kz, pp.y)) { pp.x = kx; pp.z = kz; }
           if (z.hp <= 0) { this.endZombies(true); return; }
         }
       }

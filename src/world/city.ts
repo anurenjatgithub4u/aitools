@@ -247,26 +247,46 @@ export function buildCity(g: THREE.Group, h: H) {
 
   // ================= STADIUM + SKATE PARK (south) =================
   const stx = 70, stz = 200, sty = h(stx, stz);
-  g.add(at(mesh(new THREE.CylinderGeometry(30, 30, 9, 40, 1, true), 0xd9d4c8, { side: THREE.DoubleSide }), stx, sty + 4.5, stz));
-  const PW = 40, PD = 26, GOAL = 3.6;   // pitch size + half goal width; exported for the football match
-  g.add(at(cyl(27, 27, 0.4, 0x5fa64f, 40), stx, sty + 0.2, stz));
-  for (let i = 0; i < 8; i++) g.add(at(box(PW / 8, 0.06, PD, i % 2 ? 0x6fb35e : 0x67ab57), stx - PW / 2 + (i + 0.5) * (PW / 8), sty + 0.42, stz));   // mown stripes
+  const PW = 56, PD = 36, GOAL = 4.4;   // pitch size + half goal width; exported for the football match
+  // open cylinders must be seen from inside too, so they stay out of the bake (which is single-sided)
+  const shell = (radius: number, hgt: number, y: number, c: number) => { const m = at(mesh(new THREE.CylinderGeometry(radius, radius, hgt, 48, 1, true), c, { side: THREE.DoubleSide }), stx, y, stz); m.userData.animated = true; g.add(m); };
+  shell(40, 9, sty + 4.5, 0xd9d4c8);
+  for (let r = 0; r < 3; r++) shell(40 - r * 1.6, 0.9, sty + 6.5 - r * 1.3, r % 2 ? 0x2c3e6b : 0x3f8fd6);   // tiers of seats
+  g.add(at(cyl(37, 37, 0.4, 0x5fa64f, 48), stx, sty + 0.2, stz));
+  for (let i = 0; i < 10; i++) g.add(at(box(PW / 10, 0.06, PD, i % 2 ? 0x6fb35e : 0x67ab57), stx - PW / 2 + (i + 0.5) * (PW / 10), sty + 0.42, stz));   // mown stripes
   const line = (w: number, d: number, x: number, z: number) => g.add(at(box(w, 0.05, d, 0xffffff), stx + x, sty + 0.47, stz + z));
   line(PW, 0.25, 0, -PD / 2); line(PW, 0.25, 0, PD / 2); line(0.25, PD, -PW / 2, 0); line(0.25, PD, PW / 2, 0); line(0.25, PD, 0, 0);
-  for (const s of [-1, 1]) { line(0.25, 12, s * (PW / 2 - 6), 0); line(6, 0.25, s * (PW / 2 - 3), -6); line(6, 0.25, s * (PW / 2 - 3), 6); }
-  g.add(rot(at(mesh(new THREE.RingGeometry(4.2, 4.45, 32), 0xffffff, { side: THREE.DoubleSide }), stx, sty + 0.47, stz), 'x', -Math.PI / 2));
-  g.add(at(cyl(0.3, 0.3, 0.05, 0xffffff, 10), stx, sty + 0.47, stz));
-  for (const s of [-1, 1]) {   // goals: posts, crossbar, net (transparent, so it never blocks)
-    const gx = stx + s * PW / 2;
-    for (const dz of [-GOAL, GOAL]) g.add(at(cyl(0.12, 0.12, 2.6, 0xffffff, 8), gx, sty + 1.3, stz + dz));
-    g.add(at(box(0.24, 0.24, GOAL * 2 + 0.24, 0xffffff), gx, sty + 2.6, stz));
-    const net = mesh(new THREE.BoxGeometry(1.8, 2.5, GOAL * 2), 0xf4f4f4, { transparent: true, opacity: 0.35, side: THREE.DoubleSide });
-    g.add(at(net, gx + s * 1.0, sty + 1.3, stz));
+  for (const s of [-1, 1]) {
+    line(0.25, 21, s * (PW / 2 - 8.8), 0); line(8.8, 0.25, s * (PW / 2 - 4.4), -10.5); line(8.8, 0.25, s * (PW / 2 - 4.4), 10.5);   // penalty area
+    line(0.25, 9.7, s * (PW / 2 - 3), 0); line(3, 0.25, s * (PW / 2 - 1.5), -4.85); line(3, 0.25, s * (PW / 2 - 1.5), 4.85);         // goal area
+    g.add(at(cyl(0.25, 0.25, 0.05, 0xffffff, 10), stx + s * (PW / 2 - 5.9), sty + 0.47, stz));                                        // penalty spot
   }
-  g.userData.pitch = { x: stx, z: stz, w: PW, d: PD, goal: GOAL };
-  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + (i / 4) * Math.PI * 2, fx = stx + Math.cos(a) * 34, fz = stz + Math.sin(a) * 34; g.add(at(cyl(0.3, 0.4, 24, 0x888888, 8), fx, sty + 12, fz)); g.add(at(glow(4, 2.5, 0.4, 0xfff2a8), fx, sty + 24, fz)); }
+  g.add(rot(at(mesh(new THREE.RingGeometry(4.9, 5.15, 40), 0xffffff, { side: THREE.DoubleSide }), stx, sty + 0.47, stz), 'x', -Math.PI / 2));
+  g.add(at(cyl(0.3, 0.3, 0.05, 0xffffff, 10), stx, sty + 0.47, stz));
+  // goals: white frame with back stanchions and a real net (transparent, so it never blocks anyone)
+  const netTex = (() => {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const ctx = c.getContext('2d')!; ctx.clearRect(0, 0, 128, 128); ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2;
+    for (let i = 0; i <= 128; i += 16) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 128); ctx.moveTo(0, i); ctx.lineTo(128, i); ctx.stroke(); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+  })();
+  const netMat = (w: number, hgt: number) => { const m = new THREE.MeshStandardMaterial({ map: netTex.clone(), transparent: true, opacity: 0.85, alphaTest: 0.2, side: THREE.DoubleSide, roughness: 1 }); m.map!.repeat.set(w * 2, hgt * 2); m.map!.needsUpdate = true; return m; };
+  const GH = 2.8, GD = 2.2;
+  for (const s of [-1, 1]) {
+    const gx = stx + s * PW / 2;
+    for (const dz of [-GOAL, GOAL]) { g.add(at(cyl(0.14, 0.14, GH, 0xffffff, 10), gx, sty + GH / 2, stz + dz)); g.add(at(cyl(0.08, 0.08, 1.9, 0xdddddd, 8), gx + s * GD, sty + 0.95, stz + dz)); }
+    g.add(at(box(0.28, 0.28, GOAL * 2 + 0.28, 0xffffff), gx, sty + GH, stz));
+    g.add(at(box(0.16, 0.16, GOAL * 2 + 0.16, 0xdddddd), gx + s * GD, sty + 1.9, stz));
+    for (const dz of [-GOAL, GOAL]) { const b = box(0.1, 0.1, Math.hypot(GD, GH - 1.9) + 0.1, 0xdddddd); b.position.set(gx + s * GD / 2, sty + (GH + 1.9) / 2, stz + dz); b.rotation.y = Math.PI / 2; b.rotation.x = -s * Math.atan2(GH - 1.9, GD); g.add(b); }
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(GOAL * 2, 1.9), netMat(GOAL * 2, 1.9)); back.position.set(gx + s * GD, sty + 0.95, stz); back.rotation.y = Math.PI / 2; g.add(back);
+    const roof = new THREE.Mesh(new THREE.PlaneGeometry(Math.hypot(GD, GH - 1.9), GOAL * 2), netMat(GD, GOAL * 2)); roof.position.set(gx + s * GD / 2, sty + (GH + 1.9) / 2, stz); roof.rotation.set(-Math.PI / 2, 0, -s * Math.atan2(GH - 1.9, GD) - Math.PI / 2, 'YXZ'); g.add(roof);
+    for (const dz of [-GOAL, GOAL]) { const side = new THREE.Mesh(new THREE.PlaneGeometry(GD, GH), netMat(GD, GH)); side.position.set(gx + s * GD / 2, sty + GH / 2, stz + dz); g.add(side); }
+  }
+  g.userData.pitch = { x: stx, z: stz, w: PW, d: PD, goal: GOAL, goalH: GH };
+  for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + (i / 4) * Math.PI * 2, fx = stx + Math.cos(a) * 44, fz = stz + Math.sin(a) * 44; g.add(at(cyl(0.3, 0.4, 26, 0x888888, 8), fx, sty + 13, fz)); g.add(at(glow(4, 2.5, 0.4, 0xfff2a8), fx, sty + 26, fz)); }
+  for (const a of [0.3, 2.9]) { const ex = stx + Math.cos(a) * 40, ez = stz + Math.sin(a) * 40; g.add(rot(at(box(6, 4, 1.2, 0x333333), ex, sty + 2, ez), 'y', -a)); }   // entrance gates (open wall gaps are fine: the wall never blocks)
   place('City Stadium', stx, 14, stz);
-  keep(stx, stz, 36);
+  keep(stx, stz, 48);
   const skx = 120, skz = 120, sky = h(skx, skz);
   g.add(at(box(34, 0.3, 26, 0xb8b8b8), skx, sky + 0.15, skz));
   for (const dx of [-11, 11]) g.add(rot(at(box(8, 0.3, 8, 0x999999), skx + dx, sky + 1.6, skz), 'z', dx < 0 ? -0.4 : 0.4));   // ramps

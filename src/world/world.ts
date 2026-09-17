@@ -57,8 +57,10 @@ interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 // An in-world circuit race on the FindurAI Speedway: your car plus three AI cars, three laps.
 interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean }
 // Football at City Stadium: you + a team-mate against two rivals, one ball, two goals, 90 seconds.
-interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; kicked: number }
-interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mate: string; rivals: string; started: number }
+interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; slot: [number, number]; gk: boolean; kicked: number; bib: THREE.Mesh }
+interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mates: string; rivals: string; started: number; lastKick: Footballer | null }
+// formation slots relative to the centre spot for the side attacking +x (mirrored for the other side): captain, keeper, two backs, a winger
+const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
 const MATCH_SECONDS = 90;
 interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string }
 const RACE_LAPS = 3;
@@ -105,7 +107,7 @@ export class World {
   private circuit: { pts: THREE.Vector3[]; width: number; pads: { x: number; z: number; ang: number; cool: number }[] } | null = null;
   private padBurst = 0;   // seconds of boost-pad speed left
   private race: RaceState | null = null;
-  private field: { x: number; z: number; w: number; d: number; goal: number } | null = null;
+  private field: { x: number; z: number; w: number; d: number; goal: number; goalH: number } | null = null;
   private match: MatchState | null = null;
   private lastMatchHud = 0;
   private raceLock = false;
@@ -415,7 +417,7 @@ export class World {
     landmark.traverse((o) => { if (o instanceof CSS2DObject) this.worldLabels.push(o); });
     this.placePetrolStation(landmark);
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
-    if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number }; this.field = { ...p }; }
+    if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number; goalH: number }; this.field = { ...p }; }
     if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
     this.collectBlockers(landmark);
     bakeStatic(landmark);   // collision is captured above, so the visuals can be merged into a few draw calls
@@ -1121,9 +1123,9 @@ export class World {
         else if (this.walkable(p.x, nz, py)) p.z = nz;
         this.player.group.rotation.y = Math.atan2(mx, mz);
         moving = Math.min(1, len) * (running ? 1.5 : 1);
-        this.moveAmount = moving;
         if (this.stick && !this.look && iz > 0.3) this.yaw += wrapAngle(Math.atan2(mx, mz) + Math.PI - this.yaw) * Math.min(1, dt * 1.2);
       }
+      this.moveAmount = moving;
       // --- jump
       if (this.wantJump && this.airY <= 0) { if (!(this.match && !this.match.over && this.shoot())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
       this.wantJump = false;
@@ -1514,41 +1516,42 @@ export class World {
     return Math.abs(q.x - p.x) < p.w / 2 + 3 && Math.abs(q.z - p.z) < p.d / 2 + 3;
   }
 
-  /** Kick off 2-v-2 football at City Stadium; `opp` (if given) captains the other side. */
+  /** Kick off five-a-side football at City Stadium; `opp` (if given) captains the other side. */
   startFootball(opp?: Bot) {
     const pt = this.field;
     if (!pt || this.match || this.race) return;
     if (this.driving) this.exitVehicle();
     const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && !x.playing && x !== opp && this.hangout?.bot !== x);
-    const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
-    const rival2 = pool.shift(), mate = pool.shift();
-    if (!rival || !rival2 || !mate) return;
+    if (opp && !opp.remote && !opp.riding && !opp.knocked) pool.unshift(opp);
+    const n = Math.min(5, Math.floor((pool.length + 1) / 2));   // players per side, you included
+    if (n < 2) { this.ev.onCollect({ name: 'Not enough people around for a match', points: 0, color: 0x999999, shape: 'box' }); return; }
+    const rivals = pool.slice(0, n), mates = pool.slice(n, 2 * n - 1);
     const y = this.terrain.h(pt.x, pt.z);
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 14, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222, roughness: 0.6 }));
     for (let i = 0; i < 6; i++) { const patch = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 4), new THREE.MeshStandardMaterial({ color: 0x111111 })); const a = i * 1.05, b = (i % 2 ? 0.7 : -0.7); patch.position.set(Math.cos(a) * Math.cos(b) * 0.4, Math.sin(b) * 0.4, Math.sin(a) * Math.cos(b) * 0.4); ball.add(patch); }
-    ball.position.set(pt.x, y + 0.45, pt.z);
+    ball.castShadow = true;
     this.scene.add(ball);
-    const side: Footballer[] = [
-      { bot: null, team: 0, home: new THREE.Vector3(pt.x - 5, y, pt.z), kicked: 0 },
-      { bot: mate, team: 0, home: new THREE.Vector3(pt.x - 9, y, pt.z + 7), kicked: 0 },
-      { bot: rival, team: 1, home: new THREE.Vector3(pt.x + 5, y, pt.z - 2), kicked: 0 },
-      { bot: rival2, team: 1, home: new THREE.Vector3(pt.x + 10, y, pt.z + 6), kicked: 0 },
-    ];
+    const bib = (team: 0 | 1, av: Avatar) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.62, 0.56), new THREE.MeshStandardMaterial({ color: team === 0 ? 0x3f8fd6 : 0xd94a3d, transparent: true, opacity: 0.6, roughness: 0.9 })); m.position.set(0, 0.45, 0); av.body.add(m); return m; };
+    const mk = (bot: Bot | null, team: 0 | 1, i: number): Footballer => {
+      const [sx, sz] = FORMATION[i], x = team === 0 ? sx : -sx;
+      return { bot, team, home: new THREE.Vector3(pt.x + x, y, pt.z + sz), slot: [x, sz], gk: i === 1, kicked: -1, bib: bib(team, bot ? bot.av : this.player) };
+    };
+    const side: Footballer[] = [mk(null, 0, 0), ...mates.map((b, i) => mk(b, 0, i + 1)), ...rivals.map((b, i) => mk(b, 1, i))];
     for (const f of side) if (f.bot) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; f.bot.label.visible = true; }
     if (this.hangout) this.endHangout();
-    this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rival.name, mate: mate.name, rivals: `${rival.name} & ${rival2.name}`, started: this.elapsed };
+    this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rivals[0].name, mates: mates.map((b) => b.name).join(', '), rivals: rivals.map((b) => b.name).join(', '), started: this.elapsed, lastKick: null };
     this.resetKickoff();
     this.yaw = -Math.PI / 2;   // look down the pitch toward the goal you attack (+x)
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
-    this.ev.onCollect({ name: `Kick-off! You & ${mate.name} vs ${rival.name} & ${rival2.name}`, points: 0, color: 0x2fa66a, shape: 'gem' });
-    this.botSays(mate, "I'm with you — pass it! ⚽", 1.2);
+    this.ev.onCollect({ name: `Kick-off! ${n}-a-side vs ${rivals[0].name}'s team`, points: 0, color: 0x2fa66a, shape: 'gem' });
+    this.botSays(mates[0], "Blue bibs are with you — pass it! ⚽", 1.2);
   }
 
   private resetKickoff() {
     const m = this.match!, pt = this.field!;
-    m.ball.position.set(pt.x, this.terrain.h(pt.x, pt.z) + 0.45, pt.z); m.vel.set(0, 0, 0);
+    m.ball.position.set(pt.x, this.terrain.h(pt.x, pt.z) + 0.45, pt.z); m.vel.set(0, 0, 0); m.lastKick = null;
     for (const f of m.side) {
       const g = f.bot ? f.bot.av.group : this.player.group;
       g.position.set(f.home.x, this.groundAt(f.home.x, f.home.z, f.home.y), f.home.z);
@@ -1557,13 +1560,22 @@ export class World {
     this.airY = 0; this.vy = 0;
   }
 
-  /** Space during a match: boot the ball if it is within reach. */
+  /** Space during a match: shoot if the ball is within reach. Aim-assisted toward the goal, harder while running. */
   private shoot(): boolean {
-    const m = this.match!, p = this.player.group.position, b = m.ball.position;
-    if (Math.hypot(b.x - p.x, b.z - p.z) > 2.3) return false;
-    const ry = this.player.group.rotation.y, dx = Math.sin(ry), dz = Math.cos(ry);
-    m.vel.set(dx * 21, 5.5, dz * 21);
-    m.side[0].kicked = this.elapsed;
+    const m = this.match!, pt = this.field!, p = this.player.group.position, b = m.ball.position;
+    if (Math.hypot(b.x - p.x, b.z - p.z) > 2.4) return false;
+    const ry = this.player.group.rotation.y;
+    let dx = Math.sin(ry), dz = Math.cos(ry);
+    const gx = pt.x + pt.w / 2, gzc = pt.z, gdx = gx - b.x, gdz = gzc - b.z, gd = Math.hypot(gdx, gdz);
+    if (gd < 30 && dx * gdx / gd + dz * gdz / gd > 0.75) {   // facing roughly at the goal: nudge the shot toward it
+      const az = gzc + (Math.random() - 0.5) * pt.goal * 1.2 - b.z, al = Math.hypot(gdx, az);
+      dx = dx * 0.45 + (gdx / al) * 0.55; dz = dz * 0.45 + (az / al) * 0.55;
+      const l = Math.hypot(dx, dz); dx /= l; dz /= l;
+    }
+    const running = this.runMode || this.keys.has('shift');
+    const power = running ? 24 : 19;
+    m.vel.set(dx * power, gd < 14 ? 4 : 5.5, dz * power);
+    m.side[0].kicked = this.elapsed; m.lastKick = m.side[0];
     this.sfx.bump();
     return true;
   }
@@ -1572,12 +1584,13 @@ export class World {
     const m = this.match!, pt = this.field!, ball = m.ball.position, v = m.vel, R = 0.45;
     if (m.over) { if (t > m.endAt) this.endFootball(); return; }
     const pp = this.driving ? this.driving.group.position : this.player.group.position;
-    if (Math.hypot(pp.x - pt.x, pp.z - pt.z) > 42 || this.driving) {   // wandered off (or drove off): match abandoned
+    if (Math.hypot(pp.x - pt.x, pp.z - pt.z) > 50 || this.driving) {   // wandered off (or drove off): match abandoned
       this.ev.onCollect({ name: 'You left the pitch — match abandoned', points: 0, color: 0x999999, shape: 'box' });
       this.endFootball(); return;
     }
     if (m.pause > 0) m.pause -= dt;
     const live = m.pause <= 0;
+    const hw = pt.w / 2, hd = pt.d / 2;
 
     // --- ball physics: gravity, bounce, rolling friction, walls, goals
     v.y -= GRAVITY * 0.7 * dt;
@@ -1585,73 +1598,92 @@ export class World {
     const gy = this.terrain.h(ball.x, ball.z) + R;
     if (ball.y < gy) { ball.y = gy; v.y = Math.abs(v.y) < 1.5 ? 0 : -v.y * 0.45; }
     const onGround = ball.y <= gy + 0.02;
-    const fr = onGround ? 0.9 : 0.15;
+    const fr = onGround ? 0.8 : 0.12;
     v.x -= v.x * Math.min(1, fr * dt); v.z -= v.z * Math.min(1, fr * dt);
-    const hw = pt.w / 2, hd = pt.d / 2;
     if (Math.abs(ball.z - pt.z) > hd - R) { ball.z = pt.z + Math.sign(ball.z - pt.z) * (hd - R); v.z *= -0.55; }
     if (Math.abs(ball.x - pt.x) > hw - R) {
-      const inGoal = Math.abs(ball.z - pt.z) < pt.goal && ball.y < gy + 2.2;
+      const inGoal = Math.abs(ball.z - pt.z) < pt.goal && ball.y < gy - R + pt.goalH;
       if (inGoal && live) {
         const scorer: 0 | 1 = ball.x > pt.x ? 0 : 1;   // the +x goal belongs to the rivals
         m.score[scorer]++;
-        m.pause = 2.6;
+        m.pause = 2.8;
         this.sfx.questDone();
-        this.ev.onCollect({ name: scorer === 0 ? `GOAL! You ${m.score[0]} - ${m.score[1]}` : `${m.opp}'s side scores · ${m.score[0]} - ${m.score[1]}`, points: scorer === 0 ? 50 : 0, color: scorer === 0 ? 0x2fa66a : 0xd94a3d, shape: 'gem' });
+        const own = m.lastKick && m.lastKick.team !== scorer;
+        const who = m.lastKick ? (m.lastKick.bot ? m.lastKick.bot.name : 'You') : '';
+        this.ev.onCollect({ name: scorer === 0 ? `GOAL! ${own ? `${who} (own goal)` : who} · You ${m.score[0]} - ${m.score[1]}` : `${who} scores${own ? ' (own goal)' : ''} · ${m.score[0]} - ${m.score[1]}`, points: scorer === 0 ? 50 : 0, color: scorer === 0 ? 0x2fa66a : 0xd94a3d, shape: 'gem' });
         if (scorer === 0) { this.points += 50; this.ev.onPoints(this.points); }
-        const talker = m.side[scorer === 0 ? 1 : 2].bot; if (talker) this.botSays(talker, scorer === 0 ? 'What a strike! ⚽🔥' : 'Get in! 😎', 0.6);
-        setTimeout(() => { if (this.match === m && !m.over) this.resetKickoff(); }, 2200);
-        ball.x = pt.x + Math.sign(ball.x - pt.x) * (hw + 0.6); v.set(0, 0, 0);
+        const talker = m.side.find((f) => f.bot && f.team === scorer && !f.gk)?.bot; if (talker) this.botSays(talker, scorer === 0 ? 'What a strike! ⚽🔥' : 'Get in! 😎', 0.6);
+        setTimeout(() => { if (this.match === m && !m.over) this.resetKickoff(); }, 2400);
+        ball.x = pt.x + Math.sign(ball.x - pt.x) * (hw + 1.2); v.set(0, 0, 0);
       } else if (!inGoal) { ball.x = pt.x + Math.sign(ball.x - pt.x) * (hw - R); v.x *= -0.55; }
     }
     m.ball.rotation.x += v.z * dt / R; m.ball.rotation.z -= v.x * dt / R;
 
-    // --- dribbling: anyone running into the ball nudges it along their facing
-    const touch = (g: THREE.Object3D, speed: number, who: Footballer) => {
+    // --- close control: the ball sticks to the feet of whoever is dribbling; fast balls bounce off bodies
+    const control = (g: THREE.Object3D, speed: number, who: Footballer, moving: boolean) => {
       const d = Math.hypot(ball.x - g.position.x, ball.z - g.position.z);
-      if (d > 1.15 || ball.y > gy + 1.2 || t - who.kicked < 0.25) return;
+      if (d > 1.7 || ball.y > gy + 1.0 || t - who.kicked < 0.35) return;
       const dx = Math.sin(g.rotation.y), dz = Math.cos(g.rotation.y);
-      const push = Math.max(speed * 1.25, 4);
-      v.x = dx * push; v.z = dz * push; v.y = Math.max(v.y, 0.8);
-      ball.x = g.position.x + dx * 1.2; ball.z = g.position.z + dz * 1.2;
-      who.kicked = t - 0.1;
+      if (moving) {
+        // keep the ball a stride ahead, matching pace
+        const tx = g.position.x + dx * 1.15, tz = g.position.z + dz * 1.15;
+        v.x = (tx - ball.x) * 9 + dx * speed; v.z = (tz - ball.z) * 9 + dz * speed;
+        const cap = speed * 1.6 + 2, sp = Math.hypot(v.x, v.z); if (sp > cap) { v.x *= cap / sp; v.z *= cap / sp; }
+        v.y = Math.min(v.y, 0);
+      } else if (m.lastKick === who || d < 1.0) { const sp = Math.hypot(v.x, v.z); if (sp > 3) { v.x *= 3 / sp; v.z *= 3 / sp; } v.x *= Math.max(0, 1 - 8 * dt); v.z *= Math.max(0, 1 - 8 * dt); }   // trap it at the feet
+      m.lastKick = who;
     };
-    if (live) touch(this.player.group, this.moveAmount > 1 ? WALK_SPEED * 1.8 : this.moveAmount > 0 ? WALK_SPEED : 0, m.side[0]);
+    const block = (g: THREE.Object3D, who: Footballer) => {
+      const dx = ball.x - g.position.x, dz = ball.z - g.position.z, d = Math.hypot(dx, dz), sp = Math.hypot(v.x, v.z);
+      if (d > 0.75 || d === 0 || sp < 7 || ball.y > gy + 1.5 || m.lastKick === who) return;
+      const nx = dx / d, nz = dz / d, dot = v.x * nx + v.z * nz;
+      if (dot < 0) { v.x -= 1.5 * dot * nx; v.z -= 1.5 * dot * nz; v.x *= 0.5; v.z *= 0.5; m.lastKick = who; this.sfx.bump(); }
+    };
+    const me = m.side[0];
+    if (live) { block(this.player.group, me); control(this.player.group, this.moveAmount > 1 ? WALK_SPEED * 1.8 : WALK_SPEED, me, this.moveAmount > 0); }
 
-    // --- AI: nearest team-mate to the ball chases it, the other holds a support spot; kick toward the goal they attack
+    // --- AI: keeper holds the line, the closest outfielder chases, the rest keep their formation shape around the ball
     for (const team of [0, 1] as const) {
-      const goalX = pt.x + (team === 0 ? hw : -hw);
+      const goalX = pt.x + (team === 0 ? hw : -hw), ownGoalX = pt.x - (team === 0 ? hw : -hw);
       const fs = m.side.filter((f) => f.team === team && f.bot);
       const dist = (f: Footballer) => f.bot!.av.group.position.distanceTo(ball);
-      const chaser = fs.reduce((a, b) => (dist(a) < dist(b) ? a : b));
+      const out = fs.filter((f) => !f.gk);
+      const chaser = out.length ? out.reduce((a, b) => (dist(a) < dist(b) ? a : b)) : null;
       for (const f of fs) {
         const b = f.bot!, bp = b.av.group.position;
         let tx: number, tz: number;
-        const ownGoalX = pt.x - (team === 0 ? hw : -hw);
-        if (f === chaser && live) { tx = ball.x - Math.sign(goalX - ball.x) * 0.8; tz = ball.z; }
-        else if (live) { tx = ownGoalX + (team === 0 ? 3.5 : -3.5); tz = pt.z + Math.max(-pt.goal - 1, Math.min(pt.goal + 1, ball.z - pt.z)); }   // keeper: hold the line
-        else { tx = f.home.x; tz = f.home.z; }
+        if (!live) { tx = f.home.x; tz = f.home.z; }
+        else if (f.gk) { tx = ownGoalX + (team === 0 ? 2.5 : -2.5); tz = pt.z + Math.max(-pt.goal - 0.5, Math.min(pt.goal + 0.5, (ball.z - pt.z) * 0.8)); }
+        else if (f === chaser) { tx = ball.x - Math.sign(goalX - ball.x) * 0.9; tz = ball.z; }
+        else { tx = pt.x + f.slot[0] + (ball.x - pt.x) * 0.45; tz = pt.z + f.slot[1] + (ball.z - pt.z) * 0.35; }
         tx = Math.max(pt.x - hw + 1, Math.min(pt.x + hw - 1, tx)); tz = Math.max(pt.z - hd + 1, Math.min(pt.z + hd - 1, tz));
         const dx = tx - bp.x, dz = tz - bp.z, d = Math.hypot(dx, dz);
-        const speed = f === chaser ? (team === 1 ? 7.2 : 6.6) : 5.5;
-        if (d > 0.4) { const s = Math.min(d, speed * dt); bp.x += (dx / d) * s; bp.z += (dz / d) * s; b.av.group.rotation.y += wrapAngle(Math.atan2(dx, dz) - b.av.group.rotation.y) * Math.min(1, dt * 8); b.walking = Math.min(1, b.walking + dt * 4); }
+        const speed = f === chaser ? (team === 1 ? 7.4 : 6.8) : f.gk ? 6 : 5.5;
+        if (d > 0.4) { const sd = Math.min(d, speed * dt); bp.x += (dx / d) * sd; bp.z += (dz / d) * sd; b.av.group.rotation.y += wrapAngle(Math.atan2(dx, dz) - b.av.group.rotation.y) * Math.min(1, dt * 8); b.walking = Math.min(1, b.walking + dt * 4); }
         else b.walking = Math.max(0, b.walking - dt * 4);
+        // spread out: never stand inside a team-mate
+        for (const o of fs) { if (o === f) continue; const op = o.bot!.av.group.position, ox = bp.x - op.x, oz = bp.z - op.z, od = Math.hypot(ox, oz); if (od < 1.6 && od > 0) { bp.x += (ox / od) * (1.6 - od) * 0.5; bp.z += (oz / od) * (1.6 - od) * 0.5; } }
         bp.y = this.groundAt(bp.x, bp.z, bp.y);
         animateWalk(b.av, t * 2.2, b.walking);
         b.label.visible = true;
         if (!live) continue;
-        // shoot when the ball is at their feet (a little inaccurate on purpose)
+        block(b.av.group, f);
         const bd = Math.hypot(ball.x - bp.x, ball.z - bp.z);
         if (bd < 1.3 && t - f.kicked > 0.7) {
           const toGoal = Math.abs(goalX - ball.x);
-          const keeper = f !== chaser;
-          // keeper: hoof it clear up the pitch; striker: shoot inside ~15 m (a little wild), otherwise push it forward
-          const ax = goalX - ball.x, az = keeper ? (Math.random() - 0.5) * 20 : toGoal < 15 ? pt.z + (Math.random() - 0.5) * pt.goal * 3.2 - ball.z : (Math.random() - 0.5) * 6, al = Math.hypot(ax, az);
-          const power = keeper ? 15 : toGoal < 15 ? 16 : 7.5;
-          v.set((ax / al) * power, keeper || toGoal < 15 ? 3.5 : 1, (az / al) * power);
-          f.kicked = t;
+          const dir = team === 0 ? 1 : -1;
+          let ax: number, az: number, power: number, lift: number;
+          const open = out.filter((o) => o !== f && (o.bot!.av.group.position.x - ball.x) * dir > 4 && o.bot!.av.group.position.distanceTo(ball) < 22);
+          if (f.gk) { ax = goalX - ball.x; az = (Math.random() - 0.5) * 24; power = 16; lift = 4; }                                                   // keeper: hoof it clear
+          else if (toGoal < 16) { ax = goalX - ball.x; az = pt.z + (Math.random() - 0.5) * pt.goal * 3 - ball.z; power = 17; lift = 3.5; }              // strike (a little wild)
+          else if (open.length && Math.random() < 0.7) { const o = open[Math.floor(Math.random() * open.length)].bot!.av.group.position; ax = o.x + dir * 2 - ball.x; az = o.z - ball.z; power = Math.max(8, Math.min(15, Math.hypot(ax, az) * 0.8)); lift = 1.5; }   // pass
+          else { ax = goalX - ball.x; az = (Math.random() - 0.5) * 8; power = 7.5; lift = 0.8; }                                                     // push it on
+          const al = Math.hypot(ax, az);
+          v.set((ax / al) * power, lift, (az / al) * power);
+          f.kicked = t; m.lastKick = f;
           this.sfx.bump();
-          if (Math.random() < 0.12) this.botSays(b, keeper ? 'Cleared! 🧤' : team === 0 ? 'Yours! 🙌' : 'Coming through! 💨', 0);
-        } else touch(b.av.group, speed, f);
+          if (Math.random() < 0.1) this.botSays(b, f.gk ? 'Cleared! 🧤' : team === 0 ? 'Yours! 🙌' : 'Coming through! 💨', 0);
+        } else if (f === chaser) control(b.av.group, speed, f, d > 0.4);
       }
     }
 
@@ -1660,12 +1692,12 @@ export class World {
     if (t - this.lastMatchHud > 0.25) {
       this.lastMatchHud = t;
       const mm = Math.floor(left / 60), ss = Math.floor(left % 60).toString().padStart(2, '0');
-      this.ev.onQuest({ status: 'active', title: `You ${m.score[0]} - ${m.score[1]} ${m.rivals} · ${mm}:${ss}`, desc: `${this.playerName} & ${m.mate} vs ${m.rivals} · City Stadium`, progress: 'Run into the ball to dribble · Space / Jump shoots', remaining: left, total: MATCH_SECONDS, reward: 300, hint: null });
+      this.ev.onQuest({ status: 'active', title: `You ${m.score[0]} - ${m.score[1]} ${m.opp}'s team · ${mm}:${ss}`, desc: `Blue: ${this.playerName}, ${m.mates}\nRed: ${m.rivals}`, progress: 'Run into the ball to dribble · Space / Jump shoots (harder while running)', remaining: left, total: MATCH_SECONDS, reward: 300, hint: null });
     }
     if (left <= 0 || m.score[0] >= 5 || m.score[1] >= 5) {
       m.over = true; m.endAt = t + 3;
       const win = m.score[0] === m.score[1] ? null : m.score[0] > m.score[1];
-      this.ev.onQuest({ status: win === false ? 'failed' : 'done', title: `Full time · ${m.score[0]} - ${m.score[1]}`, desc: win === null ? 'A draw — rematch?' : win ? 'You win the match!' : `${m.rivals} take it`, progress: '', remaining: 0, total: MATCH_SECONDS, reward: 300, hint: null });
+      this.ev.onQuest({ status: win === false ? 'failed' : 'done', title: `Full time · ${m.score[0]} - ${m.score[1]}`, desc: win === null ? 'A draw — rematch?' : win ? 'You win the match!' : `${m.opp}'s team take it`, progress: '', remaining: 0, total: MATCH_SECONDS, reward: 300, hint: null });
       this.gameResult('football', win, m.opp);
     }
   }
@@ -1674,7 +1706,7 @@ export class World {
     const m = this.match; if (!m) return;
     this.match = null;
     this.scene.remove(m.ball);
-    for (const f of m.side) if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.randomLandPoint(8, 120); f.bot.speed = rand(1.8, 3.4); }
+    for (const f of m.side) { f.bib.removeFromParent(); if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.randomLandPoint(8, 120); f.bot.speed = rand(1.8, 3.4); } }
     this.ev.onQuest(null);
     this.questCooldown = 10;
   }

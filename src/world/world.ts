@@ -33,7 +33,7 @@ export interface WorldEvents {
   onNet(status: 'connecting' | 'online' | 'offline', kind: 'ws' | 'local'): void;
   onGame(kind: GameKind, opponent: string): void;
 }
-export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race';
+export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football';
 export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | GameKind;
 
 const BOT_NAMES = [
@@ -56,10 +56,14 @@ interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 
 // An in-world circuit race on the FindurAI Speedway: your car plus three AI cars, three laps.
 interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean }
+// Football at City Stadium: you + a team-mate against two rivals, one ball, two goals, 90 seconds.
+interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; kicked: number }
+interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mate: string; rivals: string; started: number }
+const MATCH_SECONDS = 90;
 interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string }
 const RACE_LAPS = 3;
 
-interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
+interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; playing?: boolean; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
 // A real player elsewhere on the network: we get their state a few times a second and glide between updates.
 interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null }
 const NET_RATE = 1 / 8;
@@ -101,6 +105,9 @@ export class World {
   private circuit: { pts: THREE.Vector3[]; width: number; pads: { x: number; z: number; ang: number; cool: number }[] } | null = null;
   private padBurst = 0;   // seconds of boost-pad speed left
   private race: RaceState | null = null;
+  private field: { x: number; z: number; w: number; d: number; goal: number } | null = null;
+  private match: MatchState | null = null;
+  private lastMatchHud = 0;
   private raceLock = false;
   private lastRaceHud = 0;
   private meet: Bot | null = null;
@@ -408,6 +415,7 @@ export class World {
     landmark.traverse((o) => { if (o instanceof CSS2DObject) this.worldLabels.push(o); });
     this.placePetrolStation(landmark);
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
+    if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number }; this.field = { ...p }; }
     if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
     this.collectBlockers(landmark);
     bakeStatic(landmark);   // collision is captured above, so the visuals can be merged into a few draw calls
@@ -844,7 +852,7 @@ export class World {
     const vp = this.driving.group.position;
     let best: Bot | null = null, bd = 5;
     for (const b of this.bots) {
-      if (b.riding || b.knocked) continue;
+      if (b.riding || b.knocked || b.playing) continue;
       const d = b.av.group.position.distanceTo(vp);
       if (d < bd) { bd = d; best = b; }
     }
@@ -900,7 +908,7 @@ export class World {
     const vp = v.group.position, half = v.spec.length / 2 + 0.4, w = v.spec.width / 2 + 0.5;
     const rx = fz, rz = -fx;
     for (const b of this.bots) {
-      if (b.riding || b.knocked) continue;
+      if (b.riding || b.knocked || b.playing) continue;
       const bp = b.av.group.position;
       const dx = bp.x - vp.x, dz = bp.z - vp.z;
       const along = dx * fx + dz * fz, side = dx * rx + dz * rz;
@@ -1010,7 +1018,7 @@ export class World {
     if (this.wantToggleDrive) {
       this.wantToggleDrive = false;
       if (this.driving) this.exitVehicle();
-      else { const v = this.nearestVehicle(); if (v) this.enterVehicle(v); }
+      else { const v = this.nearestVehicle(); if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -1117,7 +1125,7 @@ export class World {
         if (this.stick && !this.look && iz > 0.3) this.yaw += wrapAngle(Math.atan2(mx, mz) + Math.PI - this.yaw) * Math.min(1, dt * 1.2);
       }
       // --- jump
-      if (this.wantJump && this.airY <= 0) { this.vy = JUMP_SPEED; this.sfx.jump(); }
+      if (this.wantJump && this.airY <= 0) { if (!(this.match && !this.match.over && this.shoot())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
       this.wantJump = false;
       if (this.airY > 0 || this.vy > 0) {
         this.vy -= GRAVITY * dt;
@@ -1135,7 +1143,9 @@ export class World {
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
-      this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
+      if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
+      else if (!near && this.onPitch() && !this.match) this.prompt(this.mobile ? '⚽ Tap Drive to kick off a football match' : '⚽ Press E to kick off a football match', false);
+      else this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
       this.meet = this.nearestPerson(p);
       if (this.meet && !this.meet.reply) {
@@ -1178,7 +1188,7 @@ export class World {
     // --- bots wander
     for (const b of [...this.bots]) {
       if (b.remote) { this.updatePeer(b, dt, t); continue; }
-      if (b.riding) { b.label.visible = true; continue; }
+      if (b.riding || b.playing) { b.label.visible = true; continue; }
       const bp = b.av.group.position;
       if (b.bubbleUntil && t > b.bubbleUntil) { b.bubbleUntil = 0; b.label.element.textContent = b.label.userData.orig as string; b.label.element.classList.remove('talk'); }
       if (this.hangout?.bot === b && !b.knocked) {
@@ -1293,6 +1303,7 @@ export class World {
     }
 
     if (this.race) this.tickRace(dt, t);
+    if (this.match) this.tickFootball(dt, t);
 
     // --- world labels + metro train
     const wp = new THREE.Vector3();
@@ -1497,6 +1508,177 @@ export class World {
   }
 
   /** Put everyone on the grid at the Speedway and count down. */
+  private onPitch() {
+    const p = this.field; if (!p) return false;
+    const q = this.player.group.position;
+    return Math.abs(q.x - p.x) < p.w / 2 + 3 && Math.abs(q.z - p.z) < p.d / 2 + 3;
+  }
+
+  /** Kick off 2-v-2 football at City Stadium; `opp` (if given) captains the other side. */
+  startFootball(opp?: Bot) {
+    const pt = this.field;
+    if (!pt || this.match || this.race) return;
+    if (this.driving) this.exitVehicle();
+    const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && !x.playing && x !== opp && this.hangout?.bot !== x);
+    const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
+    const rival2 = pool.shift(), mate = pool.shift();
+    if (!rival || !rival2 || !mate) return;
+    const y = this.terrain.h(pt.x, pt.z);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.45, 14, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x222222, roughness: 0.6 }));
+    for (let i = 0; i < 6; i++) { const patch = new THREE.Mesh(new THREE.SphereGeometry(0.16, 6, 4), new THREE.MeshStandardMaterial({ color: 0x111111 })); const a = i * 1.05, b = (i % 2 ? 0.7 : -0.7); patch.position.set(Math.cos(a) * Math.cos(b) * 0.4, Math.sin(b) * 0.4, Math.sin(a) * Math.cos(b) * 0.4); ball.add(patch); }
+    ball.position.set(pt.x, y + 0.45, pt.z);
+    this.scene.add(ball);
+    const side: Footballer[] = [
+      { bot: null, team: 0, home: new THREE.Vector3(pt.x - 5, y, pt.z), kicked: 0 },
+      { bot: mate, team: 0, home: new THREE.Vector3(pt.x - 9, y, pt.z + 7), kicked: 0 },
+      { bot: rival, team: 1, home: new THREE.Vector3(pt.x + 5, y, pt.z - 2), kicked: 0 },
+      { bot: rival2, team: 1, home: new THREE.Vector3(pt.x + 10, y, pt.z + 6), kicked: 0 },
+    ];
+    for (const f of side) if (f.bot) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; f.bot.label.visible = true; }
+    if (this.hangout) this.endHangout();
+    this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rival.name, mate: mate.name, rivals: `${rival.name} & ${rival2.name}`, started: this.elapsed };
+    this.resetKickoff();
+    this.yaw = -Math.PI / 2;   // look down the pitch toward the goal you attack (+x)
+    this.clearQuest();
+    this.questCooldown = 8;
+    this.sfx.questStart();
+    this.ev.onCollect({ name: `Kick-off! You & ${mate.name} vs ${rival.name} & ${rival2.name}`, points: 0, color: 0x2fa66a, shape: 'gem' });
+    this.botSays(mate, "I'm with you — pass it! ⚽", 1.2);
+  }
+
+  private resetKickoff() {
+    const m = this.match!, pt = this.field!;
+    m.ball.position.set(pt.x, this.terrain.h(pt.x, pt.z) + 0.45, pt.z); m.vel.set(0, 0, 0);
+    for (const f of m.side) {
+      const g = f.bot ? f.bot.av.group : this.player.group;
+      g.position.set(f.home.x, this.groundAt(f.home.x, f.home.z, f.home.y), f.home.z);
+      g.rotation.y = f.team === 0 ? Math.PI / 2 : -Math.PI / 2;
+    }
+    this.airY = 0; this.vy = 0;
+  }
+
+  /** Space during a match: boot the ball if it is within reach. */
+  private shoot(): boolean {
+    const m = this.match!, p = this.player.group.position, b = m.ball.position;
+    if (Math.hypot(b.x - p.x, b.z - p.z) > 2.3) return false;
+    const ry = this.player.group.rotation.y, dx = Math.sin(ry), dz = Math.cos(ry);
+    m.vel.set(dx * 21, 5.5, dz * 21);
+    m.side[0].kicked = this.elapsed;
+    this.sfx.bump();
+    return true;
+  }
+
+  private tickFootball(dt: number, t: number) {
+    const m = this.match!, pt = this.field!, ball = m.ball.position, v = m.vel, R = 0.45;
+    if (m.over) { if (t > m.endAt) this.endFootball(); return; }
+    const pp = this.driving ? this.driving.group.position : this.player.group.position;
+    if (Math.hypot(pp.x - pt.x, pp.z - pt.z) > 42 || this.driving) {   // wandered off (or drove off): match abandoned
+      this.ev.onCollect({ name: 'You left the pitch — match abandoned', points: 0, color: 0x999999, shape: 'box' });
+      this.endFootball(); return;
+    }
+    if (m.pause > 0) m.pause -= dt;
+    const live = m.pause <= 0;
+
+    // --- ball physics: gravity, bounce, rolling friction, walls, goals
+    v.y -= GRAVITY * 0.7 * dt;
+    ball.addScaledVector(v, dt);
+    const gy = this.terrain.h(ball.x, ball.z) + R;
+    if (ball.y < gy) { ball.y = gy; v.y = Math.abs(v.y) < 1.5 ? 0 : -v.y * 0.45; }
+    const onGround = ball.y <= gy + 0.02;
+    const fr = onGround ? 0.9 : 0.15;
+    v.x -= v.x * Math.min(1, fr * dt); v.z -= v.z * Math.min(1, fr * dt);
+    const hw = pt.w / 2, hd = pt.d / 2;
+    if (Math.abs(ball.z - pt.z) > hd - R) { ball.z = pt.z + Math.sign(ball.z - pt.z) * (hd - R); v.z *= -0.55; }
+    if (Math.abs(ball.x - pt.x) > hw - R) {
+      const inGoal = Math.abs(ball.z - pt.z) < pt.goal && ball.y < gy + 2.2;
+      if (inGoal && live) {
+        const scorer: 0 | 1 = ball.x > pt.x ? 0 : 1;   // the +x goal belongs to the rivals
+        m.score[scorer]++;
+        m.pause = 2.6;
+        this.sfx.questDone();
+        this.ev.onCollect({ name: scorer === 0 ? `GOAL! You ${m.score[0]} - ${m.score[1]}` : `${m.opp}'s side scores · ${m.score[0]} - ${m.score[1]}`, points: scorer === 0 ? 50 : 0, color: scorer === 0 ? 0x2fa66a : 0xd94a3d, shape: 'gem' });
+        if (scorer === 0) { this.points += 50; this.ev.onPoints(this.points); }
+        const talker = m.side[scorer === 0 ? 1 : 2].bot; if (talker) this.botSays(talker, scorer === 0 ? 'What a strike! ⚽🔥' : 'Get in! 😎', 0.6);
+        setTimeout(() => { if (this.match === m && !m.over) this.resetKickoff(); }, 2200);
+        ball.x = pt.x + Math.sign(ball.x - pt.x) * (hw + 0.6); v.set(0, 0, 0);
+      } else if (!inGoal) { ball.x = pt.x + Math.sign(ball.x - pt.x) * (hw - R); v.x *= -0.55; }
+    }
+    m.ball.rotation.x += v.z * dt / R; m.ball.rotation.z -= v.x * dt / R;
+
+    // --- dribbling: anyone running into the ball nudges it along their facing
+    const touch = (g: THREE.Object3D, speed: number, who: Footballer) => {
+      const d = Math.hypot(ball.x - g.position.x, ball.z - g.position.z);
+      if (d > 1.15 || ball.y > gy + 1.2 || t - who.kicked < 0.25) return;
+      const dx = Math.sin(g.rotation.y), dz = Math.cos(g.rotation.y);
+      const push = Math.max(speed * 1.25, 4);
+      v.x = dx * push; v.z = dz * push; v.y = Math.max(v.y, 0.8);
+      ball.x = g.position.x + dx * 1.2; ball.z = g.position.z + dz * 1.2;
+      who.kicked = t - 0.1;
+    };
+    if (live) touch(this.player.group, this.moveAmount > 1 ? WALK_SPEED * 1.8 : this.moveAmount > 0 ? WALK_SPEED : 0, m.side[0]);
+
+    // --- AI: nearest team-mate to the ball chases it, the other holds a support spot; kick toward the goal they attack
+    for (const team of [0, 1] as const) {
+      const goalX = pt.x + (team === 0 ? hw : -hw);
+      const fs = m.side.filter((f) => f.team === team && f.bot);
+      const dist = (f: Footballer) => f.bot!.av.group.position.distanceTo(ball);
+      const chaser = fs.reduce((a, b) => (dist(a) < dist(b) ? a : b));
+      for (const f of fs) {
+        const b = f.bot!, bp = b.av.group.position;
+        let tx: number, tz: number;
+        const ownGoalX = pt.x - (team === 0 ? hw : -hw);
+        if (f === chaser && live) { tx = ball.x - Math.sign(goalX - ball.x) * 0.8; tz = ball.z; }
+        else if (live) { tx = ownGoalX + (team === 0 ? 3.5 : -3.5); tz = pt.z + Math.max(-pt.goal - 1, Math.min(pt.goal + 1, ball.z - pt.z)); }   // keeper: hold the line
+        else { tx = f.home.x; tz = f.home.z; }
+        tx = Math.max(pt.x - hw + 1, Math.min(pt.x + hw - 1, tx)); tz = Math.max(pt.z - hd + 1, Math.min(pt.z + hd - 1, tz));
+        const dx = tx - bp.x, dz = tz - bp.z, d = Math.hypot(dx, dz);
+        const speed = f === chaser ? (team === 1 ? 7.2 : 6.6) : 5.5;
+        if (d > 0.4) { const s = Math.min(d, speed * dt); bp.x += (dx / d) * s; bp.z += (dz / d) * s; b.av.group.rotation.y += wrapAngle(Math.atan2(dx, dz) - b.av.group.rotation.y) * Math.min(1, dt * 8); b.walking = Math.min(1, b.walking + dt * 4); }
+        else b.walking = Math.max(0, b.walking - dt * 4);
+        bp.y = this.groundAt(bp.x, bp.z, bp.y);
+        animateWalk(b.av, t * 2.2, b.walking);
+        b.label.visible = true;
+        if (!live) continue;
+        // shoot when the ball is at their feet (a little inaccurate on purpose)
+        const bd = Math.hypot(ball.x - bp.x, ball.z - bp.z);
+        if (bd < 1.3 && t - f.kicked > 0.7) {
+          const toGoal = Math.abs(goalX - ball.x);
+          const keeper = f !== chaser;
+          // keeper: hoof it clear up the pitch; striker: shoot inside ~15 m (a little wild), otherwise push it forward
+          const ax = goalX - ball.x, az = keeper ? (Math.random() - 0.5) * 20 : toGoal < 15 ? pt.z + (Math.random() - 0.5) * pt.goal * 3.2 - ball.z : (Math.random() - 0.5) * 6, al = Math.hypot(ax, az);
+          const power = keeper ? 15 : toGoal < 15 ? 16 : 7.5;
+          v.set((ax / al) * power, keeper || toGoal < 15 ? 3.5 : 1, (az / al) * power);
+          f.kicked = t;
+          this.sfx.bump();
+          if (Math.random() < 0.12) this.botSays(b, keeper ? 'Cleared! 🧤' : team === 0 ? 'Yours! 🙌' : 'Coming through! 💨', 0);
+        } else touch(b.av.group, speed, f);
+      }
+    }
+
+    // --- clock, HUD, full time
+    const left = Math.max(0, m.endAt - t);
+    if (t - this.lastMatchHud > 0.25) {
+      this.lastMatchHud = t;
+      const mm = Math.floor(left / 60), ss = Math.floor(left % 60).toString().padStart(2, '0');
+      this.ev.onQuest({ status: 'active', title: `You ${m.score[0]} - ${m.score[1]} ${m.rivals} · ${mm}:${ss}`, desc: `${this.playerName} & ${m.mate} vs ${m.rivals} · City Stadium`, progress: 'Run into the ball to dribble · Space / Jump shoots', remaining: left, total: MATCH_SECONDS, reward: 300, hint: null });
+    }
+    if (left <= 0 || m.score[0] >= 5 || m.score[1] >= 5) {
+      m.over = true; m.endAt = t + 3;
+      const win = m.score[0] === m.score[1] ? null : m.score[0] > m.score[1];
+      this.ev.onQuest({ status: win === false ? 'failed' : 'done', title: `Full time · ${m.score[0]} - ${m.score[1]}`, desc: win === null ? 'A draw — rematch?' : win ? 'You win the match!' : `${m.rivals} take it`, progress: '', remaining: 0, total: MATCH_SECONDS, reward: 300, hint: null });
+      this.gameResult('football', win, m.opp);
+    }
+  }
+
+  private endFootball() {
+    const m = this.match; if (!m) return;
+    this.match = null;
+    this.scene.remove(m.ball);
+    for (const f of m.side) if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.randomLandPoint(8, 120); f.bot.speed = rand(1.8, 3.4); }
+    this.ev.onQuest(null);
+    this.questCooldown = 10;
+  }
+
   /** Dev helper: drop the player at a world position. */
   teleport(x: number, z: number) { const p = this.player.group.position; p.set(x, this.terrain.h(x, z), z); }
 
@@ -1602,10 +1784,11 @@ export class World {
   /** Anyone within reach — friend or not — you can talk to, play with, or hang out with. */
   private nearestPerson(p: THREE.Vector3): Bot | null {
     // stick with the current person until they are clearly out of reach
-    if (this.meet && !this.meet.riding && !this.meet.knocked && !this.meet.reply && this.meet.av.group.position.distanceTo(p) < 6.5) return this.meet;
+    if (this.meet && !this.meet.riding && !this.meet.knocked && !this.meet.playing && !this.meet.reply && this.meet.av.group.position.distanceTo(p) < 6.5) return this.meet;
     let best: Bot | null = null, bd = 4;
+    if (this.match && !this.match.over) return null;   // no meet card mid-match
     for (const b of this.bots) {
-      if (b.riding || b.knocked || b.reply || b.remote?.car) continue;
+      if (b.riding || b.knocked || b.playing || b.reply || b.remote?.car) continue;
       const d = b.av.group.position.distanceTo(p);
       if (d < bd) { bd = d; best = b; }
     }
@@ -1633,6 +1816,7 @@ export class World {
         break;
       case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
       case 'race': this.botSays(b, 'See you on the grid 🏁', 0.2); this.startCircuitRace(b); break;
+      case 'football': this.botSays(b, 'Kick-off at the stadium! ⚽', 0.2); this.startFootball(b); break;
       case 'hunt': this.startVersus('hunt', b); break;
       case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
       case 'chess': this.botSays(b, 'White moves first — your go ♟️', 0.2); this.ev.onGame('chess', b.name); break;
@@ -1678,8 +1862,8 @@ export class World {
   /** Result of a board / table game. */
   gameResult(kind: GameKind, win: boolean | null, opponent: string) {
     const b = this.bots.find((x) => x.name === opponent);
-    const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom', race: 'the race' }[kind];
-    const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200, race: 250 }[kind];
+    const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom', race: 'the race', football: 'the match' }[kind];
+    const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200, race: 250, football: 300 }[kind];
     if (win === null) { this.ev.onCollect({ name: `Draw at ${name} vs ${opponent}`, points: 0, color: 0x999999, shape: 'box' }); return; }
     if (win) {
       this.points += prize; this.ev.onPoints(this.points);
@@ -1696,7 +1880,7 @@ export class World {
   private nearestStranger(p: THREE.Vector3): Bot | null {
     let best: Bot | null = null, bd = 4;
     for (const b of this.bots) {
-      if (b.friend || b.riding || b.knocked || b.reply || this.elapsed - b.asked < 20) continue;
+      if (b.friend || b.riding || b.knocked || b.playing || b.reply || this.elapsed - b.asked < 20) continue;
       const d = b.av.group.position.distanceTo(p);
       if (d < bd) { bd = d; best = b; }
     }
@@ -1936,7 +2120,7 @@ export class World {
   }
 
   private updateQuest(focus: THREE.Vector3, radius: number, dt: number, t: number) {
-    if (this.race) { this.questCooldown = 8; return; }   // the race owns the task card
+    if (this.race || this.match) { this.questCooldown = 8; return; }   // the race / match owns the task card
     if (this.wantQuest) { this.wantQuest = false; if (!this.quest || this.quest.status !== 'active') this.startQuest(); }
     const q = this.quest;
     if (!q || q.status !== 'active') {

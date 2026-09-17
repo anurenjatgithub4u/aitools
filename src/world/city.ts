@@ -248,7 +248,22 @@ export function buildCity(g: THREE.Group, h: H) {
   // ================= STADIUM + SKATE PARK (south) =================
   const stx = 70, stz = 200, sty = h(stx, stz);
   g.add(at(mesh(new THREE.CylinderGeometry(30, 30, 9, 40, 1, true), 0xd9d4c8, { side: THREE.DoubleSide }), stx, sty + 4.5, stz));
-  g.add(at(cyl(24, 24, 0.4, 0x6fb35e, 40), stx, sty + 0.2, stz)); g.add(at(box(0.3, 0.2, 30, 0xffffff), stx, sty + 0.45, stz));
+  const PW = 40, PD = 26, GOAL = 3.6;   // pitch size + half goal width; exported for the football match
+  g.add(at(cyl(27, 27, 0.4, 0x5fa64f, 40), stx, sty + 0.2, stz));
+  for (let i = 0; i < 8; i++) g.add(at(box(PW / 8, 0.06, PD, i % 2 ? 0x6fb35e : 0x67ab57), stx - PW / 2 + (i + 0.5) * (PW / 8), sty + 0.42, stz));   // mown stripes
+  const line = (w: number, d: number, x: number, z: number) => g.add(at(box(w, 0.05, d, 0xffffff), stx + x, sty + 0.47, stz + z));
+  line(PW, 0.25, 0, -PD / 2); line(PW, 0.25, 0, PD / 2); line(0.25, PD, -PW / 2, 0); line(0.25, PD, PW / 2, 0); line(0.25, PD, 0, 0);
+  for (const s of [-1, 1]) { line(0.25, 12, s * (PW / 2 - 6), 0); line(6, 0.25, s * (PW / 2 - 3), -6); line(6, 0.25, s * (PW / 2 - 3), 6); }
+  g.add(rot(at(mesh(new THREE.RingGeometry(4.2, 4.45, 32), 0xffffff, { side: THREE.DoubleSide }), stx, sty + 0.47, stz), 'x', -Math.PI / 2));
+  g.add(at(cyl(0.3, 0.3, 0.05, 0xffffff, 10), stx, sty + 0.47, stz));
+  for (const s of [-1, 1]) {   // goals: posts, crossbar, net (transparent, so it never blocks)
+    const gx = stx + s * PW / 2;
+    for (const dz of [-GOAL, GOAL]) g.add(at(cyl(0.12, 0.12, 2.6, 0xffffff, 8), gx, sty + 1.3, stz + dz));
+    g.add(at(box(0.24, 0.24, GOAL * 2 + 0.24, 0xffffff), gx, sty + 2.6, stz));
+    const net = mesh(new THREE.BoxGeometry(1.8, 2.5, GOAL * 2), 0xf4f4f4, { transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+    g.add(at(net, gx + s * 1.0, sty + 1.3, stz));
+  }
+  g.userData.pitch = { x: stx, z: stz, w: PW, d: PD, goal: GOAL };
   for (let i = 0; i < 4; i++) { const a = Math.PI / 4 + (i / 4) * Math.PI * 2, fx = stx + Math.cos(a) * 34, fz = stz + Math.sin(a) * 34; g.add(at(cyl(0.3, 0.4, 24, 0x888888, 8), fx, sty + 12, fz)); g.add(at(glow(4, 2.5, 0.4, 0xfff2a8), fx, sty + 24, fz)); }
   place('City Stadium', stx, 14, stz);
   keep(stx, stz, 36);

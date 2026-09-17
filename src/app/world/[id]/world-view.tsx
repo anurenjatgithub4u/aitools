@@ -25,6 +25,8 @@ export function WorldView({ id }: { id: string }) {
   const [loading] = useState(() => (typeof window === "undefined" ? Promise.resolve(null) : import("@/world/world")));
   const [entered, setEntered] = useState(false);
   const [ready, setReady] = useState(false);
+  const [build, setBuild] = useState<{ f: number; label: string } | null>(null);
+  const [fatal, setFatal] = useState<string | null>(null);
   const [gateGone, setGateGone] = useState(false);
   useEffect(() => { if (!ready) return; const t = setTimeout(() => setGateGone(true), 900); return () => clearTimeout(t); }, [ready]);
 
@@ -54,9 +56,10 @@ export function WorldView({ id }: { id: string }) {
       answerRequest: (id, yes) => world?.answerRequest(id, yes),
     });
 
-    loading.then((mod) => {
+    loading.then(async (mod) => {
       if (cancelled || !mod) return;
       const { World } = mod;
+      try {
       world = new World(
         stage,
         dest,
@@ -90,6 +93,8 @@ export function WorldView({ id }: { id: string }) {
         store.points(),
         { id: tabId(), gender: store.gender() ?? 'm' },
       );
+      await world.build((f, label) => setBuild({ f, label }));
+      if (cancelled) return;
       world.attachMinimap(hud.minimap);
       let stopBig: (() => void) | null = null;
       hud.onMapToggle((open) => { stopBig?.(); stopBig = open ? world!.attachBigMap(hud.bigmap) : null; });
@@ -98,7 +103,11 @@ export function WorldView({ id }: { id: string }) {
       requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));   // first frame is on screen
       setTimeout(() => setReady(true), 2500);                                       // …or a background tab that never paints
       if (process.env.NODE_ENV === "development") (window as unknown as { __world: World }).__world = world;
-    });
+      } catch (e) {
+        console.error(e);
+        setFatal(e instanceof Error ? e.message : String(e));
+      }
+    }, (e) => { console.error(e); setFatal('The 3D bundle failed to download. Check your connection and reload.'); });
 
     return () => {
       cancelled = true;
@@ -111,7 +120,7 @@ export function WorldView({ id }: { id: string }) {
     <div className="in-world">
       <div ref={stageRef} className="stage" />
       <div ref={hudRef} />
-      {!gateGone && <Gate loading={loading} ready={ready} onEnter={() => setEntered(true)} />}
+      {!gateGone && <Gate loading={loading} ready={ready} build={build} fatal={fatal} onEnter={() => setEntered(true)} />}
     </div>
   );
 }

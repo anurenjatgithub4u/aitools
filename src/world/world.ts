@@ -82,7 +82,7 @@ export class World {
   private labels: CSS2DRenderer;
   private clock = new THREE.Clock();
   private terrain: Terrain;
-  private player: Avatar;
+  private player!: Avatar;
   private bots: Bot[] = [];
   private pickups: Pickup[] = [];
   private vehicles: Vehicle[] = [];
@@ -176,14 +176,6 @@ export class World {
     this.labels.domElement.className = 'labels';
     container.appendChild(this.labels.domElement);
 
-    this.buildEnvironment();
-    this.player = this.spawnPlayer(playerName);
-    this.spawnBots();
-    this.spawnPickups();
-    this.spawnVehicles();
-    this.spawnLife();
-    this.bindInput();
-
     const onResize = () => {
       const w = container.clientWidth, h = container.clientHeight;
       this.camera.aspect = w / h; this.camera.updateProjectionMatrix();
@@ -191,7 +183,23 @@ export class World {
     };
     addEventListener('resize', onResize);
     this.cleanup.push(() => removeEventListener('resize', onResize));
-    this.connect();
+  }
+
+  /** Build the city in stages, yielding to the browser between them so the splash can keep painting progress. */
+  async build(onProgress?: (fraction: number, label: string) => void) {
+    const steps: [string, () => void][] = [
+      ['Laying out the streets…', () => this.buildEnvironment()],
+      ['Waking up the explorers…', () => { this.player = this.spawnPlayer(this.playerName); this.spawnBots(); }],
+      ['Hiding the treats…', () => { this.spawnPickups(); this.spawnVehicles(); }],
+      ['Letting the dogs out…', () => { this.spawnLife(); this.bindInput(); }],
+      ['Connecting to the city…', () => this.connect()],
+    ];
+    for (let i = 0; i < steps.length; i++) {
+      onProgress?.(i / steps.length, steps[i][0]);
+      await new Promise((r) => setTimeout(r, 30));   // let the progress text paint
+      steps[i][1]();
+    }
+    onProgress?.(1, 'Ready');
   }
 
   // ---------- realtime: real people in the same city ----------

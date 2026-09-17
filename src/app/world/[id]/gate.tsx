@@ -10,14 +10,27 @@ type Phase = "splash" | "profile" | "building" | "leaving";
 const SPLASH_MIN_MS = 700;
 
 // `ready` flips true once the world has rendered its first frame; only then does the gate fade out.
-export function Gate({ loading, ready, onEnter }: { loading: Promise<unknown>; ready: boolean; onEnter: () => void }) {
+export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promise<unknown>; ready: boolean; build: { f: number; label: string } | null; fatal: string | null; onEnter: () => void }) {
   const [phase, setPhase] = useState<Phase>("splash");
   const [progress, setProgress] = useState(4);
   const [loaded, setLoaded] = useState(false);
   const [gender, setGender] = useState<"m" | "f" | null>(null);
   const [name, setName] = useState("Explorer");
+  const [slow, setSlow] = useState(false);
+  const [failed, setFailed] = useState(false);
   const startedAt = useRef(Date.now());
 
+  // a stale page after a deploy can point at chunks that no longer exist: reload once, then show a button
+  useEffect(() => {
+    loading.catch(() => {
+      try { if (!sessionStorage.getItem('findurai.reloaded')) { sessionStorage.setItem('findurai.reloaded', '1'); location.reload(); return; } } catch { /* ignore */ }
+      setFailed(true);
+    });
+    const t = setTimeout(() => setSlow(true), 25000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  useEffect(() => { if (build) setProgress(60 + build.f * 40); }, [build]);
   useEffect(() => { if (ready) { setProgress(100); const t = setTimeout(() => setPhase("leaving"), 250); return () => clearTimeout(t); } }, [ready]);
 
   useEffect(() => {
@@ -26,7 +39,7 @@ export function Gate({ loading, ready, onEnter }: { loading: Promise<unknown>; r
     let done = false;
     loading.then(() => { done = true; setLoaded(true); });
     // creep toward 85% while the bundle downloads, snap to 100% when it lands
-    const iv = setInterval(() => setProgress((p) => (done ? Math.min(92, p + 3) : Math.min(70, p + (70 - p) * 0.08 + 0.4))), 120);
+    const iv = setInterval(() => setProgress((p) => (done ? p : Math.min(60, p + (60 - p) * 0.08 + 0.4))), 120);
     return () => clearInterval(iv);
   }, [loading]);
 
@@ -59,7 +72,8 @@ export function Gate({ loading, ready, onEnter }: { loading: Promise<unknown>; r
           </div>
           <p className="splash-tag">one city · countless stories</p>
           <div className="splash-bar"><i style={{ width: `${progress}%` }} /></div>
-          <p className="splash-hint">{phase === "building" ? "Building the city…" : progress < 70 ? "Loading…" : "Almost there…"}</p>
+          <p className="splash-hint">{fatal ?? (failed ? "Could not load the city." : phase === "leaving" || ready ? "Ready" : phase === "building" ? build?.label ?? "Building the city…" : "Loading…")}</p>
+          {(slow || fatal || failed) && !ready && <button className="enter-btn" onClick={() => { try { sessionStorage.removeItem("findurai.reloaded"); } catch { /* ignore */ } location.reload(); }}>{fatal || failed ? "Reload" : "Taking a while — reload"}</button>}
         </div>
       )}
 

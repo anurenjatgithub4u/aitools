@@ -16,7 +16,11 @@ One time, from this folder:
     fly deploy
 
 `fly.toml` is checked in, so `fly launch --copy-config` keeps it (answer "no" to Postgres/Redis if asked).
-Every later change is just `fly deploy`.
+Every later change is just `fly deploy`. (A GitHub Action for push-to-deploy is ready in the scratchpad notes; the repo
+secret `FLY_API_TOKEN` already exists — the git token just needs the `workflow` scope to add `.github/workflows/relay.yml`.)
+
+If `fly deploy` fails locally with `x509: certificate signed by unknown authority` (AVG/antivirus TLS interception on
+this PC), use the classic builder instead: `flyctl deploy --ha=false --depot=false`, or just push and let the Action do it.
 
 Check it is alive: https://findurai-realtime.fly.dev/health → `{"ok":true,"rooms":0,"players":0}`
 

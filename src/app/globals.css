@@ -601,3 +601,28 @@ body.indoors .hud .bottom-left, body.indoors .hints { display: none !important; 
 .act.exit:active { background: #ff6b5c; color: #fff; }
 body.tablemode .hud .actions, body.tablemode .hud .bottom-right, body.tablemode .hud .zoom, body.tablemode .hud .bubble { display: none !important; }
 @media (max-width: 720px) { .hud .tablectl { padding: 8px 12px 10px; gap: 6px; border-radius: 16px; } .tablectl .act { width: 58px; height: 58px; } .tablectl .trow > small { display: none; } }
+
+/* ---- match scoreboard inside the task card (cricket, football) ---- */
+body.inmode .labels .tag.me { display: none !important; }
+.quest.scorecard .qhead, .quest.scorecard .qfoot button { display: none; }
+.quest .qboard { display: flex; align-items: center; gap: 8px; }
+.quest .qboard .side { flex: 1; min-width: 0; text-align: center; padding: 6px 4px; border-radius: 10px; background: rgba(255,255,255,.06); }
+.quest .qboard .side.on { background: rgba(232,196,106,.16); box-shadow: inset 0 0 0 1px rgba(232,196,106,.45); }
+.quest .qboard .side small { display: block; letter-spacing: .12em; font-size: 9px; text-transform: uppercase; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quest .qboard .side b { display: block; font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.quest .qboard .side.on b { color: var(--gold); }
+.quest .qboard .side span { display: block; font-size: 10px; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quest .qboard .mid { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 44px; }
+.quest .qboard .mid i { font-style: normal; font-size: 20px; }
+.quest .qboard .mid em { margin: 0; font-size: 13px; }
+.quest p.qline { margin: 8px 0 6px; font-size: 12px; font-weight: 600; text-align: center; color: #fff; }
+.quest.scorecard p:not(.qline) { font-size: 11px; color: rgba(255,255,255,.7); margin: 4px 0 8px; }
+@media (max-width: 720px) {
+  body.inmode .hud .quest.scorecard { top: 58px; left: 12px; right: 12px; width: auto; padding: 8px 10px; }
+  .quest.scorecard p.qline { display: block; margin: 6px 0 4px; font-size: 11px; }
+  .quest .qboard .side b { font-size: 22px; }
+  .quest .qboard .mid i { font-size: 18px; }
+  .quest.scorecard .qfoot { margin-top: 4px; font-size: 11px; }
+  .quest.scorecard .qfoot span:nth-child(2) { display: none; }
+  body.scorecard .hud .bottom-right { display: none !important; }   /* the minimap would sit on the scoreboard */
+}

@@ -1398,7 +1398,7 @@ export class World {
     // --- bots wander
     for (const b of [...this.bots]) {
       if (b.remote) { this.updatePeer(b, dt, t); continue; }
-      if (b.riding || b.playing) { b.label.visible = true; continue; }
+      if (b.riding || b.playing) { b.label.visible = !(this.match || this.cricket || this.race || this.zombies); continue; }
       const bp = b.av.group.position;
       if (b.bubbleUntil && t > b.bubbleUntil) { b.bubbleUntil = 0; b.label.element.textContent = b.label.userData.orig as string; b.label.element.classList.remove('talk'); }
       if (this.hangout?.bot === b && !b.knocked) {
@@ -1917,7 +1917,7 @@ export class World {
     if (t - this.lastMatchHud > 0.25) {
       this.lastMatchHud = t;
       const mm = Math.floor(left / 60), ss = Math.floor(left % 60).toString().padStart(2, '0');
-      this.ev.onQuest({ status: 'active', title: `⚽ You ${m.score[0]} - ${m.score[1]} ${m.opp}'s team`, desc: `Blue: ${this.playerName}, ${m.mates}
+      this.ev.onQuest({ status: 'active', title: `⚽ You ${m.score[0]} - ${m.score[1]} ${m.opp}'s team`, board: { icon: '⚽', a: { name: 'You', score: `${m.score[0]}`, sub: 'Blue', on: m.score[0] >= m.score[1] }, b: { name: m.opp, score: `${m.score[1]}`, sub: 'Red', on: m.score[1] >= m.score[0] }, line: `First to 5 · ${mm}:${ss} left` }, desc: `Blue: ${this.playerName}, ${m.mates}
 Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 'Run into the ball to dribble · Space shoots (harder while running)', remaining: left, total: MATCH_SECONDS, reward: 300, hint: null, timeText: `${mm}:${ss}` });
     }
     if (left <= 0 || m.score[0] >= 5 || m.score[1] >= 5) {
@@ -2202,7 +2202,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         } else {
           c.phase = 'over'; c.t0 = t;
           const win = c.runs < c.target;
-          this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}!` : `${c.opp.name} chased it down`, desc: `You ${c.first} · ${c.opp.name} ${c.runs}/${c.wkts}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
+          this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}!` : `${c.opp.name} chased it down`, board: { icon: win ? '🏆' : '🏏', a: { name: 'You', score: `${c.first}`, on: win }, b: { name: c.opp.name, score: `${c.runs}/${c.wkts}`, on: !win }, line: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}! +200` : `${c.opp.name} chased it down` }, desc: `You ${c.first} · ${c.opp.name} ${c.runs}/${c.wkts}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
           this.gameResult('cricket', win, c.opp.name);
         }
       } else { c.phase = 'ready'; c.t0 = t + 1.2; this.setCreases(); }
@@ -2211,10 +2211,17 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (t - this.lastCricketHud > 0.15 && c.phase !== 'over') {
       this.lastCricketHud = t;
       const runupU = c.phase === 'runup' && !batting ? Math.min(1, (t - c.t0) / 1.8) : null;
+      const overs = (n: number) => `${Math.floor(n / 6)}.${n % 6}`;
       this.ev.onQuest({
         status: 'active',
         title: batting ? `🏏 You ${c.runs} / ${c.wkts}` : `🏏 ${c.opp.name} ${c.runs} / ${c.wkts} · needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls}`,
-        desc: batting ? `${c.opp.name} bowling · ◀ ▶ shuffle into line, Space / Bat as the ball reaches you. Perfect timing = six, early = high, late = along the ground.` : `You are bowling · ◀ ▶ aim the line, Speed button / W S for pace, tap Bowl / Space at the top of your action. Wickets +25, dot balls +5.`,
+        board: {
+          icon: '🏏',
+          a: batting ? { name: 'You', score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true } : { name: 'You', score: `${c.first}/${c.maxWkts}`, sub: `${overs(c.total)} ov · all out / done` },
+          b: batting ? { name: c.opp.name, score: '—', sub: 'to bat' } : { name: c.opp.name, score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true },
+          line: batting ? `1st innings · ${c.total - c.balls} ball${c.total - c.balls === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${c.opp.name} needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`,
+        },
+        desc: batting ? `${c.opp.name} bowling · ◀ ▶ shuffle, Bat / Space as the ball arrives. Perfect = six, early = high, late = along the ground.` : `◀ ▶ aim the line · Speed / W S for pace · Bowl / Space at the top of your action. Wickets +25, dots +5.`,
         progress: runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last}${!batting ? ` · ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]}` : ''}` : 'First ball coming up',
         remaining: c.total - c.balls, total: c.total, reward: 200, hint: null,
         fill: runupU !== null ? runupU : c.balls / c.total, timeText: `${c.balls}/${c.total}`,

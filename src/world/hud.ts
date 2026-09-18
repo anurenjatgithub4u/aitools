@@ -41,6 +41,12 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     <a class="brand top-left" href="/"><span class="logo">🌍</span><div><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></div></a>
     <div class="quest" id="quest">
       <div class="qhead"><span class="qicon">🎯</span><div><small id="qkicker">TASK</small><b id="qtitle">Looking for a task…</b></div><em id="qtime"></em></div>
+      <div class="qboard" id="qboard" hidden>
+        <div class="side" id="qba"><small></small><b></b><span></span></div>
+        <div class="mid"><i id="qbicon">🏏</i><em id="qbtime"></em></div>
+        <div class="side" id="qbb"><small></small><b></b><span></span></div>
+      </div>
+      <p class="qline" id="qline" hidden></p>
       <p id="qdesc">Explore while we line one up. Press T for a task right away.</p>
       <div class="qbar"><i id="qfill"></i></div>
       <div class="qfoot"><span id="qprog"></span><span id="qhint"></span><button id="qbtn">Start task</button></div>
@@ -167,7 +173,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   for (const [btn, dir] of [[batL, -1], [batR, 1], [aimL, -1], [aimR, 1]] as const) { btn.addEventListener('pointerdown', (e) => { e.preventDefault(); actions.batMove(dir); }); for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) btn.addEventListener(ev, () => actions.batMove(0)); }
   // table games: sliders for power and striker position, Shoot / Flick, Exit
   const tableEl = root.querySelector<HTMLElement>('#tablectl')!, posRow = root.querySelector<HTMLElement>('#posrow')!, posRng = root.querySelector<HTMLInputElement>('#posrng')!, pwrRng = root.querySelector<HTMLInputElement>('#pwrrng')!, pwrVal = root.querySelector<HTMLElement>('#pwrval')!, strikeBtn = root.querySelector<HTMLButtonElement>('#strikebtn')!, exitBtn = root.querySelector<HTMLButtonElement>('#exitbtn')!;
-  let sliding = false;
+  let sliding = false, modeOn = false, modeRun = false;
   for (const r of [posRng, pwrRng]) { r.addEventListener('pointerdown', () => (sliding = true)); for (const ev of ['pointerup', 'pointercancel']) r.addEventListener(ev, () => { sliding = false; r.blur(); }); r.addEventListener('change', () => r.blur()); }
   pwrRng.addEventListener('input', () => { pwrVal.textContent = `${pwrRng.value}%`; actions.setPower(+pwrRng.value / 100); });
   posRng.addEventListener('input', () => actions.setPos(+posRng.value / 100));
@@ -249,6 +255,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const qTitle = root.querySelector<HTMLElement>('#qtitle')!, qKick = root.querySelector<HTMLElement>('#qkicker')!, qTime = root.querySelector<HTMLElement>('#qtime')!;
   const qDesc = root.querySelector<HTMLElement>('#qdesc')!, qFill = root.querySelector<HTMLElement>('#qfill')!;
   const qProg = root.querySelector<HTMLElement>('#qprog')!, qHint = root.querySelector<HTMLElement>('#qhint')!, qBtn = root.querySelector<HTMLButtonElement>('#qbtn')!;
+  const qBoard = root.querySelector<HTMLElement>('#qboard')!, qLine = root.querySelector<HTMLElement>('#qline')!, qbIcon = root.querySelector<HTMLElement>('#qbicon')!, qbTime = root.querySelector<HTMLElement>('#qbtime')!;
+  const qSide = (id: string, s: { name: string; score: string; sub?: string; on?: boolean }) => { const el = root.querySelector<HTMLElement>(id)!; el.classList.toggle('on', !!s.on); el.querySelector('small')!.textContent = s.name; el.querySelector('b')!.textContent = s.score; el.querySelector('span')!.textContent = s.sub ?? ''; };
   qBtn.addEventListener('click', actions.task);
   const zombieBtn = root.querySelector<HTMLButtonElement>('#zombiebtn')!, hurtEl = root.querySelector<HTMLElement>('#hurt')!;
   zombieBtn.addEventListener('click', actions.zombies);
@@ -286,8 +294,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       promptEl.classList.toggle('driving', driving);
       driveBtn.hidden = !text || document.body.classList.contains('inmode');   // Drive doubles as E; useless mid-game
       driveBtn.innerHTML = driving ? '🚶<small>Get out</small>' : '🚗<small>Drive</small>';
-      jumpBtn.hidden = driving;
-      runBtn.hidden = driving;
+      jumpBtn.hidden = driving || modeOn;                 // mid-game the mode() rules win
+      runBtn.hidden = driving || (modeOn && !modeRun);
     },
     run(on) { runBtn.classList.toggle('on', on); runBtn.innerHTML = on ? '🏃<small>Running</small>' : '🚶<small>Walk</small>'; },
     dash(d) {
@@ -306,7 +314,9 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     muted(m) { muteBtn.textContent = m ? '🔇' : '🔊'; },
     quest(q) {
-      questEl.className = `quest ${q?.status ?? 'idle'}`;
+      questEl.className = `quest ${q?.status ?? 'idle'}${q?.board ? ' scorecard' : ''}`;
+      qBoard.hidden = qLine.hidden = !q?.board; document.body.classList.toggle('scorecard', !!q?.board);
+      if (q?.board) { const b = q.board; qbIcon.textContent = b.icon; qbTime.textContent = q.timeText ?? ''; qSide('#qba', b.a); qSide('#qbb', b.b); qLine.textContent = b.line; }
       if (!q) {
         qKick.textContent = 'TASK'; qTitle.textContent = 'Looking for a task…'; qTime.textContent = '';
         qDesc.textContent = 'Explore while we line one up. Press T for a task right away.';
@@ -364,7 +374,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     rank(r, of) { rankChip.textContent = `🏅 Rank #${r.toLocaleString()} of ${of.toLocaleString()}`; rankChip.classList.toggle('top', r <= 10); },
     mode(a) {
-      const tbl = a?.table;
+      const tbl = a?.table; modeOn = !!a; modeRun = !!a?.run;
       kickBtn.hidden = !a || a.button === false || !!tbl; if (a && a.button !== false) (tbl ? strikeBtn : kickBtn).innerHTML = `${a.icon}<small>${a.label}</small>`;
       batL.hidden = batR.hidden = !a?.arrows || !!tbl; paceBtn.hidden = !a?.pace;
       exitBtn.hidden = !a || !!tbl; jumpBtn.hidden = !!a; runBtn.hidden = !!a && !a.run;

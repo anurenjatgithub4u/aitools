@@ -25,7 +25,9 @@ export interface QuestState {
   hint: string | null; // e.g. "Lalbagh · 120 m"
   fill?: number;       // 0..1 bar override (health, progress) instead of remaining/total
   timeText?: string;   // replaces the m:ss clock (e.g. "❤ 72")
+  board?: { icon: string; a: BoardSide; b: BoardSide; line: string };   // match scoreboard instead of the title row
 }
+export interface BoardSide { name: string; score: string; sub?: string; on?: boolean }
 
 const GIFT_COUNT = 5;
 

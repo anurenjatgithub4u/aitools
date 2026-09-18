@@ -8,7 +8,8 @@ import { buildLandmark, scatterDecor, makePickup } from './landmarks';
 import { makeVehicle, VEHICLE_COLORS, FUEL_RANGE, BOOST_MULT, type Vehicle, type VehicleKind } from './vehicles';
 import { makePetrolStation } from './landmarks';
 import { Sfx } from './audio';
-import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG, DATE_LINES, GIFT_THANKS } from './chat';
+import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG, DATE_LINES, GIFT_THANKS, POOL_TALK } from './chat';
+import { createPool, POOL, POOL_COLORS, POOL_POCKETS, isStripe, type PoolGame } from './poolEngine';
 import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
@@ -125,7 +126,12 @@ function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) 
   }
 }
 // Date spots: benches, a candle table, the Ferris wheel, the boat. Read from the city.
-interface Spot { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][] }
+interface Spot { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][]; face?: boolean }
+// The Neon Palace: dance floor, lasers and two real pool tables.
+interface Casino { x: number; z: number; w: number; d: number; floor: { x: number; z: number; w: number; d: number }; tables: { x: number; z: number; ry: number; y: number }[] }
+interface Dancer { av: Avatar; phase: number; style: number }
+interface PoolState { game: PoolGame; table: Casino['tables'][number]; opp: Bot; meshes: THREE.Mesh[]; cueStick: THREE.Mesh; aimLine: THREE.Mesh; aim: number; power: number; charging: boolean; status: string; over: boolean; endAt: number; botAim: { angle: number; until: number } | null; lastHud: number }
+const POOL_SCALE = 2.9 / POOL.W;   // table units → metres
 interface DateState { spot: Spot; partner: Bot | null; t0: number; nextLine: number; gondola: THREE.Object3D | null; boatA: number; rewarded: boolean; giftAt: number }
 const GIFTS: { e: string; n: string }[] = [{ e: '🌹', n: 'Rose' }, { e: '🍦', n: 'Ice cream' }, { e: '☕', n: 'Chai' }, { e: '🧸', n: 'Teddy' }, { e: '🍫', n: 'Chocolate' }, { e: '💌', n: 'Love note' }];
 const RIDE_SECONDS = 60;
@@ -186,6 +192,7 @@ export class World {
   private daylight = { sky: 0, fog: 0, sun: 0, sunI: 1.7, hemiI: 0.85, near: 90, far: 360 };
   private lastZombieHud = 0;
   private landmarkData: Record<string, unknown> = {};
+  private landmarkRoot: THREE.Object3D | null = null;
   private lastMatchHud = 0;
   private raceLock = false;
   private lastRaceHud = 0;
@@ -198,6 +205,11 @@ export class World {
   private dateBoat: THREE.Group | null = null;
   private giftAt = new Map<string, number>();
   private sunsetK = 0;
+  private casino: Casino | null = null;
+  private dancers: Dancer[] = [];
+  private dancing: { partner: Bot | null; t0: number; rewarded: boolean; nextLine: number } | null = null;
+  private pool: PoolState | null = null;
+  private inClub = false;
   private pending: { at: number; bot: Bot; text: string }[] = [];
   private playerName = 'Explorer';
   private selfId = '';
@@ -282,7 +294,7 @@ export class World {
   async build(onProgress?: (fraction: number, label: string) => void) {
     const steps: [string, () => void][] = [
       ['Laying out the streets…', () => this.buildEnvironment()],
-      ['Waking up the explorers…', () => { this.player = this.spawnPlayer(this.playerName); this.spawnBots(); }],
+      ['Waking up the explorers…', () => { this.player = this.spawnPlayer(this.playerName); this.spawnBots(); this.spawnDancers(); }],
       ['Hiding the treats…', () => { this.spawnPickups(); this.spawnVehicles(); }],
       ['Letting the dogs out…', () => { this.spawnLife(); this.bindInput(); }],
       ['Connecting to the city…', () => this.connect()],
@@ -518,6 +530,8 @@ export class World {
     this.spots = (landmark.userData.spots ?? []) as Spot[];
     this.wheel = (landmark.getObjectByName('ferris') as THREE.Group | undefined) ?? null;
     this.dateBoat = (landmark.getObjectByName('dateboat') as THREE.Group | undefined) ?? null;
+    this.casino = (landmark.userData.casino as Casino | undefined) ?? null;
+    this.landmarkRoot = landmark;
     if (landmark.userData.cricket) this.oval = { ...(landmark.userData.cricket as { x: number; z: number; r: number; len: number }) };
     if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number; goalH: number }; this.field = { ...p }; }
     if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
@@ -1142,6 +1156,8 @@ export class World {
     if (this.stick) { ix += this.stick.dx; iz -= this.stick.dy; }
     if (this.cricket) { ix = 0; iz = 0; }   // you are at the crease: A/D or ◀ ▶ shuffle sideways (see tickCricket)
     if (this.date) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.endDate(); } }   // seated: Space / Jump stands up
+    if (this.dancing) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.stopDancing(); } }
+    if (this.pool) { ix = 0; iz = 0; if (this.wantKick || this.wantJump) { this.wantKick = false; this.wantJump = false; this.poolButton(); } }
     if (this.wantKick) { this.wantKick = false; if (this.match && !this.match.over) this.shoot(); else if (this.cricket) this.swing(); else if (this.zombies && !this.zombies.ending) this.punch(); }
 
     // --- enter / leave vehicles
@@ -1149,7 +1165,9 @@ export class World {
       this.wantToggleDrive = false;
       if (this.driving) this.exitVehicle();
       else if (this.date) this.endDate();
-      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
+      else if (this.dancing) this.stopDancing();
+      else if (this.pool) { /* E does nothing mid-frame; use Shoot */ }
+      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); if (pt) this.startPool(pt); else if (this.onDanceFloor()) this.startDancing(); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -1300,14 +1318,21 @@ export class World {
       p.y = ground + this.airY;
       if (this.airY > 0 || this.knock) poseJump(this.player); else animateWalk(this.player, t, moving);
       if (this.date) poseSit(this.player);
+      if (this.dancing) this.dancePose(this.player, t, 0, 1);
+      if (this.pool) { this.player.armR.rotation.x = -1.2; this.player.armL.rotation.x = -1.0; this.player.armR.rotation.z = -0.3; this.player.armL.rotation.z = 0.5; this.player.body.rotation.x = 0.35; }
       if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
 
-      focus = p.clone().add(new THREE.Vector3(0, 1.7, 0));
+      focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
-      const sp = this.date ? null : this.nearestSpot();
-      if (this.date) this.prompt(this.date.spot.kind === 'wheel' || this.date.spot.kind === 'boat' ? `${this.date.spot.kind === 'wheel' ? '🎡' : '🚤'} ${Math.max(0, Math.ceil(RIDE_SECONDS - (t - this.date.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early` : `${this.mobile ? 'Tap Drive or Jump' : 'Press E or Space'} to stand up`, false);
+      const sp = this.date || this.dancing || this.pool ? null : this.nearestSpot();
+      const ptab = this.date || this.dancing || this.pool ? null : this.nearestPoolTable();
+      if (this.pool) this.prompt(null, false);
+      else if (this.dancing) this.prompt(`${this.mobile ? 'Tap Jump' : 'Press E or Space'} to stop dancing`, false);
+      else if (ptab && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Rack up 8-ball${pt ? ` with ${pt.name}` : ''}`, false); }
+      else if (this.onDanceFloor() && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Dance${pt ? ` with ${pt.name}` : ''}`, false); }
+      else if (this.date) this.prompt(this.date.spot.kind === 'wheel' || this.date.spot.kind === 'boat' ? `${this.date.spot.kind === 'wheel' ? '🎡' : '🚤'} ${Math.max(0, Math.ceil(RIDE_SECONDS - (t - this.date.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early` : `${this.mobile ? 'Tap Drive or Jump' : 'Press E or Space'} to stand up`, false);
       else if (sp && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${sp.label}${pt ? ` with ${pt.name}` : ''}`, false); }
       else if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
       else if (this.zombies && !this.zombies.ending) this.prompt(this.mobile ? '🧟 Jump button punches · cars crush them · Z ends the night' : '🧟 Space punches the zombie in front · cars crush them · Z ends the night', false);
@@ -1472,6 +1497,8 @@ export class World {
     }
 
     if (this.race) this.tickRace(dt, t);
+    this.tickClub(dt, t);
+    if (this.pool) this.tickPool(dt, t);
     if (this.wheel) { this.wheel.rotation.z += dt * (Math.PI * 2 / 40); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
     if (this.date) this.tickDate(dt, t);
     this.sunsetK = Math.max(0, Math.min(1, this.sunsetK + ((this.date?.spot.kind === 'sunset') ? dt / 4 : -dt / 4)));
@@ -1898,7 +1925,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   cyclePace() { const c = this.cricket; if (!c || c.innings !== 2 || c.phase === 'flight' || c.phase === 'hit') return; c.pace = ((c.pace + 1) % 3) as 0 | 1 | 2; this.ev.onCollect({ name: ['🐢 Slow ball — more bounce, harder to time', '🎯 Medium pace', '⚡ Fast — beats the bat, but loose ones fly'][c.pace], points: 0, color: 0x3fb7d9, shape: 'gem' }); }
 
   /** In a game, race or zombie night: the HUD and the world drop everything that is not the game. */
-  private inMode() { return !!(this.match || this.cricket || this.race || (this.zombies && !this.zombies.ending)); }
+  private inMode() { return !!(this.match || this.cricket || this.race || this.pool || (this.zombies && !this.zombies.ending)); }
 
   private onStrip() {
     const o = this.oval; if (!o) return false;
@@ -2409,6 +2436,179 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.questCooldown = 12;
   }
 
+  // ---------- the Neon Palace: party, dance, lasers ----------
+  private insideClub() { const c = this.casino; if (!c) return false; const p = this.player.group.position; return Math.abs(p.x - c.x) < c.w / 2 && Math.abs(p.z - c.z) < c.d / 2; }
+  private onDanceFloor() { const c = this.casino; if (!c) return false; const p = this.player.group.position; return Math.abs(p.x - c.floor.x) < c.floor.w / 2 && Math.abs(p.z - c.floor.z) < c.floor.d / 2; }
+
+  /** Eight regulars who never leave the dance floor. */
+  private spawnDancers() {
+    const c = this.casino; if (!c) return;
+    for (let i = 0; i < 8; i++) {
+      const female = i % 2 === 1, style = female ? FEMALE_OUTFITS[i % FEMALE_OUTFITS.length] : OUTFITS[(i * 3) % OUTFITS.length];
+      const av = makeAvatar({ ...style, skin: SKINS[i % SKINS.length] });
+      av.group.position.set(c.floor.x + (i % 4 - 1.5) * 2.4 + (i >= 4 ? 1.2 : 0), this.terrain.h(c.floor.x, c.floor.z) + 0.1, c.floor.z + (i >= 4 ? 2.6 : -2.2));
+      av.group.rotation.y = Math.random() * Math.PI * 2;
+      this.scene.add(av.group);
+      this.dancers.push({ av, phase: Math.random() * 6, style: i % 3 });
+    }
+  }
+
+  /** A dance loop: arms pump, hips sway, a little bounce; three variations. */
+  private dancePose(av: Avatar, t: number, phase: number, style: number) {
+    const b = t * 2.1 + phase;   // 126 bpm
+    if (style === 0) { av.armL.rotation.x = -2.4 + Math.sin(b * Math.PI) * 0.5; av.armR.rotation.x = -2.4 - Math.sin(b * Math.PI) * 0.5; av.armL.rotation.z = 0.5; av.armR.rotation.z = -0.5; }
+    else if (style === 1) { av.armL.rotation.x = -1.2 + Math.sin(b * Math.PI) * 0.9; av.armR.rotation.x = -1.2 - Math.sin(b * Math.PI) * 0.9; av.armL.rotation.z = 0.2; av.armR.rotation.z = -0.2; }
+    else { av.armL.rotation.x = -0.6 + Math.sin(b * Math.PI * 0.5) * 0.4; av.armR.rotation.x = -2.6 + Math.cos(b * Math.PI) * 0.3; av.armL.rotation.z = 0.3; av.armR.rotation.z = -0.9 + Math.sin(b * Math.PI) * 0.3; }
+    av.body.position.y = 0.85 + Math.abs(Math.sin(b * Math.PI)) * 0.08;
+    av.body.rotation.z = Math.sin(b * Math.PI) * 0.12; av.body.rotation.y = Math.sin(b * Math.PI * 0.5) * 0.35;
+    av.legL.rotation.x = Math.sin(b * Math.PI) * 0.35; av.legR.rotation.x = -Math.sin(b * Math.PI) * 0.35;
+    av.group.rotation.y += Math.sin(b * Math.PI * 0.25) * 0.01;
+  }
+
+  private tickClub(dt: number, t: number) {
+    const c = this.casino, root = this.landmarkRoot; if (!c || !root) return;
+    const near = Math.hypot(this.player.group.position.x - c.x, this.player.group.position.z - c.z) < 60;
+    const inside = this.insideClub();
+    if (inside !== this.inClub) { this.inClub = inside; this.sfx.club(inside); if (inside) this.ev.onCollect({ name: '🎶 Welcome to the Neon Palace — dance floor, bar, slots and real 8-ball', points: 0, color: 0xff4fd8, shape: 'gem' }); }
+    if (!near) return;
+    // outside lasers sweep, inside lasers spin, floor tiles chase colours, the mirror ball turns
+    root.traverse((o) => {
+      if (o.name === 'laserout') { o.rotation.y += dt * 0.7; o.rotation.z = Math.sin(t * 0.9 + (o.userData.phase as number)) * 0.35; }
+      else if (o.name === 'laserin') { o.rotation.y -= dt * 1.1; for (const arm of o.children) arm.rotation.x = Math.sin(t * 1.6 + (arm.userData.k as number)) * 0.5; }
+      else if (o.name === 'dancefloor') { const k = Math.floor(t * 4); o.children.forEach((tile, i) => { const m = (tile as THREE.Mesh).material as THREE.MeshStandardMaterial; const on = (i + k) % 4 === 0 || (i * 7 + k) % 5 === 0; m.emissiveIntensity = on ? 1.4 : 0.35; }); }
+    });
+    for (const d of this.dancers) { this.dancePose(d.av, t, d.phase, d.style); }
+    if (this.dancing) {
+      const dn = this.dancing;
+      if (dn.partner) { this.dancePose(dn.partner.av, t, 1.5, 1); dn.partner.label.visible = true; if (t > dn.nextLine) { dn.nextLine = t + 8 + Math.random() * 6; this.botSays(dn.partner, DATE_LINES.party[Math.floor(Math.random() * DATE_LINES.party.length)], 0); } }
+      if (!dn.rewarded && t - dn.t0 > 15) { dn.rewarded = true; this.points += 20; this.ev.onPoints(this.points); this.ev.onCollect({ name: dn.partner ? `Dancing with ${dn.partner.name} · party!` : 'Party! You have the moves', points: 20, color: 0xff4fd8, shape: 'gem' }); if (dn.partner) this.ev.onHearts(); }
+    }
+  }
+
+  private startDancing() {
+    if (this.dancing || this.inMode()) return;
+    const partner = this.datePartner();
+    const p = this.player.group.position;
+    if (partner) { partner.playing = true; partner.wait = 0; partner.av.group.position.set(p.x + 1.4, p.y, p.z); partner.av.group.rotation.y = Math.atan2(-1.4, 0); partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 120; }
+    this.dancing = { partner, t0: this.elapsed, rewarded: false, nextLine: this.elapsed + 3 };
+    this.ev.onCollect({ name: partner ? `Dancing with ${partner.name} 🕺💃` : 'You hit the dance floor 🕺', points: 0, color: 0xff4fd8, shape: 'gem' });
+    this.clearQuest(); this.questCooldown = 30;
+  }
+
+  private stopDancing() {
+    const dn = this.dancing; if (!dn) return;
+    this.dancing = null;
+    this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0); this.player.body.position.y = 0.85;
+    if (dn.partner) { dn.partner.playing = false; dn.partner.wait = 1; dn.partner.av.body.rotation.set(0, 0, 0); dn.partner.av.armL.rotation.set(0, 0, 0); dn.partner.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== dn.partner) dn.partner.target = this.randomLandPoint(8, 120); }
+    this.questCooldown = 10;
+  }
+
+  // ---------- real 8-ball on the Palace tables ----------
+  private nearestPoolTable() {
+    const c = this.casino; if (!c) return null;
+    const p = this.player.group.position;
+    return c.tables.find((tb) => Math.hypot(tb.x - p.x, tb.z - p.z) < 3.6) ?? null;
+  }
+
+  /** table units → world position on this table */
+  private tablePos(tb: Casino['tables'][number], x: number, y: number, out: THREE.Vector3) {
+    const u = (x - POOL.W / 2) * POOL_SCALE, v = (y - POOL.H / 2) * POOL_SCALE, c = Math.cos(tb.ry), s = Math.sin(tb.ry);
+    return out.set(tb.x + u * c - v * s, tb.y + POOL.R * POOL_SCALE, tb.z + u * s + v * c);
+  }
+
+  startPool(table: Casino['tables'][number], oppBot?: Bot) {
+    if (this.pool || this.inMode()) return;
+    if (this.driving) this.exitVehicle();
+    if (this.date) this.endDate(); if (this.dancing) this.stopDancing();
+    const opp = oppBot ?? this.datePartner() ?? this.bots.filter((b) => !b.remote && !b.riding && !b.knocked && !b.playing).sort((a, b) => a.av.group.position.distanceTo(this.player.group.position) - b.av.group.position.distanceTo(this.player.group.position))[0];
+    if (!opp) return;
+    opp.playing = true; opp.wait = 0; opp.label.visible = true;
+    // you at the near long side, they at the far one
+    this.player.group.position.set(table.x, this.terrain.h(table.x, table.z), table.z + 1.9); this.player.group.rotation.y = Math.PI;
+    opp.av.group.position.set(table.x, this.terrain.h(table.x, table.z), table.z - 1.9); opp.av.group.rotation.y = 0;
+    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 0.95; this.dist = 4.2; this.camDist = 4.2;
+    const meshes: THREE.Mesh[] = [];
+    const game = createPool(opp.name, {
+      status: (text) => { if (this.pool) this.pool.status = text; },
+      turn: () => {},
+      finish: (win, why) => { const ps = this.pool; if (!ps) return; ps.over = true; ps.endAt = this.elapsed + 5; ps.status = why; this.gameResult('pool', win, opp.name); },
+      potted: (n) => { this.sfx.thud(); if (n !== 0 && this.pool) { const m = this.pool.meshes[n]; if (m) m.visible = false; } },
+      botAim: (angle) => { if (this.pool) this.pool.botAim = { angle, until: this.elapsed + 0.7 }; if (Math.random() < 0.3) this.botSays(opp, POOL_TALK[Math.floor(Math.random() * POOL_TALK.length)], 0); },
+    }, 1100);
+    for (const b of game.balls) {
+      const mat = new THREE.MeshStandardMaterial({ color: isStripe(b.n) ? 0xffffff : POOL_COLORS[b.n], roughness: 0.25, metalness: 0.05 });
+      const m = new THREE.Mesh(new THREE.SphereGeometry(POOL.R * POOL_SCALE, 14, 10), mat);
+      if (isStripe(b.n)) { const band = new THREE.Mesh(new THREE.CylinderGeometry(POOL.R * POOL_SCALE * 1.005, POOL.R * POOL_SCALE * 1.005, POOL.R * POOL_SCALE * 0.9, 14, 1, true), new THREE.MeshStandardMaterial({ color: POOL_COLORS[b.n], roughness: 0.25 })); m.add(band); }
+      if (b.n) { const dot = new THREE.Mesh(new THREE.SphereGeometry(POOL.R * POOL_SCALE * 0.45, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff })); dot.position.y = POOL.R * POOL_SCALE * 0.75; m.add(dot); }
+      m.castShadow = true; this.scene.add(m); meshes[b.n] = m;
+    }
+    const cueStick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 1.45, 8), new THREE.MeshStandardMaterial({ color: 0xc9a86a, roughness: 0.6 })); cueStick.geometry.translate(0, 0.72, 0); cueStick.rotation.x = Math.PI / 2; this.scene.add(cueStick);
+    const aimLine = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.004, 1.2), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, transparent: true, opacity: 0.7 })); aimLine.geometry.translate(0, 0, 0.6); this.scene.add(aimLine);
+    this.pool = { game, table, opp, meshes, cueStick, aimLine, aim: 0, power: 0, charging: false, status: 'Your shot', over: false, endAt: 0, botAim: null, lastHud: 0 };
+    this.clearQuest(); this.questCooldown = 30;
+    this.ev.onMode({ icon: '🎱', label: 'Shoot', arrows: true });
+    this.ev.onCollect({ name: `8-ball vs ${opp.name} · ◀ ▶ aim, Shoot to set power, Shoot again to strike`, points: 0, color: 0xff4fd8, shape: 'gem' });
+    this.botSays(opp, 'Your break. Do not scratch 😏', 1.2);
+    this.sfx.questStart();
+  }
+
+  private poolButton() {
+    const ps = this.pool!; if (ps.over) return;
+    const g = ps.game;
+    if (g.turn !== 'you' || g.moving) return;
+    if (g.ballInHand) { g.autoPlaceCue(); return; }
+    if (!ps.charging) { ps.charging = true; ps.power = 0; return; }
+    ps.charging = false;
+    g.shoot(ps.aim, 6 + ps.power * 18);
+    this.sfx.click();
+  }
+
+  private tickPool(dt: number, t: number) {
+    const ps = this.pool!, g = ps.game, tb = ps.table;
+    if (ps.over && t > ps.endAt) { this.endPool(); return; }
+    g.step();
+    // aim with ◀ ▶ (or A/D); power meter bounces while charging
+    const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
+    if (g.turn === 'you' && !g.moving) ps.aim += held * dt * (this.keys.has('shift') ? 0.35 : 1.1);
+    if (ps.charging) ps.power = (Math.sin(t * 3.2) + 1) / 2;
+    // balls
+    const v = new THREE.Vector3();
+    for (const b of g.balls) { const m = ps.meshes[b.n]; if (!m) continue; m.visible = !b.in; if (!b.in) { this.tablePos(tb, b.x, b.y, v); m.position.copy(v); m.rotation.x += b.vy * POOL_SCALE * 0.5; m.rotation.z -= b.vx * POOL_SCALE * 0.5; } }
+    // cue stick + aim line follow the cue ball; the bot's aim animates for a moment before its shot
+    const cueW = this.tablePos(tb, g.cue.x, g.cue.y, new THREE.Vector3());
+    const showAim = !g.moving && !ps.over && (g.turn === 'you' || !!(ps.botAim && t < ps.botAim.until));
+    const ang = g.turn === 'you' ? ps.aim : (ps.botAim?.angle ?? 0);
+    const worldAng = ang + tb.ry, dx = Math.cos(worldAng), dz = Math.sin(worldAng);
+    ps.aimLine.visible = showAim; ps.cueStick.visible = showAim;
+    if (showAim) {
+      ps.aimLine.position.copy(cueW); ps.aimLine.rotation.set(0, -worldAng + Math.PI / 2, 0);
+      const back = 0.06 + (ps.charging ? ps.power * 0.25 : 0.04);
+      ps.cueStick.position.set(cueW.x - dx * back, cueW.y, cueW.z - dz * back);
+      ps.cueStick.rotation.set(0, -worldAng - Math.PI / 2, 0); ps.cueStick.rotateX(Math.PI / 2);   // stick points along -aim, lying flat
+    }
+    if (g.turn === 'you' && g.moving === false && g.ballInHand) g.autoPlaceCue();
+    // the opponent leans over the table on their shot
+    ps.opp.av.armR.rotation.x = g.turn === 'bot' && !g.moving ? -1.3 : -0.3; ps.opp.av.armL.rotation.x = g.turn === 'bot' && !g.moving ? -1.1 : -0.3; ps.opp.av.body.rotation.x = g.turn === 'bot' && !g.moving ? 0.5 : 0.1;
+    if (t - ps.lastHud > 0.15) {
+      ps.lastHud = t;
+      const you = g.groups.you ? `${g.groupName('you')} · ${g.remaining('you')} left` : 'open table', them = g.groups.you ? `${g.groupName('bot')} · ${g.remaining('bot')} left` : 'open table';
+      this.ev.onQuest({ status: ps.over ? (ps.status.startsWith('You sank the 8-ball to win') || (ps.status.includes(ps.opp.name) && ps.status.includes('too early')) ? 'done' : 'failed') : 'active', title: `🎱 You (${you}) vs ${ps.opp.name} (${them})`, desc: ps.over ? ps.status : g.turn === 'you' ? (ps.charging ? 'Shoot again to strike at this power' : g.moving ? 'Balls rolling…' : `${this.mobile ? '◀ ▶' : '◀ ▶ / A D'} to aim (Shift = fine) · Shoot to start the power meter`) : ps.status, progress: ps.charging ? `Power ${Math.round(ps.power * 100)}%` : g.turn === 'you' ? 'Your shot' : `${ps.opp.name}'s shot`, remaining: 1, total: 1, reward: 250, hint: null, fill: ps.charging ? ps.power : g.turn === 'you' ? 1 : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
+    }
+  }
+
+  private endPool() {
+    const ps = this.pool; if (!ps) return;
+    this.pool = null;
+    ps.game.dispose();
+    for (const m of ps.meshes) if (m) this.scene.remove(m);
+    this.scene.remove(ps.cueStick); this.scene.remove(ps.aimLine);
+    ps.opp.playing = false; ps.opp.wait = 2; ps.opp.av.body.rotation.set(0, 0, 0); ps.opp.av.armL.rotation.set(0, 0, 0); ps.opp.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== ps.opp) ps.opp.target = this.randomLandPoint(8, 120);
+    this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0);
+    this.pitch = 0.3; this.dist = 10; this.camDist = 10;
+    this.ev.onMode(null); this.ev.onQuest(null);
+    this.questCooldown = 10;
+  }
+
   // ---------- dates: sit together, ride the wheel, take the boat out, watch the sunset ----------
   private nearestSpot(): Spot | null {
     const p = this.player.group.position;
@@ -2438,7 +2638,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const partner = this.datePartner();
     const t = this.elapsed;
     this.seatAt(spot, 0, this.player.group.position); this.player.group.rotation.y = spot.ry; this.airY = 0; this.vy = 0;
-    if (partner) { partner.playing = true; partner.wait = 0; this.seatAt(spot, 1, partner.av.group.position); partner.av.group.rotation.y = spot.ry; poseSit(partner.av); partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 120; }
+    if (partner) { partner.playing = true; partner.wait = 0; this.seatAt(spot, 1, partner.av.group.position); partner.av.group.rotation.y = spot.ry + (spot.face ? Math.PI : 0); poseSit(partner.av); partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 120; }
     let gondola: THREE.Object3D | null = null;
     if (spot.kind === 'wheel' && this.wheel) {   // board the gondola nearest the ground
       let best = Infinity;
@@ -2476,7 +2676,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       if (d.boatA > Math.PI * 2) { this.endDate(); return; }
     } else {
       this.seatAt(sp, 0, seat); p.copy(seat); this.player.group.rotation.y = sp.ry;
-      if (d.partner) { this.seatAt(sp, 1, d.partner.av.group.position); d.partner.av.group.rotation.y = sp.ry; poseSit(d.partner.av); d.partner.label.visible = true; }
+      if (d.partner) { this.seatAt(sp, 1, d.partner.av.group.position); d.partner.av.group.rotation.y = sp.ry + (sp.face ? Math.PI : 0); poseSit(d.partner.av); d.partner.label.visible = true; }
     }
     if (d.partner && t > d.nextLine) { d.nextLine = t + 8 + Math.random() * 7; const lines = DATE_LINES[sp.kind] ?? DATE_LINES.pier; this.botSays(d.partner, lines[Math.floor(Math.random() * lines.length)], 0); }
     if (d.partner && t > d.giftAt) { d.giftAt = t + 60; if (Math.random() < 0.5) { const g = GIFTS[Math.floor(Math.random() * GIFTS.length)]; store.receiveGift(d.partner.name, g.e); this.points += 5; this.ev.onPoints(this.points); this.showGift(d.partner, g.e); this.ev.onCollect({ name: `${d.partner.name} gave you ${g.e} ${g.n}`, points: 5, color: 0xe75480, shape: 'gem' }); this.ev.onHearts(); this.sfx.questDone(); } }
@@ -2699,7 +2899,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       case 'cricket': this.startCricket(b); break;
       case 'zombies': if (!this.zombies) { this.botSays(b, 'Stay close, they are coming! 🧟', 0.2); this.toggleZombies(); if (!b.remote) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: t + 600, nextLine: t + 8 }; b.wait = 0; } } break;
       case 'hunt': this.startVersus('hunt', b); break;
-      case 'pool': this.botSays(b, 'Rack them up 🎱', 0.2); this.ev.onGame('pool', b.name); break;
+      case 'pool': { const pt = this.casino && Math.hypot(this.player.group.position.x - this.casino.x, this.player.group.position.z - this.casino.z) < 30 ? this.casino.tables[0] : null; this.botSays(b, 'Rack them up 🎱', 0.2); if (pt && !b.remote) this.startPool(pt, b); else this.ev.onGame('pool', b.name); break; }
       case 'chess': this.botSays(b, 'White moves first — your go ♟️', 0.2); this.ev.onGame('chess', b.name); break;
       case 'ludo': this.botSays(b, 'Roll a six! 🎲', 0.2); this.ev.onGame('ludo', b.name); break;
       case 'carrom': this.botSays(b, 'Flick it! 🎯', 0.2); this.ev.onGame('carrom', b.name); break;

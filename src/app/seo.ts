@@ -27,6 +27,7 @@ export const FEATURES = {
     ["Downtown Plaza", "fountain, big screen and the spawn point — where everyone meets"],
     ["Café Row & Food-truck Park", "Chai Corner, Waffle Wonders, taco and biryani trucks"],
     ["Neon Lane", "Tipsy Turtle Pub, Whiskey & Wings, Bass Drop Club, Karaoke Kingdom, Skyline Rooftop Bar, Mojito Shack"],
+    ["Neon Palace casino & club", "dance floor, DJ, bar, slots, roulette, lasers inside and out, and two real 8-ball tables"],
     ["Sunset Beach", "sand, shacks, volleyball net, a pier, boats and a lifeguard tower"],
     ["Central Park", "a lake, benches and a bandstand"],
     ["City Stadium", "a full 56 × 36 m football pitch with goals, stands and floodlights"],
@@ -47,7 +48,7 @@ export const FEATURES = {
   ],
   social: [
     ["Real-time multiplayer", "see real people walk, drive and chat; friend requests and a friends list"],
-    ["Hang out & date", "walk together, tap an icebreaker to start the chat, sit on the pier bench, share a candle-lit table on the sand, ride the Sunset Wheel, take the boat out at the marina, watch the sunset at Lighthouse Point"],
+    ["Hang out & date", "walk together, tap an icebreaker to start the chat, have a coffee at Chai Corner, sit on the pier bench, share a candle-lit table on the sand, ride the Sunset Wheel, take the boat out at the marina, watch the sunset at Lighthouse Point"],
     ["Gifts", "send roses, ice cream, chai, a teddy, chocolate or a love note; gifts you receive show on your profile"],
     ["Your explorer", "pick a name and a male or female avatar; rank on the leaderboard"],
     ["Phone & desktop", "joystick and buttons on mobile, WASD on desktop, no install"],

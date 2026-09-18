@@ -35,8 +35,8 @@ export default function Games() {
       <section><h2>💰 Tasks — cash hunt, checkpoint dash, taxi job, snack run</h2>
         <p>Timed tasks appear in the top-left card (or press T): find hidden ₹500 bundles shown roughly on the map, dash through checkpoints, drive a passenger across town, or gather snacks along Café Row. Finish fast for double points and climb the leaderboard.</p></section>
 
-      <section><h2>🎱 8-ball pool, ♟️ chess, 🎲 Ludo, 🎯 carrom</h2>
-        <p>Walk up to any explorer, choose Game and pick a table game. 8-ball uses the real rules (solids and stripes, scratch means ball in hand, sink the 8 last). Chess, Ludo and carrom each have a proper board and an opponent that plays back.</p></section>
+      <section><h2>🎱 Real 8-ball at the Neon Palace</h2>
+        <p>The Neon Palace is the casino and club at the end of Neon Lane: a dance floor with chasing tiles, a DJ, a bar, slot machines, a roulette table and laser lights sweeping inside and over the roof. Press E on the dance floor to dance with whoever is with you. Press E at either pool table for real 8-ball on a 3D table — ◀ ▶ to aim, Shoot to start the power meter, Shoot again to strike. Real rules: first pot decides solids or stripes, scratch is ball in hand, sink the 8 last. Away from the Palace, 8-ball, chess, Ludo and carrom are still playable from any explorer's card.</p></section>
 
       <section><h2>Also in the city</h2>
         <p>Driving jeeps, tuk-tuks, bikes and cycles (with petrol and a fuel station), giving people lifts, the Harbour Bridge to Eastside island, buses and police on the roads, dogs, cats and birds, and a big map of it all.</p></section>

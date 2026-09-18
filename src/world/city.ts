@@ -122,6 +122,10 @@ export function buildCity(g: THREE.Group, h: H) {
     keep(x, z, 9); keep(x, z - 9, 5);
   }
   place('Café Row', 0, 12, 64);
+  { const x = -15, z = 55, y = h(x, z);   // the Chai Corner table becomes a coffee-date table: two chairs and two cups
+    for (const dx of [-0.9, 0.9]) { g.add(at(cyl(0.3, 0.3, 0.06, 0x8a6a4a, 10), x + dx, y + 0.48, z)); for (const [ax, az] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) g.add(at(cyl(0.025, 0.025, 0.48, 0x555555, 5), x + dx + ax, y + 0.24, z + az)); g.add(at(box(0.5, 0.5, 0.05, 0x8a6a4a), x + dx + (dx < 0 ? -0.28 : 0.28), y + 0.75, z)); }
+    for (const dx of [-0.25, 0.25]) { g.add(at(cyl(0.07, 0.06, 0.1, 0xffffff, 8), x + dx, y + 1.0, z)); g.add(at(cyl(0.05, 0.05, 0.02, 0x5a3a2a, 8), x + dx, y + 1.06, z)); }
+    g.userData.coffee = { x, z, y }; }
 
   // cinema (west) and mall (east)
   const cx = -52, cz = 4, cy = h(cx, cz);
@@ -167,7 +171,66 @@ export function buildCity(g: THREE.Group, h: H) {
     keep(x, z, 14); keep(x, z + 12, 8);
   }
   place('Neon Lane · nightlife', -50, 22, -78, 150);
-  road(-125, -62, 20, -62);
+  road(-125, -62, 70, -62);
+
+  // ================= NEON PALACE — casino & club at the end of Neon Lane =================
+  // A walk-in venue: dance floor, DJ, bar, slot machines, roulette and two real pool tables. Lasers inside and out.
+  {
+    const cx = 50, cz = -86, cy = h(cx, cz), CW = 34, CD = 26, CH = 9, DARK = 0x1a1230, TRIM = 0xff4fd8;
+    const wall = (w: number, d: number, dx: number, dz: number) => g.add(at(box(w, CH, d, DARK), cx + dx, cy + CH / 2, cz + dz));
+    wall(CW, 0.5, 0, -CD / 2); wall(0.5, CD, -CW / 2, 0); wall(0.5, CD, CW / 2, 0);
+    wall(CW / 2 - 3, 0.5, -(CW / 4 + 1.5), CD / 2); wall(CW / 2 - 3, 0.5, CW / 4 + 1.5, CD / 2);            // front wall with a 6 m doorway
+    g.add(at(box(6.6, CH - 5, 0.5, DARK), cx, cy + 5 + (CH - 5) / 2, cz + CD / 2));                            // over the door
+    g.add(at(box(CW + 0.6, 0.6, CD + 0.6, 0x111111), cx, cy + CH + 0.3, cz));                                  // roof
+    { const floor = at(box(CW - 1, 0.1, CD - 1, 0x2a1f3d), cx, cy + 0.05, cz); floor.userData.noCollide = true; g.add(floor); }
+    // marquee + name in lights
+    g.add(at(box(CW, 1.2, 3, 0x2a1f3d), cx, cy + CH + 0.9, cz + CD / 2 + 1)); for (let i = 0; i < 18; i++) g.add(at(glow(0.35, 0.35, 0.35, i % 2 ? 0xfff2a8 : TRIM), cx - CW / 2 + 1 + i * (CW - 2) / 17, cy + CH + 1.7, cz + CD / 2 + 2.6));
+    g.add(at(glow(16, 1.6, 0.3, TRIM), cx, cy + CH + 3.4, cz + CD / 2 + 1)); g.add(at(glow(10, 0.8, 0.3, 0x3fb7d9), cx, cy + CH + 4.8, cz + CD / 2 + 1));
+    { const door = at(glow(6, 3.2, 0.2, 0xffe08a), cx, cy + 2.6, cz + CD / 2 - 0.35); door.userData.noCollide = true; g.add(door); }   // lit doorway (walk through it)
+    for (const dx of [-5, 5]) { g.add(at(cyl(0.6, 0.6, 0.15, 0xd94a3d, 10), cx + dx, cy + 0.08, cz + CD / 2 + 3)); g.add(at(cyl(0.06, 0.06, 1.1, 0xe8c46a, 6), cx + dx, cy + 0.6, cz + CD / 2 + 3)); }   // velvet rope posts
+    // rooftop laser cannons: each spins and sweeps two long beams through the sky
+    for (const [dx, dz] of [[-12, -8], [12, -8], [-12, 8], [12, 8]]) {
+      const can = new THREE.Group(); can.position.set(cx + dx, cy + CH + 0.8, cz + dz); can.name = 'laserout'; can.userData.animated = true; can.userData.phase = dx * 0.1 + dz * 0.07;
+      can.add(at(box(1, 0.8, 1, 0x333333), 0, 0.4, 0));
+      for (const [c, ry] of [[TRIM, 0], [0x3fb7d9, 1.2], [0xa6ff7a, 2.4]] as const) { const beam = mesh(new THREE.CylinderGeometry(0.06, 0.35, 70, 6, 1, true), c, { emissive: c, emissiveIntensity: 1.4, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }); beam.geometry.translate(0, 35, 0); beam.rotation.set(0.9, ry, 0); beam.userData.noCollide = true; can.add(beam); }
+      g.add(can);
+    }
+    // ---- inside: the dance floor (tiles cycle colour), a mirror ball, ceiling lasers
+    const dfx = cx - 6, dfz = cz - 3;
+    { const df = new THREE.Group(); df.name = 'dancefloor'; df.userData.animated = true; df.position.set(dfx, cy + 0.06, dfz);
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 5; j++) { const tile = glow(1.9, 0.08, 1.9, [0xff4fd8, 0x3fb7d9, 0xf2c31b, 0xa6ff7a][(i + j) % 4]); tile.position.set((i - 2.5) * 2, 0, (j - 2) * 2); tile.userData.noCollide = true; df.add(tile); }
+      g.add(df); }
+    g.add(at(cyl(0.05, 0.05, 2.4, 0x555555, 4), dfx, cy + CH - 1.2, dfz)); g.add(at(mesh(new THREE.SphereGeometry(0.9, 12, 8), 0xdddddd, { metalness: 0.9, roughness: 0.15, emissive: 0x666666, emissiveIntensity: 0.3 }), dfx, cy + CH - 2.6, dfz));
+    { const li = new THREE.Group(); li.name = 'laserin'; li.userData.animated = true; li.position.set(dfx, cy + CH - 0.4, dfz);
+      for (let k = 0; k < 6; k++) { const c = [TRIM, 0x3fb7d9, 0xa6ff7a, 0xf2c31b, 0xff7a7a, 0x7ad7ff][k]; const beam = mesh(new THREE.CylinderGeometry(0.03, 0.22, 12, 5, 1, true), c, { emissive: c, emissiveIntensity: 1.6, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false }); beam.geometry.translate(0, -6, 0); const arm = new THREE.Group(); arm.rotation.y = (k / 6) * Math.PI * 2; arm.userData.k = k; beam.rotation.x = 0.55; beam.userData.noCollide = true; arm.add(beam); li.add(arm); }
+      g.add(li); }
+    // DJ booth against the back wall, bar along the east wall, slots along the west wall, roulette by the door
+    g.add(at(box(6, 1.1, 2, 0x111111), dfx, cy + 0.55, cz - CD / 2 + 2.2)); g.add(at(glow(5.6, 0.5, 0.15, 0x3fb7d9), dfx, cy + 1.1, cz - CD / 2 + 1.2)); g.add(at(box(2.4, 1.6, 0.3, 0x222222), dfx, cy + 2.4, cz - CD / 2 + 0.6)); g.add(at(glow(2.2, 1.4, 0.05, TRIM), dfx, cy + 2.4, cz - CD / 2 + 0.8));
+    for (let k = 0; k < 4; k++) g.add(at(box(0.6, 1.6, 0.6, 0x111111), dfx - 4 + k * 8, cy + 0.8, cz - CD / 2 + 1.5));   // speakers
+    g.add(at(box(1.4, 1.1, 12, 0x3a2418), cx + CW / 2 - 3, cy + 0.55, cz - 3)); g.add(at(box(1.6, 0.1, 12.2, 0xe8c46a), cx + CW / 2 - 3, cy + 1.12, cz - 3));
+    for (let k = 0; k < 5; k++) { g.add(at(cyl(0.32, 0.32, 0.08, 0xd94a3d, 10), cx + CW / 2 - 4.6, cy + 0.72, cz - 8 + k * 2.5)); g.add(at(cyl(0.05, 0.05, 0.7, 0x555555, 6), cx + CW / 2 - 4.6, cy + 0.35, cz - 8 + k * 2.5)); }
+    g.add(at(box(0.4, 3.5, 12, 0x2a1f3d), cx + CW / 2 - 0.5, cy + 3.5, cz - 3)); for (let k = 0; k < 8; k++) g.add(at(glow(0.2, 0.5, 0.2, [0xffe08a, 0x7ad7ff, 0xff7a7a][k % 3]), cx + CW / 2 - 0.9, cy + 3.5 + (k % 2) * 0.9, cz - 8 + k * 1.5));   // back bar bottles
+    for (let k = 0; k < 6; k++) { const sx = cx - CW / 2 + 1.2, sz = cz - 9 + k * 3; g.add(at(box(1.2, 2.2, 0.9, [0xc9502f, 0x2c3e6b, 0x6a3fb0][k % 3]), sx, cy + 1.1, sz)); g.add(at(glow(0.9, 0.7, 0.05, 0xffe08a), sx + 0.47, cy + 1.5, sz)); g.add(at(cyl(0.08, 0.08, 0.5, 0xe8c46a, 6), sx + 0.6, cy + 1.8, sz - 0.5)); g.add(at(sph(0.1, 0xd94a3d, 6), sx + 0.6, cy + 2.05, sz - 0.5)); }   // slot machines
+    { const rx = cx + 8, rz = cz + 8; g.add(at(box(5, 0.9, 2.6, 0x1e7a4c), rx, cy + 0.45, rz)); g.add(at(cyl(1.0, 1.1, 0.35, 0x8a2a2a, 20), rx - 1.5, cy + 1.05, rz)); g.add(at(cyl(0.7, 0.7, 0.12, 0xe8c46a, 16), rx - 1.5, cy + 1.28, rz)); g.add(at(cyl(0.12, 0.12, 0.5, 0xe8c46a, 8), rx - 1.5, cy + 1.5, rz)); }   // roulette
+    // two real pool tables: slate, cushions, six pockets, legs and a lamp; the world plays 8-ball on them
+    const poolTables: { x: number; z: number; ry: number; y: number }[] = [];
+    for (const [px, pz] of [[cx + 7, cz - 6], [cx + 7, cz - 0.5]]) {
+      const ty = cy + 0.86;
+      g.add(at(box(3.2, 0.12, 1.8, 0x1e7a4c), px, ty - 0.06, pz));                                     // cloth
+      for (const [w, d, dx, dz] of [[3.2, 0.14, 0, -0.97], [3.2, 0.14, 0, 0.97], [0.14, 1.8, -1.67, 0], [0.14, 1.8, 1.67, 0]] as const) g.add(at(box(w, 0.16, d, 0x5a3a2a), px + dx, ty + 0.02, pz + dz));   // cushions
+      g.add(at(box(3.5, 0.3, 2.1, 0x3a2418), px, ty - 0.27, pz));                                       // frame
+      for (const [dx, dz] of [[-1.55, -0.85], [0, -0.9], [1.55, -0.85], [-1.55, 0.85], [0, 0.9], [1.55, 0.85]]) { const pk = at(cyl(0.09, 0.09, 0.06, 0x111111, 10), px + dx, ty + 0.02, pz + dz); pk.userData.noCollide = true; g.add(pk); }
+      for (const [dx, dz] of [[-1.4, -0.75], [1.4, -0.75], [-1.4, 0.75], [1.4, 0.75]]) g.add(at(box(0.18, ty - cy - 0.4, 0.18, 0x3a2418), px + dx, cy + (ty - cy - 0.4) / 2, pz + dz));
+      g.add(at(cyl(0.02, 0.02, 2, 0x333333, 4), px, ty + 2.2, pz)); g.add(at(box(2.4, 0.16, 0.5, 0x2a1f3d), px, ty + 1.25, pz)); g.add(at(glow(2.2, 0.05, 0.4, 0xfff2a8), px, ty + 1.16, pz));   // lamp
+      { const blocker = at(box(3.7, 3, 2.3, 0x000000), px, cy + 1.5, pz); blocker.visible = false; g.add(blocker); }   // tall enough that nobody climbs onto the cloth
+      poolTables.push({ x: px, z: pz, ry: 0, y: ty });
+    }
+    // a few high tables for hanging out
+    for (const [dx, dz] of [[-12, 8], [-8, 9], [2, 9]]) { g.add(at(cyl(0.45, 0.45, 0.05, 0xe8c46a, 10), cx + dx, cy + 1.05, cz + dz)); g.add(at(cyl(0.05, 0.05, 1.05, 0x555555, 6), cx + dx, cy + 0.52, cz + dz)); }
+    g.userData.casino = { x: cx, z: cz, w: CW, d: CD, floor: { x: dfx, z: dfz, w: 12, d: 10 }, tables: poolTables };
+    place('Neon Palace · casino & club', cx, CH + 8, cz, 220);
+    keep(cx, cz, 24); keep(cx, cz + CD / 2 + 4, 8);
+  }
 
   // ================= CAMPUS (north) =================
   // Sunrise High School
@@ -553,8 +616,9 @@ export function buildCity(g: THREE.Group, h: H) {
 
   // ================= DATE SPOTS: benches, a candle-lit table, the Ferris wheel and a boat =================
   // A spot is { id, kind, x, z, ry (which way you face when seated), seats: [dx, dz][] } — the world reads these.
-  const spots: { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][] }[] = [];
+  const spots: { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][]; face?: boolean }[] = [];
   const spot = (id: string, kind: string, label: string, x: number, z: number, y: number, ry: number, seats: [number, number][]) => spots.push({ id, kind, label, x, z, y, ry, seats });
+  { const c = g.userData.coffee as { x: number; z: number; y: number }; spots.push({ id: 'coffee', kind: 'coffee', label: 'Have a coffee at Chai Corner', x: c.x, z: c.z, y: c.y, ry: -Math.PI / 2, seats: [[-0.9, 0], [0.9, 0]], face: true }); }
   // pier bench at the end of the pier, facing the sea
   bench(g, 256, 2.5, 40, -Math.PI / 2); spot('pier', 'pier', 'Sit on the pier bench', 256, 40, 2.5, -Math.PI / 2, [[0, -0.5], [0, 0.5]]);
   // candle-lit table for two on the sand

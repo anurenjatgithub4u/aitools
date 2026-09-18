@@ -141,6 +141,22 @@ export class Sfx {
   punch() { this.burst(500, 0.07, 0.35); this.tone('sine', 160, 60, 0.14, 0.3); }
   groan() { this.tone('sawtooth', 120 + Math.random() * 40, 70, 0.7, 0.07); this.tone('sawtooth', 90, 60, 0.6, 0.05, 0.1); }
   siren() { for (let i = 0; i < 3; i++) this.tone('sine', 420, 640, 0.5, 0.08, i * 0.5); }
+  click() { this.burst(3000, 0.04, 0.35, 'highpass'); this.tone('sine', 900, 500, 0.05, 0.2); }
+  private beat = 0;
+  /** Four-on-the-floor at 126 bpm while you are in the club (synthesised, no assets). */
+  club(on: boolean) {
+    if (!on) { if (this.beat) { clearInterval(this.beat); this.beat = 0; } return; }
+    if (this.beat) return;
+    let n = 0;
+    this.beat = window.setInterval(() => {
+      if (!this.ready()) return;
+      this.tone('sine', 150, 40, 0.28, 0.5);                                   // kick
+      if (n % 2 === 1) this.burst(6000, 0.05, 0.18, 'highpass');               // off-beat hat
+      if (n % 4 === 2) this.burst(1800, 0.12, 0.25, 'bandpass');               // snare-ish
+      if (n % 8 === 0) this.tone('sawtooth', [110, 138, 165, 123][(n / 8) % 4], [110, 138, 165, 123][(n / 8) % 4] * 0.99, 1.7, 0.05);   // bass
+      n++;
+    }, 476);
+  }
   questStart() { this.tone('sine', 523, 523, 0.12, 0.2); this.tone('sine', 659, 659, 0.12, 0.2, 0.12); this.tone('sine', 784, 784, 0.25, 0.22, 0.24); }
   checkpoint() { this.tone('triangle', 880, 1175, 0.15, 0.22); }
   questDone() { [523, 659, 784, 1047].forEach((f, i) => this.tone('sine', f, f, 0.35, 0.22, i * 0.11)); this.tone('sine', 1047, 1319, 0.5, 0.18, 0.5); }
@@ -149,6 +165,7 @@ export class Sfx {
   bark() { this.tone('sawtooth', 380, 220, 0.09, 0.12); this.tone('sawtooth', 420, 240, 0.09, 0.1, 0.13); }
 
   dispose() {
+    this.club(false);
     this.engineState(false, 0, false, false);
     this.pumpState(false);
     void this.ctx?.close();

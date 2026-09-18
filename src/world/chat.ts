@@ -78,6 +78,8 @@ export function randomIcebreakers(n = 3): string[] {
 
 // ---- things they say on a date, by spot
 export const DATE_LINES: Record<string, string[]> = {
+  coffee: ['Mmm, chai. Tell me about your day.', 'Sugar? I take two.', 'This is my favourite table.', 'We should do this every evening.', 'Careful, it is hot.'],
+  party: ['This DJ is fire! 🔥', 'Come on, dance!', 'The lasers! Look up!', 'One more song?', 'I love this track.'],
   pier: ['Listen to the waves…', 'I could sit here all night.', 'The lighthouse is blinking at us.', 'Do you come to the beach a lot?', 'This is nice. Just this.'],
   candle: ['Candles. You planned this?', 'The sea sounds louder at night.', 'Cheers 🥂', 'Tell me something nobody here knows about you.', 'Okay, this is a proper date.'],
   sunset: ['Look at that colour!', 'Sunsets are better with company.', 'Make a wish before it goes.', 'Every sunset here is different.', 'Stay till it is dark?'],
@@ -93,3 +95,4 @@ export const GIFT_THANKS: Record<string, string[]> = {
   '🍫': ['Chocolate 🍫 you are dangerous.', 'Sharing? …Fine, half.', 'How did you know?'],
   '💌': ['A note? *reads it twice* 💌', 'I am keeping this.', 'That is the nicest thing anyone said today.'],
 };
+export const POOL_TALK = ['Nice shot!', 'Ooh, unlucky.', 'Watch this.', 'Chalk up.', 'That was pure luck 😄', 'Corner pocket, calling it.'];

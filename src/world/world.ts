@@ -460,7 +460,8 @@ export class World {
       if (b.av.group.parent !== drvCar.group) { b.av.group.removeFromParent(); drvCar.group.add(b.av.group); const seats = this.seatsFor(drvCar); b.av.group.position.copy(seats[Math.min(seats.length - 1, 1)] ?? drvCar.seat); b.av.group.rotation.set(0, 0, 0); if (drvCar.spec.ride) poseRide(b.av); else poseSit(b.av); }
       b.label.visible = true; return;
     }
-    if (b.av.group.parent !== this.scene) { b.av.group.removeFromParent(); this.scene.add(b.av.group); b.av.group.position.set(r.tx, this.groundAt(r.tx, r.tz, 0), r.tz); b.av.armL.rotation.x = b.av.armR.rotation.x = 0; b.av.legL.rotation.x = b.av.legR.rotation.x = 0; b.av.legL.rotation.z = b.av.legR.rotation.z = 0; }
+    // back on foot after riding with someone (a peer driving their own car stays in it)
+    if (b.av.group.parent !== this.scene && b.av.group.parent !== r.car?.group) { b.av.group.removeFromParent(); this.scene.add(b.av.group); b.av.group.position.set(r.tx, this.groundAt(r.tx, r.tz, 0), r.tz); b.av.armL.rotation.x = b.av.armR.rotation.x = 0; b.av.legL.rotation.x = b.av.legR.rotation.x = 0; b.av.legL.rotation.z = b.av.legR.rotation.z = 0; }
     if (r.car) {
       const vp = r.car.group.position;
       vp.x += (r.tx - vp.x) * k; vp.z += (r.tz - vp.z) * k;

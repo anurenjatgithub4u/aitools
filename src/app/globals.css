@@ -473,3 +473,21 @@ body.inmode .labels .place, body.inmode .labels .shop, body.inmode .labels .pill
 .page .feat li { background: rgba(0,0,0,.04); border-radius: 12px; padding: 10px 14px; line-height: 1.5; }
 .helplinks { margin: 14px 0 0; font-size: 12px; opacity: .8; }
 .helplinks a { color: inherit; }
+
+/* ---- icebreakers, gifts, profile ---- */
+.meet .ice { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
+.meet .ice small { width: 100%; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; opacity: .7; }
+.meet .ice .iceq { width: auto; height: auto; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; display: inline; background: rgba(255,255,255,.14); }
+.meet .ice .iceq:hover { background: var(--gold); color: var(--ink); }
+.meet .ice #icemore { width: 30px; height: 30px; border-radius: 50%; font-size: 14px; display: inline-flex; padding: 0; }
+.tag.gift { background: #fff; color: var(--ink); font-size: 22px; padding: 4px 10px; animation: giftpop .6s ease; }
+@keyframes giftpop { 0% { transform: translateY(10px) scale(.4); opacity: 0; } 60% { transform: translateY(-6px) scale(1.15); opacity: 1; } 100% { transform: none; } }
+.hearts { position: fixed; left: 50%; top: 50%; pointer-events: none; z-index: 7; }
+.hearts i { position: absolute; font-style: normal; font-size: 26px; animation: heartup 1.6s ease-out forwards; }
+@keyframes heartup { from { transform: translate(0, 0) scale(.6); opacity: 1; } to { transform: translate(var(--dx), -160px) scale(1.2); opacity: 0; } }
+.help .me { margin: 10px 0 14px; padding: 10px 12px; background: rgba(255,255,255,.08); border-radius: 12px; font-size: 13px; }
+.help .me .gifts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.help .me .gifts span { background: rgba(255,255,255,.12); border-radius: 999px; padding: 3px 9px; font-size: 16px; }
+.help .me .gifts span i { font-style: normal; font-size: 11px; margin-left: 4px; opacity: .8; }
+.help .me small { display: block; opacity: .75; font-size: 11px; margin-top: 2px; }
+@media (max-width: 720px) { .meet .ice { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; } .meet .ice small { display: none; } .meet .ice .iceq { flex: 0 0 auto; } }

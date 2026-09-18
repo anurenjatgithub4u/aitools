@@ -81,6 +81,7 @@ export function WorldView({ id }: { id: string }) {
           onFriends: (n) => hud.friends(n),
           onRank: (r, of) => hud.rank(r, of),
           onHurt: () => hud.hurt(),
+          onHearts: () => hud.hearts(),
           onPick: (p, choose) => hud.pick(p, choose),
           onMode: (a) => hud.mode(a),
           onMeet: (m) => hud.meet(m),

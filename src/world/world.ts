@@ -8,7 +8,7 @@ import { buildLandmark, scatterDecor, makePickup } from './landmarks';
 import { makeVehicle, VEHICLE_COLORS, FUEL_RANGE, BOOST_MULT, type Vehicle, type VehicleKind } from './vehicles';
 import { makePetrolStation } from './landmarks';
 import { Sfx } from './audio';
-import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG } from './chat';
+import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG, DATE_LINES, GIFT_THANKS } from './chat';
 import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
@@ -28,6 +28,7 @@ export interface WorldEvents {
   onFriends(n: number): void;
   onRank(rank: number, of: number): void;
   onHurt(): void;
+  onHearts(): void;
   onPick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
   onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean } | null): void;
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
@@ -37,7 +38,7 @@ export interface WorldEvents {
   onGame(kind: GameKind, opponent: string): void;
 }
 export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football' | 'cricket';
-export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | GameKind;
+export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | 'gift' | 'apartment' | GameKind;
 
 const BOT_NAMES = [
   'Aarav (Kochi)', 'Mia (Berlin)', 'Kenji (Osaka)', 'Sofia (Lisbon)', 'Liam (Toronto)', 'Zara (Dubai)',
@@ -123,6 +124,11 @@ function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) 
     case 'tiara': break;
   }
 }
+// Date spots: benches, a candle table, the Ferris wheel, the boat, the apartment sofa. Read from the city.
+interface Spot { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][] }
+interface DateState { spot: Spot; partner: Bot | null; t0: number; nextLine: number; gondola: THREE.Object3D | null; boatA: number; rewarded: boolean; giftAt: number }
+const GIFTS: { e: string; n: string }[] = [{ e: '🌹', n: 'Rose' }, { e: '🍦', n: 'Ice cream' }, { e: '☕', n: 'Chai' }, { e: '🧸', n: 'Teddy' }, { e: '🍫', n: 'Chocolate' }, { e: '💌', n: 'Love note' }];
+const RIDE_SECONDS = 60;
 interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string; guide: THREE.Mesh[]; wrongWay: number }
 
 interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; playing?: boolean; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
@@ -186,6 +192,14 @@ export class World {
   private meet: Bot | null = null;
   private lastMeet = '';
   private hangout: { bot: Bot; until: number; nextLine: number } | null = null;
+  private spots: Spot[] = [];
+  private apartments: [number, number, number][] = [];
+  private date: DateState | null = null;
+  private wheel: THREE.Group | null = null;
+  private dateBoat: THREE.Group | null = null;
+  private inApartment: number | null = null;
+  private giftAt = new Map<string, number>();
+  private sunsetK = 0;
   private pending: { at: number; bot: Bot; text: string }[] = [];
   private playerName = 'Explorer';
   private selfId = '';
@@ -323,6 +337,18 @@ export class World {
         break;
       }
       case 'f': if (m.to === this.selfId) { this.pendingRequests.set(m.id, m.n); this.ev.onFriendRequest({ id: m.id, name: m.n }); this.sfx.checkpoint(); } break;
+      case 'g': if (m.to === this.selfId) {
+        store.receiveGift(m.n, m.gift);
+        this.points += 5; this.ev.onPoints(this.points);
+        this.ev.onCollect({ name: `${m.n} sent you ${m.gift}`, points: 5, color: 0xe75480, shape: 'gem' });
+        this.ev.onHearts(); this.sfx.questDone();
+        const b = this.bots.find((x) => x.remote?.id === m.id); if (b) this.showGift(b, m.gift);
+      } break;
+      case 'inv': if (m.to === this.selfId) {
+        const label = m.kind === 'apt' ? `${m.n} invited you to their apartment` : `${m.n} wants you to join them: ${this.spots.find((s) => s.id === m.kind)?.label ?? 'a date spot'}`;
+        this.ev.onPick({ title: label, sub: m.kind === 'apt' ? 'A private room over the water. Only the two of you.' : 'You will be taken there.', options: ['Go 💖', 'Not now'] }, (i) => { if (i === 0) { if (this.driving) this.exitVehicle(); this.player.group.position.set(m.x, this.groundAt(m.x, m.z, this.terrain.h(m.x, m.z)), m.z); this.airY = 0; if (m.kind === 'apt') this.inApartment = this.apartments.findIndex(([ax, az]) => Math.hypot(ax - m.x, az - m.z) < 12); } });
+        this.sfx.checkpoint();
+      } break;
       case 'fa': if (m.to === this.selfId) {
         const b = this.bots.find((x) => x.remote?.id === m.id);
         store.addFriend(m.n);
@@ -491,6 +517,10 @@ export class World {
     this.placePetrolStation(landmark);
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
     this.landmarkData = landmark.userData;
+    this.spots = (landmark.userData.spots ?? []) as Spot[];
+    this.apartments = (landmark.userData.apartments ?? []) as [number, number, number][];
+    this.wheel = (landmark.getObjectByName('ferris') as THREE.Group | undefined) ?? null;
+    this.dateBoat = (landmark.getObjectByName('dateboat') as THREE.Group | undefined) ?? null;
     if (landmark.userData.cricket) this.oval = { ...(landmark.userData.cricket as { x: number; z: number; r: number; len: number }) };
     if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number; goalH: number }; this.field = { ...p }; }
     if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
@@ -1114,13 +1144,15 @@ export class World {
     if (k.has('d') || k.has('arrowright')) ix += 1;
     if (this.stick) { ix += this.stick.dx; iz -= this.stick.dy; }
     if (this.cricket) { ix = 0; iz = 0; }   // you are at the crease: A/D or ◀ ▶ shuffle sideways (see tickCricket)
+    if (this.date) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.endDate(); } }   // seated: Space / Jump stands up
     if (this.wantKick) { this.wantKick = false; if (this.match && !this.match.over) this.shoot(); else if (this.cricket) this.swing(); else if (this.zombies && !this.zombies.ending) this.punch(); }
 
     // --- enter / leave vehicles
     if (this.wantToggleDrive) {
       this.wantToggleDrive = false;
       if (this.driving) this.exitVehicle();
-      else { const v = this.nearestVehicle(); if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
+      else if (this.date) this.endDate();
+      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.inApartment !== null) this.leaveApartment(); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -1270,13 +1302,18 @@ export class World {
       if (drop > 0.05 && this.airY <= 0) this.airY = drop;   // walked off a ledge: fall
       p.y = ground + this.airY;
       if (this.airY > 0 || this.knock) poseJump(this.player); else animateWalk(this.player, t, moving);
+      if (this.date) poseSit(this.player);
       if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
 
       focus = p.clone().add(new THREE.Vector3(0, 1.7, 0));
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
-      if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
+      const sp = this.date ? null : this.nearestSpot();
+      if (this.date) this.prompt(this.date.spot.kind === 'wheel' || this.date.spot.kind === 'boat' ? `${this.date.spot.kind === 'wheel' ? '🎡' : '🚤'} ${Math.max(0, Math.ceil(RIDE_SECONDS - (t - this.date.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early` : `${this.mobile ? 'Tap Drive or Jump' : 'Press E or Space'} to stand up`, false);
+      else if (sp && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${sp.label}${pt ? ` with ${pt.name}` : ''}`, false); }
+      else if (this.inApartment !== null && !near) this.prompt(this.mobile ? '🏠 Tap Drive to leave the apartment' : '🏠 Press E to leave the apartment', false);
+      else if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
       else if (this.zombies && !this.zombies.ending) this.prompt(this.mobile ? '🧟 Jump button punches · cars crush them · Z ends the night' : '🧟 Space punches the zombie in front · cars crush them · Z ends the night', false);
       else if (!near && this.onPitch() && !this.match) this.prompt(this.mobile ? '⚽ Tap Drive to kick off a football match' : '⚽ Press E to kick off a football match', false);
       else if (this.cricket) this.prompt(this.cricket.phase === 'over' ? null : this.cricket.innings === 2 ? (this.mobile ? '🏏 Tap Bowl at the top of your action' : '🏏 Space / Bowl at the top of your action') : this.mobile ? '🏏 Tap Bat as the ball reaches you' : '🏏 Space / Bat as the ball reaches you', false);
@@ -1435,10 +1472,14 @@ export class World {
     if (this.hangout) {
       const hg = this.hangout;
       if (t > hg.until || hg.bot.knocked || hg.bot.riding) { this.endHangout(); }
-      else if (t > hg.nextLine) { hg.nextLine = t + 9 + Math.random() * 8; this.botSays(hg.bot, HANGOUT_LINES[Math.floor(Math.random() * HANGOUT_LINES.length)], 0); }
+      else if (t > hg.nextLine && !this.date) { hg.nextLine = t + 9 + Math.random() * 8; this.botSays(hg.bot, HANGOUT_LINES[Math.floor(Math.random() * HANGOUT_LINES.length)], 0); }
     }
 
     if (this.race) this.tickRace(dt, t);
+    if (this.wheel) { this.wheel.rotation.z += dt * (Math.PI * 2 / 40); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
+    if (this.date) this.tickDate(dt, t);
+    this.sunsetK = Math.max(0, Math.min(1, this.sunsetK + ((this.date?.spot.kind === 'sunset') ? dt / 4 : -dt / 4)));
+    if (this.sunsetK > 0 && !(this.zombies && !this.zombies.ending)) this.applySunset(this.sunsetK);
     if (this.match) this.tickFootball(dt, t);
     if (this.cricket) this.tickCricket(dt, t);
     if (this.zombies) this.tickZombies(dt, t);
@@ -2372,6 +2413,155 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.questCooldown = 12;
   }
 
+  // ---------- dates: sit together, ride the wheel, take the boat out, watch the sunset ----------
+  private nearestSpot(): Spot | null {
+    const p = this.player.group.position;
+    let best: Spot | null = null, bd = 3.2;
+    for (const s of this.spots) { const d = Math.hypot(s.x - p.x, s.z - p.z); if (d < bd) { bd = d; best = s; } }
+    return best;
+  }
+
+  /** Whoever is with you: the hangout partner, the person on your card, or a friend standing close. */
+  private datePartner(): Bot | null {
+    if (this.hangout?.bot && !this.hangout.bot.remote) return this.hangout.bot;
+    const p = this.player.group.position;
+    if (this.meet && !this.meet.remote && this.meet.av.group.position.distanceTo(p) < 7) return this.meet;
+    return this.bots.find((b) => !b.remote && b.friend && !b.riding && !b.knocked && !b.playing && b.av.group.position.distanceTo(p) < 7) ?? null;
+  }
+
+  private seatAt(spot: Spot, k: number, out: THREE.Vector3) {
+    const [dx, dz] = spot.seats[k] ?? [0, 0];
+    return out.set(spot.x + dx, spot.y + 0.1, spot.z + dz);
+  }
+
+  private startDate(spot: Spot) {
+    if (this.date || this.inMode()) return;
+    if (this.driving) this.exitVehicle();
+    // a real player on your card? invite them over instead — they choose to come
+    if (this.meet?.remote && this.net) { this.net.send({ t: 'inv', id: this.selfId, to: this.meet.remote.id, n: this.playerName, kind: spot.id, x: spot.x + (spot.seats[1]?.[0] ?? 0), z: spot.z + (spot.seats[1]?.[1] ?? 0) }); this.ev.onCollect({ name: `Invited ${this.meet.name} to join you`, points: 0, color: 0x3fb7d9, shape: 'gem' }); }
+    const partner = this.datePartner();
+    const t = this.elapsed;
+    this.seatAt(spot, 0, this.player.group.position); this.player.group.rotation.y = spot.ry; this.airY = 0; this.vy = 0;
+    if (partner) { partner.playing = true; partner.wait = 0; this.seatAt(spot, 1, partner.av.group.position); partner.av.group.rotation.y = spot.ry; poseSit(partner.av); partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 120; }
+    let gondola: THREE.Object3D | null = null;
+    if (spot.kind === 'wheel' && this.wheel) {   // board the gondola nearest the ground
+      let best = Infinity;
+      for (const c of this.wheel.children) if (c.name.startsWith('gondola')) { const wp = c.getWorldPosition(new THREE.Vector3()); if (wp.y < best) { best = wp.y; gondola = c; } }
+    }
+    this.date = { spot, partner, t0: t, nextLine: t + 3, gondola, boatA: 0, rewarded: false, giftAt: t + 18 + Math.random() * 15 };
+    this.yaw = spot.ry + Math.PI; this.pitch = spot.kind === 'wheel' ? 0.15 : 0.28;
+    this.clearQuest(); this.questCooldown = 30;
+    this.sfx.checkpoint();
+    const first = store.addDate(spot.kind);
+    this.ev.onCollect({ name: `${spot.label}${partner ? ` with ${partner.name}` : ''}${first ? ' · first time here +40' : ''}`, points: first ? 40 : 0, color: 0xe75480, shape: 'gem' });
+    if (first) { this.points += 40; this.ev.onPoints(this.points); }
+    if (partner) this.botSays(partner, spot.kind === 'wheel' ? 'Eee, it is moving! 🎡' : spot.kind === 'boat' ? 'Captain, take us somewhere nice 🚤' : ['This is nice.', 'Good idea.', 'Finally, a sit-down.'][Math.floor(Math.random() * 3)], 1.2);
+  }
+
+  private tickDate(dt: number, t: number) {
+    const d = this.date!, sp = d.spot, p = this.player.group.position;
+    const seat = new THREE.Vector3();
+    if (sp.kind === 'wheel' && d.gondola) {
+      const wp = d.gondola.getWorldPosition(new THREE.Vector3());
+      p.set(wp.x, wp.y - 1.6 + 0.05, wp.z - 0.6); this.player.group.rotation.y = -Math.PI / 2;
+      if (d.partner) { d.partner.av.group.position.set(wp.x, wp.y - 1.6 + 0.05, wp.z + 0.6); d.partner.av.group.rotation.y = -Math.PI / 2; poseSit(d.partner.av); }
+      this.yaw += wrapAngle(Math.PI / 2 + Math.sin(t * 0.15) * 0.8 - this.yaw) * Math.min(1, dt);   // slow look around from up top
+      if (t - d.t0 > RIDE_SECONDS) { this.endDate(); return; }
+    } else if (sp.kind === 'boat' && this.dateBoat) {
+      d.boatA += dt * (Math.PI * 2 / RIDE_SECONDS);
+      const cx = 400, cz = -172, r = 17, b = this.dateBoat;
+      const nx = cx + Math.cos(d.boatA) * r, nz = cz + Math.sin(d.boatA) * r;
+      b.rotation.y = Math.atan2(nx - b.position.x, nz - b.position.z);
+      b.position.set(nx, 0.3 + Math.sin(t * 2) * 0.06, nz); b.rotation.z = Math.sin(t * 1.7) * 0.03;
+      const s0 = b.localToWorld(new THREE.Vector3(0, 0.95, -0.2)), s1 = b.localToWorld(new THREE.Vector3(0, 0.95, 1.0));
+      p.copy(s0); this.player.group.rotation.y = b.rotation.y;
+      if (d.partner) { d.partner.av.group.position.copy(s1); d.partner.av.group.rotation.y = b.rotation.y; poseSit(d.partner.av); }
+      this.yaw += wrapAngle(b.rotation.y + Math.PI - this.yaw) * Math.min(1, dt * 2);
+      if (d.boatA > Math.PI * 2) { this.endDate(); return; }
+    } else {
+      this.seatAt(sp, 0, seat); p.copy(seat); this.player.group.rotation.y = sp.ry;
+      if (d.partner) { this.seatAt(sp, 1, d.partner.av.group.position); d.partner.av.group.rotation.y = sp.ry; poseSit(d.partner.av); d.partner.label.visible = true; }
+    }
+    if (d.partner && t > d.nextLine) { d.nextLine = t + 8 + Math.random() * 7; const lines = DATE_LINES[sp.kind] ?? DATE_LINES.pier; this.botSays(d.partner, lines[Math.floor(Math.random() * lines.length)], 0); }
+    if (d.partner && t > d.giftAt) { d.giftAt = t + 60; if (Math.random() < 0.5) { const g = GIFTS[Math.floor(Math.random() * GIFTS.length)]; store.receiveGift(d.partner.name, g.e); this.points += 5; this.ev.onPoints(this.points); this.showGift(d.partner, g.e); this.ev.onCollect({ name: `${d.partner.name} gave you ${g.e} ${g.n}`, points: 5, color: 0xe75480, shape: 'gem' }); this.ev.onHearts(); this.sfx.questDone(); } }
+    if (!d.rewarded && t - d.t0 > 15) { d.rewarded = true; this.points += 20; this.ev.onPoints(this.points); this.ev.onCollect({ name: d.partner ? `A moment with ${d.partner.name}` : 'A quiet moment', points: 20, color: 0xe75480, shape: 'gem' }); if (d.partner) this.ev.onHearts(); }
+  }
+
+  private endDate() {
+    const d = this.date; if (!d) return;
+    this.date = null;
+    const sp = d.spot, p = this.player.group.position;
+    // stand up beside the seat (or back on the ground after a ride)
+    const gx = sp.x - Math.sin(sp.ry) * 1.2 + 1.2, gz = sp.z - Math.cos(sp.ry) * 1.2;
+    p.set(gx, this.groundAt(gx, gz, sp.y), gz); this.airY = 0; this.vy = 0;
+    if (sp.kind === 'boat' && this.dateBoat) { this.dateBoat.position.set(406, 0.3, -152); this.dateBoat.rotation.set(0, 0, 0); }
+    if (d.partner) { d.partner.playing = false; d.partner.av.group.position.set(gx + 1.2, this.groundAt(gx + 1.2, gz, sp.y), gz); d.partner.wait = 1.5; if (this.hangout?.bot !== d.partner) d.partner.target = this.randomLandPoint(8, 120); this.botSays(d.partner, ['That was lovely.', 'Same time tomorrow?', 'I needed that.', 'Okay, where next?'][Math.floor(Math.random() * 4)], 0.5); }
+    this.player.armL.rotation.x = this.player.armR.rotation.x = 0;
+    this.questCooldown = 10;
+  }
+
+  /** Warm evening light while you watch the sunset from Lighthouse Point. */
+  private applySunset(k: number) {
+    const dl = this.daylight;
+    (this.scene.background as THREE.Color).setHex(dl.sky).lerp(new THREE.Color(0xf7a56b), k * 0.85);
+    const fog = this.scene.fog as THREE.Fog; fog.color.setHex(dl.fog).lerp(new THREE.Color(0xf2b07a), k * 0.8);
+    this.sun.color.setHex(dl.sun).lerp(new THREE.Color(0xffa040), k); this.sun.intensity = dl.sunI * (1 - 0.35 * k);
+    this.hemi.intensity = dl.hemiI * (1 - 0.3 * k);
+  }
+
+  // ---------- gifts ----------
+  private showGift(b: Bot, gift: string) {
+    const el = b.label.element;
+    el.textContent = gift; el.classList.add('gift'); b.label.visible = true;
+    b.bubbleUntil = this.elapsed + 3;
+    setTimeout(() => { el.classList.remove('gift'); }, 2800);
+  }
+
+  private sendGift(b: Bot, gift: string) {
+    const t = this.elapsed, key = b.remote?.id ?? b.name;
+    if (t - (this.giftAt.get(key) ?? -99) < 30) { this.ev.onCollect({ name: `Give ${b.name} a minute to enjoy the last one`, points: 0, color: 0x999999, shape: 'box' }); return; }
+    this.giftAt.set(key, t);
+    store.sentGift();
+    this.points += 10; this.ev.onPoints(this.points);
+    this.ev.onCollect({ name: `You gave ${b.name} ${gift}`, points: 10, color: 0xe75480, shape: 'gem' });
+    this.ev.onHearts(); this.sfx.questDone();
+    this.showGift(b, gift);
+    if (b.remote) { this.net?.send({ t: 'g', id: this.selfId, to: b.remote.id, n: this.playerName, gift }); return; }
+    const thanks = GIFT_THANKS[gift] ?? ['Thank you! 💖'];
+    this.botSays(b, thanks[Math.floor(Math.random() * thanks.length)], 3.2);
+    b.asked = -100;   // they are happy to be asked to be friends again
+    if (!b.friend && Math.random() < 0.6) { setTimeout(   // a gift usually wins them over
+      () => { if (!b.friend) { this.markFriend(b); store.addFriend(b.name); this.ev.onFriends(store.friends().length); this.botSays(b, 'We should be friends 🤝', 0); this.ev.onCollect({ name: `${b.name} added you as a friend`, points: 25, color: 0xe75480, shape: 'gem' }); this.points += 25; this.ev.onPoints(this.points); } }, 3200); }
+  }
+
+  // ---------- your apartment ----------
+  private mySlot() { return [...this.selfId].reduce((a, c) => a + c.charCodeAt(0), 0) % Math.max(1, this.apartments.length); }
+
+  private inviteHome(b: Bot) {
+    if (!this.apartments.length || this.inMode()) return;
+    const k = this.mySlot(), [ax, az, ay] = this.apartments[k];
+    if (b.remote && this.net) { this.net.send({ t: 'inv', id: this.selfId, to: b.remote.id, n: this.playerName, kind: 'apt', x: ax + 2, z: az + 2 }); this.ev.onCollect({ name: `Invited ${b.name} to your apartment`, points: 0, color: 0x3fb7d9, shape: 'gem' }); }
+    if (this.driving) this.exitVehicle();
+    if (this.date) this.endDate();
+    this.player.group.position.set(ax + 1, ay, az + 2); this.player.group.rotation.y = Math.PI; this.airY = 0; this.vy = 0;
+    this.yaw = 0; this.pitch = 0.3; this.dist = 9; this.camDist = 9;
+    this.inApartment = k;
+    if (!b.remote) { b.playing = false; b.riding = null; b.knocked = null; b.av.group.position.set(ax + 2.5, ay, az - 1); b.av.group.rotation.y = Math.PI; b.wait = 999; b.target.set(ax + 2.5, ay, az - 1); if (this.hangout?.bot !== b) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: this.elapsed + 600, nextLine: this.elapsed + 4 }; } this.botSays(b, DATE_LINES.sofa[Math.floor(Math.random() * DATE_LINES.sofa.length)], 1.5); }
+    this.ev.onCollect({ name: `Welcome home · ${b.name} is here. Sit on the sofa together, or press E at the door to leave`, points: 0, color: 0xe75480, shape: 'gem' });
+    this.sfx.door();
+  }
+
+  private leaveApartment() {
+    if (this.inApartment === null) return;
+    if (this.date) this.endDate();
+    this.inApartment = null;
+    const x = -108, z = 152;
+    this.player.group.position.set(x, this.terrain.h(x, z), z); this.airY = 0; this.vy = 0; this.yaw = Math.PI;
+    if (this.hangout) { const b = this.hangout.bot; b.av.group.position.set(x + 1.5, this.terrain.h(x + 1.5, z), z); b.wait = 0; }
+    this.sfx.door();
+    this.ev.onCollect({ name: 'Back at Palm Grove Homes', points: 0, color: 0x3fb7d9, shape: 'gem' });
+  }
+
   /** Dev helper: drop the player at a world position. */
   teleport(x: number, z: number) { const p = this.player.group.position; p.set(x, this.terrain.h(x, z), z); }
 
@@ -2535,6 +2725,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         this.sfx.checkpoint();
         break;
       case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
+      case 'gift': this.ev.onPick({ title: `Send ${b.name} a gift`, sub: 'Gifts are free. Be nice, be creative.', options: GIFTS.map((g) => `${g.e} ${g.n}`) }, (i) => this.sendGift(b, GIFTS[i].e)); break;
+      case 'apartment': this.inviteHome(b); break;
       case 'race': this.startCircuitRace(b); break;
       case 'football': this.botSays(b, 'Kick-off at the stadium! ⚽', 0.2); this.startFootball(b); break;
       case 'cricket': this.startCricket(b); break;

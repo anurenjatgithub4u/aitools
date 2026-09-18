@@ -12,6 +12,8 @@ export type NetMsg =
   | { t: 'fa'; id: string; to: string; n: string }                  // friend accepted
   | { t: 'hi'; id: string; n: string; g: Gender }                   // just joined — please send me your state now
   | { t: 'who'; peers: (Extract<NetMsg, { t: 's' }> | Extract<NetMsg, { t: 'hi' }>)[] }   // server: everyone already here
+  | { t: 'g'; id: string; to: string; n: string; gift: string }                     // a gift
+  | { t: 'inv'; id: string; to: string; n: string; kind: string; x: number; z: number }   // "come to the pier bench / my apartment"
   | { t: 'bye'; id: string };
 
 export type NetStatus = 'connecting' | 'online' | 'offline';

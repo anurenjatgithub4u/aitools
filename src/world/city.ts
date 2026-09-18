@@ -551,6 +551,77 @@ export function buildCity(g: THREE.Group, h: H) {
   }
   g.userData.parked = [[348, BZ + 8, Math.PI / 2, 'jeep'], [354, BZ + 8, Math.PI / 2, 'bike'], [500 - 18, 8, 0, 'jeep'], [447, 76, Math.PI / 2, 'jeep']];
 
+  // ================= DATE SPOTS: benches, a candle-lit table, the Ferris wheel, a boat, and apartments =================
+  // A spot is { id, kind, x, z, ry (which way you face when seated), seats: [dx, dz][] } — the world reads these.
+  const spots: { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][] }[] = [];
+  const spot = (id: string, kind: string, label: string, x: number, z: number, y: number, ry: number, seats: [number, number][]) => spots.push({ id, kind, label, x, z, y, ry, seats });
+  // pier bench at the end of the pier, facing the sea
+  bench(g, 256, 2.5, 40, -Math.PI / 2); spot('pier', 'pier', 'Sit on the pier bench', 256, 40, 2.5, -Math.PI / 2, [[0, -0.5], [0, 0.5]]);
+  // candle-lit table for two on the sand
+  { const x = 200, z = 108, y = h(x, z);
+    g.add(at(cyl(0.7, 0.7, 0.08, 0xffffff, 12), x, y + 0.82, z)); g.add(at(cyl(0.08, 0.1, 0.8, 0x8a6a4a, 8), x, y + 0.4, z));
+    g.add(at(cyl(0.05, 0.05, 0.25, 0xf4f0e6, 6), x, y + 0.98, z)); g.add(at(glow(0.12, 0.16, 0.12, 0xffb347), x, y + 1.18, z));
+    for (const dz of [-1.1, 1.1]) { g.add(at(cyl(0.35, 0.35, 0.08, 0x8a6a4a, 10), x, y + 0.5, z + dz)); for (const [ax, az] of [[-0.25, -0.25], [0.25, -0.25], [-0.25, 0.25], [0.25, 0.25]]) g.add(at(cyl(0.03, 0.03, 0.5, 0x555555, 5), x + ax, y + 0.25, z + dz + az)); }
+    for (let k = 0; k < 8; k++) g.add(at(glow(0.1, 0.1, 0.1, 0xffe08a), x + Math.cos(k * 0.785) * 2.4, y + 0.15, z + Math.sin(k * 0.785) * 2.4));   // tealights in the sand
+    spot('candle', 'candle', 'Share a candle-lit table by the sea', x, z, y, -Math.PI / 2, [[0, -1.1], [0, 1.1]]); keep(x, z, 4); }
+  // sunset bench at Lighthouse Point, facing the open sea
+  { const x = 494, z = 8, y = h(x, z); bench(g, x, y, z, -Math.PI / 2); spot('sunset', 'sunset', 'Watch the sunset', x, z, y, -Math.PI / 2, [[0, -0.5], [0, 0.5]]); keep(x, z, 3); }
+  // campfire bench at Lakeside Camp (built earlier at 349, 65): a log to share
+  { const x = 349, z = 65, y = h(x, z); const log = rot(at(cyl(0.3, 0.3, 2.4, 0x6b4a2a, 8), x, y + 0.3, z), 'x', Math.PI / 2); g.add(log); spot('camp', 'camp', 'Sit by the campfire', x, z, y, Math.PI / 2, [[0, -0.6], [0, 0.6]]); }
+  // Ferris wheel on the sand: hub, spokes, rim and eight gondolas that stay upright (animated, so it is not baked)
+  { const wx = 196, wz = 136, wy = h(wx, wz), R = 9, HUB = R + 2.4;
+    for (const sd of [-1, 1]) { g.add(rot(at(box(0.7, HUB * 1.1, 0.7, 0xd94a3d), wx + sd * 1.8, wy + HUB / 2, wz + 2.2), 'x', -0.2)); g.add(rot(at(box(0.7, HUB * 1.1, 0.7, 0xd94a3d), wx + sd * 1.8, wy + HUB / 2, wz - 2.2), 'x', 0.2)); }
+    g.add(at(box(6, 0.8, 6, 0x555555), wx, wy + 0.4, wz)); keep(wx, wz, 13);
+    const wheel = new THREE.Group(); wheel.position.set(wx, wy + HUB, wz); wheel.name = 'ferris'; wheel.userData.animated = true;
+    wheel.add(rot(at(cyl(0.9, 0.9, 4.6, 0x333333, 12), 0, 0, 0), 'x', Math.PI / 2));   // hub axle
+    for (const sd of [-1, 1]) {
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.14, 8, 40), new THREE.MeshStandardMaterial({ color: 0xf2c31b })); rim.position.z = sd * 1.8; wheel.add(rim);
+      for (let k = 0; k < 8; k++) { const sp = box(0.14, R * 2, 0.14, 0xeeeeee); sp.position.z = sd * 1.8; sp.rotation.z = (k * Math.PI) / 8; wheel.add(sp); }
+      for (let k = 0; k < 16; k++) { const l = glow(0.3, 0.3, 0.3, [0xff7ab8, 0x7ad7ff, 0xfff2a8, 0xa6ff7a][k % 4]); l.position.set(Math.cos((k * Math.PI) / 8) * R, Math.sin((k * Math.PI) / 8) * R, sd * 1.8); wheel.add(l); }
+    }
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, pivot = new THREE.Group(); pivot.position.set(Math.cos(a) * R, Math.sin(a) * R, 0); pivot.name = `gondola${k}`; wheel.add(pivot);
+      const car = new THREE.Group(); car.name = 'car'; pivot.add(car);
+      car.add(at(box(2.2, 0.15, 3.2, [0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a][k % 4]), 0, -1.6, 0));                 // floor
+      car.add(at(box(2.2, 1.0, 0.1, [0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a][k % 4]), 0, -1.1, 1.55)); car.add(at(box(2.2, 1.0, 0.1, [0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a][k % 4]), 0, -1.1, -1.55));
+      car.add(at(box(0.1, 1.0, 3.2, [0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a][k % 4]), 1.05, -1.1, 0)); car.add(at(box(0.1, 1.0, 3.2, [0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a][k % 4]), -1.05, -1.1, 0));
+      car.add(at(box(0.08, 1.7, 0.08, 0x555555), 0, -0.85, 0)); car.add(at(box(2.5, 0.1, 3.5, 0xffffff), 0, 0, 0));   // hanger + roof
+    }
+    g.add(wheel);
+    spot('wheel', 'wheel', 'Ride the Ferris wheel', wx + 4.5, wz, wy, -Math.PI / 2, [[0, -0.6], [0, 0.6]]);
+    place('Sunset Wheel', wx, HUB + R + 4, wz, 200);
+  }
+  // the date boat, moored at the marina; it is moved by the world during a ride
+  { const b = new THREE.Group(); b.name = 'dateboat'; b.userData.animated = true; b.position.set(406, 0.3, -152);
+    b.add(at(box(2.4, 0.9, 6.5, 0xf4f0e6), 0, 0.45, 0)); b.add(at(box(2.0, 0.4, 3.2, 0x3fb7d9), 0, 1.0, 0.4)); b.add(at(box(2.5, 0.12, 1.6, 0x8a6a4a), 0, 1.0, -2.2));
+    for (const dz of [-0.6, 0.6]) b.add(at(box(0.7, 0.45, 0.7, 0x2c3e6b), 0, 1.15, dz + 0.4));   // two seats
+    b.add(at(glow(0.2, 0.2, 0.2, 0xfff2a8), 0, 1.6, 3.0)); g.add(b);
+    spot('boat', 'boat', 'Take the boat out', 403, -150, 2.5, Math.PI, [[0, -0.6], [0, 0.6]]);
+  }
+  // six little apartments out over the water: a private room each (yours is picked by your id)
+  for (let k = 0; k < 6; k++) {
+    const ax = 300 + k * 22, az = 400, ay = 6;
+    const wallC = [0xf4e1c1, 0xd6e6f2, 0xf2d0d0, 0xe4f0d0, 0xf7e7b0, 0xe0d6f2][k];
+    g.add(at(box(14, 1, 12, 0x9a9a94), ax, ay - 0.5, az));                                      // slab
+    g.add(at(box(13, 0.06, 11, 0xd8c49a), ax, ay + 0.03, az));                                   // floor
+    g.add(at(box(6, 0.04, 4, 0xa33b2c), ax - 1, ay + 0.07, az + 1));                             // rug
+    for (const [w, d, dx, dz] of [[14, 0.3, 0, -6], [14, 0.3, 0, 6], [0.3, 12, -7, 0], [0.3, 12, 7, 0]] as const) g.add(at(box(w, 3.2, d, wallC), ax + dx, ay + 1.6, az + dz));
+    g.add(at(box(14.4, 0.3, 12.4, 0x6b4a2a), ax, ay + 3.3, az));                                  // roof
+    g.add(at(glow(5, 2, 0.12, 0x9fd3e8), ax, ay + 1.8, az - 5.8));                               // picture window (sky)
+    g.add(at(box(3.6, 0.5, 1.2, 0x2c3e6b), ax - 2, ay + 0.45, az - 3)); g.add(at(box(3.6, 0.7, 0.35, 0x2c3e6b), ax - 2, ay + 1.05, az - 3.45));   // sofa
+    for (const dx of [-1.7, 1.7]) g.add(at(box(0.4, 0.7, 1.2, 0x2c3e6b), ax - 2 + dx, ay + 0.6, az - 3));
+    g.add(at(box(1.6, 0.05, 0.8, 0x8a6a4a), ax - 2, ay + 0.5, az - 1.2)); for (const [dx, dz] of [[-0.7, -0.3], [0.7, -0.3], [-0.7, 0.3], [0.7, 0.3]]) g.add(at(cyl(0.03, 0.03, 0.5, 0x555555, 5), ax - 2 + dx, ay + 0.25, az - 1.2 + dz));   // coffee table
+    g.add(at(box(2.4, 1.4, 0.1, 0x111111), ax - 2, ay + 1.4, az + 5.7)); g.add(at(glow(2.2, 1.2, 0.05, 0x3fb7d9), ax - 2, ay + 1.4, az + 5.62));   // TV
+    g.add(at(box(2.2, 0.5, 3.4, 0xf4f4f4), ax + 4.5, ay + 0.35, az + 3)); g.add(at(box(2.2, 0.25, 1, 0xe75480), ax + 4.5, ay + 0.72, az + 1.7));   // bed
+    g.add(at(box(0.6, 0.6, 0.6, 0x8a6a4a), ax + 4.5, ay + 0.3, az - 0.5)); g.add(at(glow(0.4, 0.5, 0.4, 0xffe08a), ax + 4.5, ay + 1.0, az - 0.5));   // lamp
+    g.add(at(cyl(0.3, 0.25, 0.5, 0xc9502f, 8), ax + 5.5, ay + 0.25, az - 4.5)); g.add(at(sph(0.7, 0x4f9a3e, 8), ax + 5.5, ay + 1.1, az - 4.5));   // plant
+    stringLights(g, V(ax - 6.5, ay + 2.9, az - 5.5), V(ax + 6.5, ay + 2.9, az - 5.5), 10);
+    g.add(at(box(1.2, 2.4, 0.15, 0x3a2418), ax + 6.85, ay + 1.2, az + 3));                        // door (decorative: E leaves)
+    spot(`apt${k}`, 'sofa', 'Sit on the sofa', ax - 2, az - 3, ay, 0, [[-0.7, 0], [0.7, 0]]);
+  }
+  g.userData.spots = spots;
+  g.userData.apartments = [0, 1, 2, 3, 4, 5].map((k) => [300 + k * 22, 400, 6]);
+
   // ================= main roads =================
   road(15, -100, 15, 86); road(15, 60, -60, 60);
   g.userData.clear = clear;

@@ -48,7 +48,7 @@ export const FEATURES = {
   social: [
     ["Real-time multiplayer", "see real people walk, drive and chat; friend requests and a friends list"],
     ["Hang out & date", "walk together, tap an icebreaker to start the chat, sit on the pier bench, share a candle-lit table on the sand, ride the Sunset Wheel, take the boat out at the marina, watch the sunset at Lighthouse Point"],
-    ["Gifts & your apartment", "send roses, ice cream, chai, a teddy, chocolate or a love note; invite someone to your own apartment over the water"],
+    ["Gifts", "send roses, ice cream, chai, a teddy, chocolate or a love note; gifts you receive show on your profile"],
     ["Your explorer", "pick a name and a male or female avatar; rank on the leaderboard"],
     ["Phone & desktop", "joystick and buttons on mobile, WASD on desktop, no install"],
   ],

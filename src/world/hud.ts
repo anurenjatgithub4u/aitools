@@ -74,7 +74,6 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
           <button data-a="game">🎮<small>Game</small></button>
           <button data-a="hangout">🏖️<small>Hangout</small></button>
           <button data-a="gift">🎁<small>Gift</small></button>
-          <button data-a="apartment">🏠<small>My place</small></button>
           <button data-a="chat">💬<small>Chat</small></button>
         </div>
         <div class="ice" id="ice"><small>Ask them</small><div id="icebtns"></div><button id="icemore" title="Other questions">↻</button></div>

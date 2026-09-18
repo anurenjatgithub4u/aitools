@@ -38,7 +38,7 @@ export interface WorldEvents {
   onGame(kind: GameKind, opponent: string): void;
 }
 export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football' | 'cricket';
-export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | 'gift' | 'apartment' | GameKind;
+export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | 'gift' | GameKind;
 
 const BOT_NAMES = [
   'Aarav (Kochi)', 'Mia (Berlin)', 'Kenji (Osaka)', 'Sofia (Lisbon)', 'Liam (Toronto)', 'Zara (Dubai)',
@@ -124,7 +124,7 @@ function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) 
     case 'tiara': break;
   }
 }
-// Date spots: benches, a candle table, the Ferris wheel, the boat, the apartment sofa. Read from the city.
+// Date spots: benches, a candle table, the Ferris wheel, the boat. Read from the city.
 interface Spot { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][] }
 interface DateState { spot: Spot; partner: Bot | null; t0: number; nextLine: number; gondola: THREE.Object3D | null; boatA: number; rewarded: boolean; giftAt: number }
 const GIFTS: { e: string; n: string }[] = [{ e: '🌹', n: 'Rose' }, { e: '🍦', n: 'Ice cream' }, { e: '☕', n: 'Chai' }, { e: '🧸', n: 'Teddy' }, { e: '🍫', n: 'Chocolate' }, { e: '💌', n: 'Love note' }];
@@ -193,11 +193,9 @@ export class World {
   private lastMeet = '';
   private hangout: { bot: Bot; until: number; nextLine: number } | null = null;
   private spots: Spot[] = [];
-  private apartments: [number, number, number][] = [];
   private date: DateState | null = null;
   private wheel: THREE.Group | null = null;
   private dateBoat: THREE.Group | null = null;
-  private inApartment: number | null = null;
   private giftAt = new Map<string, number>();
   private sunsetK = 0;
   private pending: { at: number; bot: Bot; text: string }[] = [];
@@ -345,8 +343,8 @@ export class World {
         const b = this.bots.find((x) => x.remote?.id === m.id); if (b) this.showGift(b, m.gift);
       } break;
       case 'inv': if (m.to === this.selfId) {
-        const label = m.kind === 'apt' ? `${m.n} invited you to their apartment` : `${m.n} wants you to join them: ${this.spots.find((s) => s.id === m.kind)?.label ?? 'a date spot'}`;
-        this.ev.onPick({ title: label, sub: m.kind === 'apt' ? 'A private room over the water. Only the two of you.' : 'You will be taken there.', options: ['Go 💖', 'Not now'] }, (i) => { if (i === 0) { if (this.driving) this.exitVehicle(); this.player.group.position.set(m.x, this.groundAt(m.x, m.z, this.terrain.h(m.x, m.z)), m.z); this.airY = 0; if (m.kind === 'apt') this.inApartment = this.apartments.findIndex(([ax, az]) => Math.hypot(ax - m.x, az - m.z) < 12); } });
+        const label = `${m.n} wants you to join them: ${this.spots.find((s) => s.id === m.kind)?.label ?? 'a date spot'}`;
+        this.ev.onPick({ title: label, sub: 'You will be taken there.', options: ['Go 💖', 'Not now'] }, (i) => { if (i === 0) { if (this.driving) this.exitVehicle(); this.player.group.position.set(m.x, this.groundAt(m.x, m.z, this.terrain.h(m.x, m.z)), m.z); this.airY = 0; } });
         this.sfx.checkpoint();
       } break;
       case 'fa': if (m.to === this.selfId) {
@@ -518,7 +516,6 @@ export class World {
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
     this.landmarkData = landmark.userData;
     this.spots = (landmark.userData.spots ?? []) as Spot[];
-    this.apartments = (landmark.userData.apartments ?? []) as [number, number, number][];
     this.wheel = (landmark.getObjectByName('ferris') as THREE.Group | undefined) ?? null;
     this.dateBoat = (landmark.getObjectByName('dateboat') as THREE.Group | undefined) ?? null;
     if (landmark.userData.cricket) this.oval = { ...(landmark.userData.cricket as { x: number; z: number; r: number; len: number }) };
@@ -1152,7 +1149,7 @@ export class World {
       this.wantToggleDrive = false;
       if (this.driving) this.exitVehicle();
       else if (this.date) this.endDate();
-      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.inApartment !== null) this.leaveApartment(); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
+      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -1312,7 +1309,6 @@ export class World {
       const sp = this.date ? null : this.nearestSpot();
       if (this.date) this.prompt(this.date.spot.kind === 'wheel' || this.date.spot.kind === 'boat' ? `${this.date.spot.kind === 'wheel' ? '🎡' : '🚤'} ${Math.max(0, Math.ceil(RIDE_SECONDS - (t - this.date.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early` : `${this.mobile ? 'Tap Drive or Jump' : 'Press E or Space'} to stand up`, false);
       else if (sp && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${sp.label}${pt ? ` with ${pt.name}` : ''}`, false); }
-      else if (this.inApartment !== null && !near) this.prompt(this.mobile ? '🏠 Tap Drive to leave the apartment' : '🏠 Press E to leave the apartment', false);
       else if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
       else if (this.zombies && !this.zombies.ending) this.prompt(this.mobile ? '🧟 Jump button punches · cars crush them · Z ends the night' : '🧟 Space punches the zombie in front · cars crush them · Z ends the night', false);
       else if (!near && this.onPitch() && !this.match) this.prompt(this.mobile ? '⚽ Tap Drive to kick off a football match' : '⚽ Press E to kick off a football match', false);
@@ -2534,34 +2530,6 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       () => { if (!b.friend) { this.markFriend(b); store.addFriend(b.name); this.ev.onFriends(store.friends().length); this.botSays(b, 'We should be friends 🤝', 0); this.ev.onCollect({ name: `${b.name} added you as a friend`, points: 25, color: 0xe75480, shape: 'gem' }); this.points += 25; this.ev.onPoints(this.points); } }, 3200); }
   }
 
-  // ---------- your apartment ----------
-  private mySlot() { return [...this.selfId].reduce((a, c) => a + c.charCodeAt(0), 0) % Math.max(1, this.apartments.length); }
-
-  private inviteHome(b: Bot) {
-    if (!this.apartments.length || this.inMode()) return;
-    const k = this.mySlot(), [ax, az, ay] = this.apartments[k];
-    if (b.remote && this.net) { this.net.send({ t: 'inv', id: this.selfId, to: b.remote.id, n: this.playerName, kind: 'apt', x: ax + 2, z: az + 2 }); this.ev.onCollect({ name: `Invited ${b.name} to your apartment`, points: 0, color: 0x3fb7d9, shape: 'gem' }); }
-    if (this.driving) this.exitVehicle();
-    if (this.date) this.endDate();
-    this.player.group.position.set(ax + 1, ay, az + 2); this.player.group.rotation.y = Math.PI; this.airY = 0; this.vy = 0;
-    this.yaw = 0; this.pitch = 0.3; this.dist = 9; this.camDist = 9;
-    this.inApartment = k;
-    if (!b.remote) { b.playing = false; b.riding = null; b.knocked = null; b.av.group.position.set(ax + 2.5, ay, az - 1); b.av.group.rotation.y = Math.PI; b.wait = 999; b.target.set(ax + 2.5, ay, az - 1); if (this.hangout?.bot !== b) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: this.elapsed + 600, nextLine: this.elapsed + 4 }; } this.botSays(b, DATE_LINES.sofa[Math.floor(Math.random() * DATE_LINES.sofa.length)], 1.5); }
-    this.ev.onCollect({ name: `Welcome home · ${b.name} is here. Sit on the sofa together, or press E at the door to leave`, points: 0, color: 0xe75480, shape: 'gem' });
-    this.sfx.door();
-  }
-
-  private leaveApartment() {
-    if (this.inApartment === null) return;
-    if (this.date) this.endDate();
-    this.inApartment = null;
-    const x = -108, z = 152;
-    this.player.group.position.set(x, this.terrain.h(x, z), z); this.airY = 0; this.vy = 0; this.yaw = Math.PI;
-    if (this.hangout) { const b = this.hangout.bot; b.av.group.position.set(x + 1.5, this.terrain.h(x + 1.5, z), z); b.wait = 0; }
-    this.sfx.door();
-    this.ev.onCollect({ name: 'Back at Palm Grove Homes', points: 0, color: 0x3fb7d9, shape: 'gem' });
-  }
-
   /** Dev helper: drop the player at a world position. */
   teleport(x: number, z: number) { const p = this.player.group.position; p.set(x, this.terrain.h(x, z), z); }
 
@@ -2726,7 +2694,6 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         break;
       case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
       case 'gift': this.ev.onPick({ title: `Send ${b.name} a gift`, sub: 'Gifts are free. Be nice, be creative.', options: GIFTS.map((g) => `${g.e} ${g.n}`) }, (i) => this.sendGift(b, GIFTS[i].e)); break;
-      case 'apartment': this.inviteHome(b); break;
       case 'race': this.startCircuitRace(b); break;
       case 'football': this.botSays(b, 'Kick-off at the stadium! ⚽', 0.2); this.startFootball(b); break;
       case 'cricket': this.startCricket(b); break;

@@ -84,7 +84,6 @@ export const DATE_LINES: Record<string, string[]> = {
   wheel: ['Do not look down. Okay, look down.', 'We can see the whole city from here!', 'Is that the speedway? Tiny!', 'One more round?', 'Best seat in the city.'],
   boat: ['Careful, it rocks 🚤', 'The lighthouse looks different from the water.', 'I love the smell of the sea.', 'Next stop: the middle of nowhere.', 'Should we anchor here a while?'],
   camp: ['The fire is nice.', 'Marshmallows would make this perfect.', 'Look at the stars over the lake.', 'Tell me a scary story.', 'Warm here, is it not?'],
-  sofa: ['Nice place!', 'So this is where you live.', 'Cosy. Very cosy.', 'What is on the TV?', 'I like the view from your window.'],
 };
 export const GIFT_THANKS: Record<string, string[]> = {
   '🌹': ['A rose! You are sweet 🌹', 'Nobody has given me a rose here before 🥹', 'Okay, now I am blushing.'],

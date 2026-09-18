@@ -551,7 +551,7 @@ export function buildCity(g: THREE.Group, h: H) {
   }
   g.userData.parked = [[348, BZ + 8, Math.PI / 2, 'jeep'], [354, BZ + 8, Math.PI / 2, 'bike'], [500 - 18, 8, 0, 'jeep'], [447, 76, Math.PI / 2, 'jeep']];
 
-  // ================= DATE SPOTS: benches, a candle-lit table, the Ferris wheel, a boat, and apartments =================
+  // ================= DATE SPOTS: benches, a candle-lit table, the Ferris wheel and a boat =================
   // A spot is { id, kind, x, z, ry (which way you face when seated), seats: [dx, dz][] } — the world reads these.
   const spots: { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][] }[] = [];
   const spot = (id: string, kind: string, label: string, x: number, z: number, y: number, ry: number, seats: [number, number][]) => spots.push({ id, kind, label, x, z, y, ry, seats });
@@ -598,29 +598,7 @@ export function buildCity(g: THREE.Group, h: H) {
     b.add(at(glow(0.2, 0.2, 0.2, 0xfff2a8), 0, 1.6, 3.0)); g.add(b);
     spot('boat', 'boat', 'Take the boat out', 403, -150, 2.5, Math.PI, [[0, -0.6], [0, 0.6]]);
   }
-  // six little apartments out over the water: a private room each (yours is picked by your id)
-  for (let k = 0; k < 6; k++) {
-    const ax = 300 + k * 22, az = 400, ay = 6;
-    const wallC = [0xf4e1c1, 0xd6e6f2, 0xf2d0d0, 0xe4f0d0, 0xf7e7b0, 0xe0d6f2][k];
-    g.add(at(box(14, 1, 12, 0x9a9a94), ax, ay - 0.5, az));                                      // slab
-    g.add(at(box(13, 0.06, 11, 0xd8c49a), ax, ay + 0.03, az));                                   // floor
-    g.add(at(box(6, 0.04, 4, 0xa33b2c), ax - 1, ay + 0.07, az + 1));                             // rug
-    for (const [w, d, dx, dz] of [[14, 0.3, 0, -6], [14, 0.3, 0, 6], [0.3, 12, -7, 0], [0.3, 12, 7, 0]] as const) g.add(at(box(w, 3.2, d, wallC), ax + dx, ay + 1.6, az + dz));
-    g.add(at(box(14.4, 0.3, 12.4, 0x6b4a2a), ax, ay + 3.3, az));                                  // roof
-    g.add(at(glow(5, 2, 0.12, 0x9fd3e8), ax, ay + 1.8, az - 5.8));                               // picture window (sky)
-    g.add(at(box(3.6, 0.5, 1.2, 0x2c3e6b), ax - 2, ay + 0.45, az - 3)); g.add(at(box(3.6, 0.7, 0.35, 0x2c3e6b), ax - 2, ay + 1.05, az - 3.45));   // sofa
-    for (const dx of [-1.7, 1.7]) g.add(at(box(0.4, 0.7, 1.2, 0x2c3e6b), ax - 2 + dx, ay + 0.6, az - 3));
-    g.add(at(box(1.6, 0.05, 0.8, 0x8a6a4a), ax - 2, ay + 0.5, az - 1.2)); for (const [dx, dz] of [[-0.7, -0.3], [0.7, -0.3], [-0.7, 0.3], [0.7, 0.3]]) g.add(at(cyl(0.03, 0.03, 0.5, 0x555555, 5), ax - 2 + dx, ay + 0.25, az - 1.2 + dz));   // coffee table
-    g.add(at(box(2.4, 1.4, 0.1, 0x111111), ax - 2, ay + 1.4, az + 5.7)); g.add(at(glow(2.2, 1.2, 0.05, 0x3fb7d9), ax - 2, ay + 1.4, az + 5.62));   // TV
-    g.add(at(box(2.2, 0.5, 3.4, 0xf4f4f4), ax + 4.5, ay + 0.35, az + 3)); g.add(at(box(2.2, 0.25, 1, 0xe75480), ax + 4.5, ay + 0.72, az + 1.7));   // bed
-    g.add(at(box(0.6, 0.6, 0.6, 0x8a6a4a), ax + 4.5, ay + 0.3, az - 0.5)); g.add(at(glow(0.4, 0.5, 0.4, 0xffe08a), ax + 4.5, ay + 1.0, az - 0.5));   // lamp
-    g.add(at(cyl(0.3, 0.25, 0.5, 0xc9502f, 8), ax + 5.5, ay + 0.25, az - 4.5)); g.add(at(sph(0.7, 0x4f9a3e, 8), ax + 5.5, ay + 1.1, az - 4.5));   // plant
-    stringLights(g, V(ax - 6.5, ay + 2.9, az - 5.5), V(ax + 6.5, ay + 2.9, az - 5.5), 10);
-    g.add(at(box(1.2, 2.4, 0.15, 0x3a2418), ax + 6.85, ay + 1.2, az + 3));                        // door (decorative: E leaves)
-    spot(`apt${k}`, 'sofa', 'Sit on the sofa', ax - 2, az - 3, ay, 0, [[-0.7, 0], [0.7, 0]]);
-  }
   g.userData.spots = spots;
-  g.userData.apartments = [0, 1, 2, 3, 4, 5].map((k) => [300 + k * 22, 400, 6]);
 
   // ================= main roads =================
   road(15, -100, 15, 86); road(15, 60, -60, 60);

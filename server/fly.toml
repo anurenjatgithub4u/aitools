@@ -1,0 +1,33 @@
+# Fly.io config for the FindurAI realtime relay.  Deploy from this folder:  fly deploy
+app = "findurai-realtime"
+primary_region = "sin"          # Singapore — closest region to Kerala with the free allowance (bom = Mumbai if offered)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8787"
+  MAX_ROOM = "80"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = false    # a relay must stay up: never suspend it between players
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "connections"
+    soft_limit = 400
+    hard_limit = 500
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "10s"
+  method = "GET"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

@@ -27,7 +27,16 @@ const server = createServer((req, res) => {
   res.writeHead(404); res.end();
 });
 
-const wss = new WebSocketServer({ server, path: '/multiplayer', maxPayload: 4096 });
+// Only the game may connect: findurai.com, Vercel previews and local dev (ALLOWED_ORIGINS overrides, comma-separated;
+// entries starting with '.' match any subdomain).
+const ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://www.findurai.com,https://findurai.com,.vercel.app,http://localhost:3000').split(',').map((o) => o.trim()).filter(Boolean);
+const originOk = (origin) => {
+  if (!origin) return true;                                // non-browser clients (health checks, curl) carry no Origin
+  let host; try { host = new URL(origin).hostname; } catch { return false; }
+  return ORIGINS.some((o) => (o.startsWith('.') ? host === o.slice(1) || host.endsWith(o) : origin === o));
+};
+
+const wss = new WebSocketServer({ server, path: '/multiplayer', maxPayload: 4096, verifyClient: ({ origin }) => originOk(origin) });
 
 wss.on('connection', (ws) => {
   let room = null, id = null, budget = RATE, alive = true;

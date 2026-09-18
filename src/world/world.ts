@@ -209,7 +209,7 @@ export class World {
   private date: DateState | null = null;
   private wheel: THREE.Group | null = null;
   private rides: { def: RideDef; grp: THREE.Group }[] = [];
-  private ride: { r: { def: RideDef; grp: THREE.Group }; seat: THREE.Object3D; pseat: THREE.Object3D | null; partner: Bot | null; t0: number } | null = null;
+  private ride: { r: { def: RideDef; grp: THREE.Group }; seat: THREE.Object3D; pseat: THREE.Object3D | null; partner: Bot | null; t0: number; from: THREE.Vector3; pfrom: THREE.Vector3 | null } | null = null;
   private ridden = new Set<string>();
   private dateBoat: THREE.Group | null = null;
   private giftAt = new Map<string, number>();
@@ -2973,8 +2973,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (!seat) return;
     const partner = this.datePartner();
     if (partner) { partner.playing = true; partner.wait = 0; partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 90; }
-    this.ride = { r, seat, pseat: partner ? pseat : null, partner, t0: t };
-    this.airY = 0; this.vy = 0; this.pitch = r.def.kind === 'wheel' ? 0.15 : 0.35; this.dist = Math.max(this.dist, 9);
+    this.ride = { r, seat, pseat: partner ? pseat : null, partner, t0: t, from: this.player.group.position.clone(), pfrom: partner ? partner.av.group.position.clone() : null };
+    this.airY = 0; this.vy = 0; this.dist = Math.max(this.dist, 9);   // pitch eases in tickRideSeat; camDist glides on its own
     const first = !this.ridden.has(r.def.id); this.ridden.add(r.def.id);
     if (first) { this.points += 20; this.ev.onPoints(this.points); }
     this.ev.onCollect({ name: `${r.def.label}${partner ? ` with ${partner.name}` : ''}${first ? ' · +20' : ''}`, points: first ? 20 : 0, color: 0xf2c31b, shape: 'gem' });
@@ -2985,9 +2985,15 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private tickRideSeat(dt: number, t: number) {
     const rd = this.ride!, p = this.player.group.position;
     const wp = rd.seat.getWorldPosition(new THREE.Vector3()), dir = rd.seat.getWorldDirection(new THREE.Vector3());
-    p.copy(wp); this.player.group.rotation.y = Math.atan2(dir.x, dir.z); poseSit(this.player);
-    if (rd.pseat && rd.partner) { const q = rd.pseat.getWorldPosition(new THREE.Vector3()); rd.partner.av.group.position.copy(q); rd.partner.av.group.rotation.y = this.player.group.rotation.y; poseSit(rd.partner.av); }
+    // boarding: a one-second hop from the gate into the seat instead of a teleport
+    const u = Math.min(1, (t - rd.t0) / 1.0), e = u * u * (3 - 2 * u), hop = Math.sin(u * Math.PI) * 0.7;
+    p.lerpVectors(rd.from, wp, e); p.y += hop;
+    const face = Math.atan2(dir.x, dir.z);
+    this.player.group.rotation.y = u < 1 ? this.player.group.rotation.y + wrapAngle(face - this.player.group.rotation.y) * Math.min(1, dt * 6) : face;
+    if (u < 0.6) poseJump(this.player); else poseSit(this.player);
+    if (rd.pseat && rd.partner) { const q = rd.pseat.getWorldPosition(new THREE.Vector3()); const pp = rd.partner.av.group.position; if (rd.pfrom) pp.lerpVectors(rd.pfrom, q, e); else pp.copy(q); pp.y += hop; rd.partner.av.group.rotation.y = this.player.group.rotation.y; if (u < 0.6) poseJump(rd.partner.av); else poseSit(rd.partner.av); }
     this.yaw += wrapAngle(this.player.group.rotation.y + Math.PI + Math.sin(t * 0.2) * 0.6 - this.yaw) * Math.min(1, dt * 1.5);
+    this.pitch += ((rd.r.def.kind === 'wheel' ? 0.15 : 0.35) - this.pitch) * Math.min(1, dt * 2);
     if (t - rd.t0 > RIDE_SECONDS) this.endRide();
   }
 

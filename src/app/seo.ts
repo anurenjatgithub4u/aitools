@@ -37,7 +37,7 @@ export const FEATURES = {
     ["Eastside island", "Harbour Town and marina, Windmill Hill, Lakeside Camp on Mirror Lake, Sunny Orchard, Lighthouse Point"],
     ["FindurAI Cricket Ground", "oval, strip, pavilion and scoreboard on Eastside"],
     ["FindurAI Speedway", "a 960 m circuit: pit straight, Sunset sweeper, Neon chicane, the Valley run, Big Bend and the Esses"],
-    ["Fairground rides", "the Sunset Wheel on the beach, a Sky Wheel by Mirror Lake, a carousel in Central Park, a chair swing by the Skate Park and a pirate ship — walk to the gate and press E, bring a date"],
+    ["Fairground rides", "the Sunset Wheel on the beach, a Sky Wheel between Neon Lane and the beach, a carousel in Central Park, a chair swing by the Skate Park and a pirate ship — walk to the gate and press E, bring a date"],
   ],
   games: [
     ["🏁 Speedway race", "1–5 laps against three rivals, green boost pads and Shift nitro"],

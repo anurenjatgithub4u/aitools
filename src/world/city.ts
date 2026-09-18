@@ -677,8 +677,8 @@ export function buildCity(g: THREE.Group, h: H) {
   const ride = (grp: THREE.Group, def: RideDef) => { grp.name = `ride:${def.id}`; grp.userData.animated = true; grp.userData.ride = def; grp.traverse((o) => { o.userData.noCollide = true; }); rides.push(def); g.add(grp); };   // moving parts never block; the base slabs do
   const seat = (parent: THREE.Object3D, name: string, x: number, y: number, z: number) => { const s = new THREE.Object3D(); s.name = name; s.position.set(x, y, z); parent.add(s); };
   const bulbs = [0xff7ab8, 0x7ad7ff, 0xfff2a8, 0xa6ff7a];
-  // Sky Wheel by Mirror Lake — bigger than the Sunset Wheel, twelve cabins
-  { const wx = 403, wz = 24, wy = h(wx, wz), R = 13, HUB = R + 2.6;
+  // Sky Wheel between Neon Lane and the beach — bigger than the Sunset Wheel, twelve cabins
+  { const wx = 100, wz = -60, wy = h(wx, wz), R = 13, HUB = R + 2.6;
     for (const sd of [-1, 1]) { g.add(rot(at(box(0.8, HUB * 1.1, 0.8, 0x2c3e6b), wx + sd * 2, wy + HUB / 2, wz + 2.6), 'x', -0.2)); g.add(rot(at(box(0.8, HUB * 1.1, 0.8, 0x2c3e6b), wx + sd * 2, wy + HUB / 2, wz - 2.6), 'x', 0.2)); }
     g.add(at(box(7, 0.8, 7, 0x555555), wx, wy + 0.4, wz)); keep(wx, wz, 17);
     const wheel = new THREE.Group(); wheel.position.set(wx, wy + HUB, wz);

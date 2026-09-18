@@ -491,3 +491,24 @@ body.inmode .labels .place, body.inmode .labels .shop, body.inmode .labels .pill
 .help .me .gifts span i { font-style: normal; font-size: 11px; margin-left: 4px; opacity: .8; }
 .help .me small { display: block; opacity: .75; font-size: 11px; margin-top: 2px; }
 @media (max-width: 720px) { .meet .ice { flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; } .meet .ice small { display: none; } .meet .ice .iceq { flex: 0 0 auto; } }
+
+/* ---- explorer card v2 ---- */
+.meet { padding: 12px 14px 12px; border-radius: 18px; min-width: 300px; }
+.meet .mhead { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 10px; text-align: left; }
+.meet .mhead b { display: block; font-size: 15px; margin: 0; }
+.meet .mhead small { display: block; font-size: 11px; opacity: .7; margin-top: 1px; }
+.meet.real .mhead small::before { content: '● '; color: #3fd36f; }
+.meet.real #meetname::after { content: none; }
+.meet .mclose { width: 26px; height: 26px; border-radius: 50%; font-size: 12px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: rgba(255,255,255,.1); flex: 0 0 auto; }
+.meet .mrow { justify-content: center; }
+.meet .mrow.games { display: grid; grid-template-columns: repeat(5, 62px); gap: 8px; max-width: none; margin-top: 2px; }
+.meet .mrow.games button { width: 62px; }
+.meet .mrow.games button.go { background: rgba(255, 79, 216, .35); }
+.meet .mrow.games button.go:hover { background: rgba(255, 79, 216, .6); }
+.meet .ice { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.1); }
+.meet .ice small { text-align: left; }
+@media (max-width: 720px) {
+  .meet .mrow.games { display: flex; }
+  .meet .mrow.games button { width: 58px; }
+  .meet .mhead b { font-size: 14px; }
+}

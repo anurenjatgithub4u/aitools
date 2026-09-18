@@ -39,7 +39,7 @@ export interface WorldEvents {
   onGame(kind: GameKind, opponent: string): void;
 }
 export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football' | 'cricket';
-export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | 'gift' | GameKind;
+export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | 'gift' | 'casino' | GameKind;
 
 const BOT_NAMES = [
   'Aarav (Kochi)', 'Mia (Berlin)', 'Kenji (Osaka)', 'Sofia (Lisbon)', 'Liam (Toronto)', 'Zara (Dubai)',
@@ -355,7 +355,7 @@ export class World {
         const b = this.bots.find((x) => x.remote?.id === m.id); if (b) this.showGift(b, m.gift);
       } break;
       case 'inv': if (m.to === this.selfId) {
-        const label = `${m.n} wants you to join them: ${this.spots.find((s) => s.id === m.kind)?.label ?? 'a date spot'}`;
+        const label = m.kind === 'casino' ? `${m.n} is heading to the Neon Palace — come?` : `${m.n} wants you to join them: ${this.spots.find((s) => s.id === m.kind)?.label ?? 'a date spot'}`;
         this.ev.onPick({ title: label, sub: 'You will be taken there.', options: ['Go 💖', 'Not now'] }, (i) => { if (i === 0) { if (this.driving) this.exitVehicle(); this.player.group.position.set(m.x, this.groundAt(m.x, m.z, this.terrain.h(m.x, m.z)), m.z); this.airY = 0; } });
         this.sfx.checkpoint();
       } break;
@@ -1615,6 +1615,8 @@ export class World {
       ctx.fillStyle = '#fff';
       for (const x of st) { const [e, f] = P(x, this.train.z); ctx.beginPath(); ctx.arc(e, f, 2, 0, 7); ctx.fill(); }
     }
+    if (this.casino) { const [a, b] = P(this.casino.x, this.casino.z); ctx.fillStyle = '#ff4fd8'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🎰', a, b + (labels ? 3.5 : 2)); }
+    if (this.wheel) { const [a, b] = P(this.wheel.position.x, this.wheel.position.z); ctx.fillStyle = '#f2c31b'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🎡', a, b + (labels ? 3.5 : 2)); }
     if (this.pumpPos) { const [a, b] = P(this.pumpPos.x, this.pumpPos.z); ctx.fillStyle = '#d94a3d'; ctx.beginPath(); ctx.arc(a, b, labels ? 6 : 3, 0, 7); ctx.fill(); if (labels) { ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('⛽', a, b + 3); } }
     const wp = new THREE.Vector3();
     const named: { x: number; y: number; text: string }[] = [];
@@ -2893,6 +2895,17 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         this.sfx.checkpoint();
         break;
       case 'chat': if (!b.remote) this.botSays(b, `Hi ${this.playerName}! Type something 💬`, 0.3); break;
+      case 'casino': {   // off to the Neon Palace together
+        const c = this.casino; if (!c) break;
+        if (this.driving) this.exitVehicle();
+        const ex = c.x, ez = c.z + c.d / 2 + 4;
+        this.player.group.position.set(ex - 1, this.terrain.h(ex, ez), ez); this.player.group.rotation.y = Math.PI; this.airY = 0; this.yaw = 0;
+        if (!b.remote) { b.av.group.position.set(ex + 1, this.terrain.h(ex, ez), ez); b.wait = 0; if (this.hangout?.bot !== b) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: t + 300, nextLine: t + 4 }; } this.botSays(b, 'Neon Palace! Dance first or pool first? 🎰', 1); }
+        else { this.net?.send({ t: 'inv', id: this.selfId, to: b.remote.id, n: this.playerName, kind: 'casino', x: ex + 1, z: ez }); }
+        this.ev.onCollect({ name: '🎰 Neon Palace — the casino & club at the end of Neon Lane', points: 0, color: 0xff4fd8, shape: 'gem' });
+        this.sfx.checkpoint();
+        break;
+      }
       case 'gift': this.ev.onPick({ title: `Send ${b.name} a gift`, sub: 'Gifts are free. Be nice, be creative.', options: GIFTS.map((g) => `${g.e} ${g.n}`) }, (i) => this.sendGift(b, GIFTS[i].e)); break;
       case 'race': this.startCircuitRace(b); break;
       case 'football': this.botSays(b, 'Kick-off at the stadium! ⚽', 0.2); this.startFootball(b); break;

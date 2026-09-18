@@ -68,7 +68,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <div class="chip prompt" id="prompt" hidden></div>
       <div class="chip prompt lifting" id="liftprompt" hidden></div>
       <div class="meet" id="meet" hidden>
-        <b id="meetname"></b>
+        <div class="mhead"><div><b id="meetname"></b><small id="meetsub"></small></div><button class="mclose" id="meetclose" title="Close">✕</button></div>
         <div class="mrow" id="meetmain">
           <button data-a="friend" id="meetfriend">🤝<small>Friend</small></button>
           <button data-a="game">🎮<small>Game</small></button>
@@ -87,6 +87,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
           <button data-a="carrom">🎯<small>Carrom</small></button>
           <button data-a="chess">♟️<small>Chess</small></button>
           <button data-a="ludo">🎲<small>Ludo</small></button>
+          <button data-a="casino" class="go">🎰<small>Go to casino</small></button>
           <button data-a="back">←<small>Back</small></button>
         </div>
       </div>
@@ -176,6 +177,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const rankChip = root.querySelector<HTMLElement>('#rank')!;
   // meet card
   const meetEl = root.querySelector<HTMLElement>('#meet')!, meetName = root.querySelector<HTMLElement>('#meetname')!;
+  let dismissed = '';
+  root.querySelector('#meetclose')!.addEventListener('click', (e) => { e.stopPropagation(); dismissed = meetName.textContent ?? ''; meetEl.hidden = true; });
   const meetMain = root.querySelector<HTMLElement>('#meetmain')!, meetGames = root.querySelector<HTMLElement>('#meetgames')!;
   const meetFriend = root.querySelector<HTMLElement>('#meetfriend')!;
   // stop the tap reaching the world canvas (which would start a camera drag), then act on release
@@ -187,14 +190,15 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   root.querySelector('#icemore')!.addEventListener('click', (e) => { e.stopPropagation(); rollIce(); });
   meetEl.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest('button') as HTMLElement | null;
-    if (btn && (btn.classList.contains('iceq') || btn.id === 'icemore')) return;
+    if (btn && (btn.classList.contains('iceq') || btn.id === 'icemore' || btn.id === 'meetclose')) return;
     meetEl.querySelectorAll('.pressed').forEach((b) => b.classList.remove('pressed'));
     if (!btn) return;
     e.preventDefault();
     const a = btn.dataset.a!;
-    if (a === 'game') { meetMain.hidden = true; meetGames.hidden = false; return; }
-    if (a === 'back') { meetMain.hidden = false; meetGames.hidden = true; return; }
-    meetMain.hidden = false; meetGames.hidden = true;
+    const iceRow = root.querySelector<HTMLElement>('#ice')!;
+    if (a === 'game') { meetMain.hidden = true; meetGames.hidden = false; iceRow.hidden = true; return; }
+    if (a === 'back') { meetMain.hidden = false; meetGames.hidden = true; iceRow.hidden = false; return; }
+    meetMain.hidden = false; meetGames.hidden = true; iceRow.hidden = false;
     if (a === 'chat') { chatEl.hidden = false; cinput.focus(); }
     actions.interact(a as MeetAction);
   });
@@ -313,10 +317,12 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     friends(n) { friendsChip.textContent = `🤝 ${n} friends`; },
     meet(m) {
       meetEl.classList.toggle('real', !!m?.real);
-      meetEl.hidden = !m;
-      meetMain.hidden = false; meetGames.hidden = true;
+      if (!m) dismissed = '';
+      meetEl.hidden = !m || dismissed === m.name;
+      meetMain.hidden = false; meetGames.hidden = true; root.querySelector<HTMLElement>('#ice')!.hidden = false;
       if (!m) return;
-      meetName.textContent = (m.friend ? `🤝 ${m.name} · friend` : m.name) + (m.real ? ' · real player' : '');
+      meetName.textContent = m.name;
+      root.querySelector<HTMLElement>('#meetsub')!.textContent = m.real ? (m.friend ? 'Real player · your friend' : 'Real player · say hi') : m.friend ? 'Local · your friend' : 'Local explorer';
       meetFriend.hidden = m.friend;
       if (meetEl.dataset.who !== m.name) { meetEl.dataset.who = m.name; rollIce(); }
     },

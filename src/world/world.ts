@@ -646,8 +646,8 @@ export class World {
     return null;
   }
 
-  /** Can something standing at height `y` move to (x, z)? */
-  private walkable(x: number, z: number, y = this.terrain.h(x, z)) {
+  /** Can something standing at height `y` move to (x, z)? `swim` lets the player wade through water (bots and cars stay on land). */
+  private walkable(x: number, z: number, y = this.terrain.h(x, z), swim = false) {
     if (Math.hypot(x, z) >= WORLD_RADIUS) return false;
     let platform = false;   // standing on a deck, pier or ramp: fine even over water or a steep slope
     for (const b of this.blockers) {
@@ -659,14 +659,18 @@ export class World {
       return false;
     }
     if (platform) return true;
-    if (!this.terrain.onLand(x, z)) return false;
+    if (!this.terrain.onLand(x, z)) return swim;
     if (this.dest.terrain.rim && this.terrain.h(x, z) - y > 1.1) return false;             // hillside too steep
     return true;
   }
 
+  /** Below sea level at (x, z): you swim there rather than walk on the seabed. */
+  private inWater(x: number, z: number) { const w = this.dest.terrain.water; return !!w && this.terrain.h(x, z) < w.level - 0.35; }
+
   /** Height to stand at: terrain, or the top of a low platform we've stepped onto. */
   private groundAt(x: number, z: number, y: number) {
     let g = this.terrain.h(x, z);
+    const w = this.dest.terrain.water; if (w && g < w.level - 0.35) g = w.level - 0.95;   // swimming: chest-deep
     for (const b of this.blockers) {
       const { min, max } = b.box;
       if (b.radius !== undefined || max.y - min.y > LOW_PLATFORM || min.y > y + STEP_UP || max.y <= g) continue;
@@ -1289,12 +1293,13 @@ export class World {
         const rx = Math.cos(this.yaw), rz = -Math.sin(this.yaw);
         const mx = fx * iz + rx * ix, mz = fz * iz + rz * ix;
         const running = this.runMode || k.has('shift');
-        const speed = running ? WALK_SPEED * (this.zombies && !this.zombies.ending ? 1.3 : 1.8) : WALK_SPEED;   // you cannot outrun the night for long
+        const swimming = this.inWater(p.x, p.z);
+        const speed = (running ? WALK_SPEED * (this.zombies && !this.zombies.ending ? 1.3 : 1.8) : WALK_SPEED) * (swimming ? 0.55 : 1);   // you cannot outrun the night for long; water is slow
         const nx = p.x + mx * speed * dt, nz = p.z + mz * speed * dt;
         const py = p.y - this.airY;
         // never get stuck: if we are already inside a wall (stepped onto something odd), any move out is allowed
-        const free = !this.walkable(p.x, p.z, py) && Math.hypot(nx, nz) < WORLD_RADIUS && this.terrain.onLand(nx, nz);
-        const ok = (ax: number, az: number) => this.walkable(ax, az, py) && !this.hitsVehicle(ax, az);
+        const free = !this.walkable(p.x, p.z, py, true) && Math.hypot(nx, nz) < WORLD_RADIUS;
+        const ok = (ax: number, az: number) => this.walkable(ax, az, py, true) && !this.hitsVehicle(ax, az);
         const hv = this.hitsVehicle(nx, nz);
         if (hv?.bus && hv.speed > 0.5) this.busHit(hv, t);   // walking into a moving bus: you lose
         else if (free || ok(nx, nz)) { p.x = nx; p.z = nz; }

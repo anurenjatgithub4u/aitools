@@ -76,6 +76,8 @@ function house(g: THREE.Group, x: number, y: number, z: number, ry: number, wall
 
 export interface Clear { x: number; z: number; r: number }
 
+export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship'; label: string; x: number; z: number; y: number; icon: string }
+
 export function buildCity(g: THREE.Group, h: H) {
   const clear: Clear[] = [];
   const keep = (x: number, z: number, r: number) => clear.push({ x, z, r });
@@ -667,6 +669,81 @@ export function buildCity(g: THREE.Group, h: H) {
     g.add(wheel);
     spot('wheel', 'wheel', 'Ride the Ferris wheel', wx + 4.5, wz, wy, -Math.PI / 2, [[0, -0.6], [0, 0.6]]);
     place('Sunset Wheel', wx, HUB + R + 4, wz, 200);
+  }
+
+  // ================= RIDES — walk up to the gate and press E =================
+  // Each ride is one animated group (never baked) with `userData.ride`; seat nodes are named seat0..N.
+  const rides: RideDef[] = (g.userData.rides = []);
+  const ride = (grp: THREE.Group, def: RideDef) => { grp.name = `ride:${def.id}`; grp.userData.animated = true; grp.userData.ride = def; grp.traverse((o) => { o.userData.noCollide = true; }); rides.push(def); g.add(grp); };   // moving parts never block; the base slabs do
+  const seat = (parent: THREE.Object3D, name: string, x: number, y: number, z: number) => { const s = new THREE.Object3D(); s.name = name; s.position.set(x, y, z); parent.add(s); };
+  const bulbs = [0xff7ab8, 0x7ad7ff, 0xfff2a8, 0xa6ff7a];
+  // Sky Wheel by Mirror Lake — bigger than the Sunset Wheel, twelve cabins
+  { const wx = 403, wz = 24, wy = h(wx, wz), R = 13, HUB = R + 2.6;
+    for (const sd of [-1, 1]) { g.add(rot(at(box(0.8, HUB * 1.1, 0.8, 0x2c3e6b), wx + sd * 2, wy + HUB / 2, wz + 2.6), 'x', -0.2)); g.add(rot(at(box(0.8, HUB * 1.1, 0.8, 0x2c3e6b), wx + sd * 2, wy + HUB / 2, wz - 2.6), 'x', 0.2)); }
+    g.add(at(box(7, 0.8, 7, 0x555555), wx, wy + 0.4, wz)); keep(wx, wz, 17);
+    const wheel = new THREE.Group(); wheel.position.set(wx, wy + HUB, wz);
+    wheel.add(rot(at(cyl(1, 1, 5.4, 0x333333, 12), 0, 0, 0), 'x', Math.PI / 2));
+    for (const sd of [-1, 1]) {
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(R, 0.16, 8, 48), new THREE.MeshStandardMaterial({ color: 0x3fb7d9 })); rim.position.z = sd * 2; wheel.add(rim);
+      for (let k = 0; k < 12; k++) { const sp = box(0.14, R * 2, 0.14, 0xeeeeee); sp.position.z = sd * 2; sp.rotation.z = (k * Math.PI) / 12; wheel.add(sp); }
+      for (let k = 0; k < 24; k++) { const l = glow(0.32, 0.32, 0.32, bulbs[k % 4]); l.position.set(Math.cos((k * Math.PI) / 12) * R, Math.sin((k * Math.PI) / 12) * R, sd * 2); wheel.add(l); }
+    }
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2, pivot = new THREE.Group(); pivot.position.set(Math.cos(a) * R, Math.sin(a) * R, 0); pivot.name = `gondola${k}`; wheel.add(pivot);
+      const c = bulbs[k % 4], car = new THREE.Group(); pivot.add(car);
+      car.add(at(box(2.4, 0.15, 3.4, c), 0, -1.7, 0)); car.add(at(box(2.4, 1.0, 0.1, c), 0, -1.2, 1.65)); car.add(at(box(2.4, 1.0, 0.1, c), 0, -1.2, -1.65)); car.add(at(box(0.1, 1.0, 3.4, c), 1.15, -1.2, 0)); car.add(at(box(0.1, 1.0, 3.4, c), -1.15, -1.2, 0));
+      car.add(at(box(0.08, 1.8, 0.08, 0x555555), 0, -0.9, 0)); car.add(at(box(2.7, 0.1, 3.7, 0xffffff), 0, 0, 0));
+      seat(car, 'seat0', 0, -1.65, -0.7); seat(car, 'seat1', 0, -1.65, 0.7);
+    }
+    ride(wheel, { id: 'skywheel', kind: 'wheel', label: 'Ride the Sky Wheel', x: wx + 5, z: wz, y: wy, icon: '🎡' });
+    place('Sky Wheel', wx, HUB + R + 4, wz, 220);
+  }
+  // Carousel in Central Park
+  { const cx = -215, cz = -10, cy = h(cx, cz);
+    g.add(at(cyl(8, 8.4, 0.5, 0xd9cfbc, 24), cx, cy + 0.25, cz)); keep(cx, cz, 11);
+    const car = new THREE.Group(); car.position.set(cx, cy + 0.5, cz);
+    car.add(at(cyl(7, 7, 0.4, 0xa33b2c, 24), 0, 0.2, 0)); car.add(at(cyl(0.5, 0.5, 5.5, 0xf2c31b, 12), 0, 3, 0));
+    car.add(at(cone(8.6, 2.8, 0xd94a3d, 16), 0, 6.9, 0)); car.add(at(cyl(8.6, 8.6, 0.3, 0xf2c31b, 24), 0, 5.6, 0));
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; const l = glow(0.3, 0.3, 0.3, bulbs[k % 4]); l.position.set(Math.cos(a) * 8.3, 5.3, Math.sin(a) * 8.3); car.add(l); }
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, horse = new THREE.Group(); horse.name = `horse${k}`; horse.position.set(Math.cos(a) * 5.2, 0, Math.sin(a) * 5.2); horse.rotation.y = -a; car.add(horse);
+      horse.add(at(cyl(0.06, 0.06, 5.2, 0xf2c31b, 6), 0, 2.8, 0));
+      const c = [0xffffff, 0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a, 0xff7ab8, 0x8a5a2b, 0xa6ff7a][k];
+      horse.add(at(box(0.5, 0.55, 1.5, c), 0, 1.55, 0)); horse.add(at(box(0.32, 0.6, 0.45, c), 0, 2.1, 0.8)); horse.add(at(box(0.3, 0.32, 0.55, c), 0, 2.45, 1.05));
+      for (const [dx, dz] of [[-0.15, -0.5], [0.15, -0.5], [-0.15, 0.5], [0.15, 0.5]]) horse.add(at(box(0.1, 0.55, 0.1, c), dx, 1.05, dz));
+      horse.add(at(box(0.55, 0.08, 0.5, 0x3a2418), 0, 1.86, -0.1));   // saddle
+      seat(horse, `seat${k}`, 0, 1.75, -0.1);
+    }
+    ride(car, { id: 'carousel', kind: 'carousel', label: 'Ride the Carousel', x: cx + 9.5, z: cz, y: cy, icon: '🎠' });
+    place('Carousel', cx, 11, cz, 160);
+  }
+  // Chair swing near the Skate Park
+  { const sx = 150, sz = 95, sy = h(sx, sz);
+    g.add(at(cyl(3, 3.4, 0.5, 0x555555, 16), sx, sy + 0.25, sz)); g.add(at(cyl(0.5, 0.7, 11, 0xd94a3d, 12), sx, sy + 5.5, sz)); keep(sx, sz, 11);
+    const top = new THREE.Group(); top.position.set(sx, sy + 11, sz);
+    top.add(at(cone(5, 1.8, 0xf2c31b, 12), 0, 0.9, 0)); top.add(at(cyl(5, 5, 0.3, 0xd94a3d, 16), 0, 0, 0));
+    for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; const l = glow(0.28, 0.28, 0.28, bulbs[k % 4]); l.position.set(Math.cos(a) * 4.8, 0.3, Math.sin(a) * 4.8); top.add(l); }
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, arm = new THREE.Group(); arm.position.set(Math.cos(a) * 4.2, -0.1, Math.sin(a) * 4.2); arm.rotation.y = -a; arm.rotation.x = -0.55; top.add(arm);   // chains fly outward
+      arm.add(at(box(0.05, 4.6, 0.05, 0xbbbbbb), -0.25, -2.3, 0)); arm.add(at(box(0.05, 4.6, 0.05, 0xbbbbbb), 0.25, -2.3, 0));
+      arm.add(at(box(0.7, 0.12, 0.6, bulbs[k % 4]), 0, -4.65, 0)); arm.add(at(box(0.7, 0.6, 0.08, bulbs[k % 4]), 0, -4.35, -0.3));
+      seat(arm, `seat${k}`, 0, -4.55, 0.05);
+    }
+    ride(top, { id: 'swing', kind: 'swing', label: 'Ride the Chair Swing', x: sx + 8.5, z: sz, y: sy, icon: '🎪' });
+    place('Chair Swing', sx, 14, sz, 160);
+  }
+  // Pirate ship on the beach fairground
+  { const px = 150, pz = 160, py = h(px, pz), TOP = 7.5;
+    for (const sd of [-1, 1]) { g.add(bar(V(px + sd * 2.6, py, pz - 3.2), V(px + sd * 2.6, py + TOP, pz), 0.18, 0x2c3e6b)); g.add(bar(V(px + sd * 2.6, py, pz + 3.2), V(px + sd * 2.6, py + TOP, pz), 0.18, 0x2c3e6b)); }
+    g.add(rot(at(cyl(0.2, 0.2, 5.6, 0x333333, 8), px, py + TOP, pz), 'z', Math.PI / 2)); g.add(at(box(9, 0.6, 3, 0x555555), px, py + 0.3, pz)); keep(px, pz, 9);
+    const pivot = new THREE.Group(); pivot.position.set(px, py + TOP, pz);
+    for (const sd of [-1, 1]) pivot.add(at(box(0.2, 5.6, 0.2, 0xeeeeee), sd * 1.1, -2.8, 0));
+    const hull = 0xa33b2c;
+    pivot.add(at(box(2.6, 1.2, 7, hull), 0, -6.2, 0)); pivot.add(rot(at(box(2.6, 1.2, 1.6, hull), 0, -5.7, 3.9), 'x', -0.5)); pivot.add(rot(at(box(2.6, 1.2, 1.6, hull), 0, -5.7, -3.9), 'x', 0.5));
+    pivot.add(at(box(2.7, 0.12, 7.2, 0xf2c31b), 0, -5.55, 0)); pivot.add(at(box(0.12, 2.2, 0.12, 0x6b4a2a), 0, -4.5, 0)); pivot.add(at(box(1.4, 1.0, 0.05, 0xf4f4f4), 0, -4.3, 0));   // deck, mast, sail
+    for (let k = 0; k < 3; k++) { const z = (k - 1) * 2; pivot.add(at(box(2.4, 0.4, 0.5, 0x3a2418), 0, -5.9, z)); seat(pivot, `seat${k * 2}`, -0.6, -5.7, z); seat(pivot, `seat${k * 2 + 1}`, 0.6, -5.7, z); }
+    ride(pivot, { id: 'ship', kind: 'ship', label: 'Ride the Pirate Ship', x: px + 5.5, z: pz, y: py, icon: '🏴‍☠️' });
+    place('Pirate Ship', px, TOP + 4, pz, 160);
   }
   // the date boat, moored at the marina; it is moved by the world during a ride
   { const b = new THREE.Group(); b.name = 'dateboat'; b.userData.animated = true; b.position.set(406, 0.3, -152);

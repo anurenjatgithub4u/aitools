@@ -14,6 +14,7 @@ import { createCarrom, CARROM, type CarromGame } from './carromEngine';
 import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
+import type { RideDef } from './city';
 import { createTransport, type Transport, type NetMsg, type Gender } from './net';
 
 export interface WorldEvents {
@@ -206,6 +207,9 @@ export class World {
   private spots: Spot[] = [];
   private date: DateState | null = null;
   private wheel: THREE.Group | null = null;
+  private rides: { def: RideDef; grp: THREE.Group }[] = [];
+  private ride: { r: { def: RideDef; grp: THREE.Group }; seat: THREE.Object3D; pseat: THREE.Object3D | null; partner: Bot | null; t0: number } | null = null;
+  private ridden = new Set<string>();
   private dateBoat: THREE.Group | null = null;
   private giftAt = new Map<string, number>();
   private sunsetK = 0;
@@ -559,6 +563,7 @@ export class World {
     this.landmarkData = landmark.userData;
     this.spots = (landmark.userData.spots ?? []) as Spot[];
     this.wheel = (landmark.getObjectByName('ferris') as THREE.Group | undefined) ?? null;
+    landmark.traverse((o) => { if (o.userData.ride) this.rides.push({ def: o.userData.ride as RideDef, grp: o as THREE.Group }); });
     this.dateBoat = (landmark.getObjectByName('dateboat') as THREE.Group | undefined) ?? null;
     this.casino = (landmark.userData.casino as Casino | undefined) ?? null;
     this.landmarkRoot = landmark;
@@ -1236,6 +1241,7 @@ export class World {
     if (this.cricket) { ix = 0; iz = 0; }   // you are at the crease: A/D or ◀ ▶ shuffle sideways (see tickCricket)
     if (this.date) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.endDate(); } }   // seated: Space / Jump stands up
     if (this.dancing) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.stopDancing(); } }
+    if (this.ride) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.endRide(); } }
     if (this.ridingWith) { ix = 0; iz = 0; if (this.wantJump || this.wantLift || this.wantToggleDrive) { this.wantJump = false; this.wantLift = false; this.wantToggleDrive = false; this.leaveRide(true); } }
     if (this.pool) { ix = 0; iz = 0; if (this.wantKick || this.wantJump) { this.wantKick = false; this.wantJump = false; this.poolButton(); } }
     if (this.carrom) { ix = 0; iz = 0; if (this.wantKick || this.wantJump) { this.wantKick = false; this.wantJump = false; this.carromButton(); } }
@@ -1247,8 +1253,9 @@ export class World {
       if (this.driving) this.exitVehicle();
       else if (this.date) this.endDate();
       else if (this.dancing) this.stopDancing();
+      else if (this.ride) this.endRide();
       else if (this.pool || this.carrom) { /* use Shoot / Flick */ }
-      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); const cb = this.nearestCarrom(); if (pt) this.startPool(pt); else if (cb) this.startCarrom(cb); else if (this.onDanceFloor()) this.startDancing(); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
+      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); const cb = this.nearestCarrom(); const rd = this.nearestRide(); if (pt) this.startPool(pt); else if (cb) this.startCarrom(cb); else if (this.onDanceFloor()) this.startDancing(); else if (rd) this.startRide(rd); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -1408,7 +1415,10 @@ export class World {
       const sp = this.date || this.dancing || this.pool ? null : this.nearestSpot();
       const ptab = this.date || this.dancing || this.pool || this.carrom ? null : this.nearestPoolTable();
       const cboard = this.date || this.dancing || this.pool || this.carrom || ptab ? null : this.nearestCarrom();
+      const rd = this.date || this.dancing || this.pool || this.carrom || this.ride ? null : this.nearestRide();
       if (this.pool || this.carrom) this.prompt(null, false);
+      else if (this.ride) this.prompt(`${this.ride.r.def.icon} ${Math.max(0, Math.ceil(RIDE_SECONDS - (t - this.ride.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early`, false);
+      else if (rd && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${rd.def.label}${pt ? ` with ${pt.name}` : ''}`, false); }
       else if (cboard && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Play carrom${pt ? ` with ${pt.name}` : ''}`, false); }
       else if (this.dancing) this.prompt(`${this.mobile ? 'Tap Jump' : 'Press E or Space'} to stop dancing`, false);
       else if (ptab && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Rack up 8-ball${pt ? ` with ${pt.name}` : ''}`, false); }
@@ -1583,6 +1593,7 @@ export class World {
     if (this.pool) this.tickPool(dt, t);
     if (this.carrom) this.tickCarrom(dt, t);
     if (this.wheel) { this.wheel.rotation.z += dt * (Math.PI * 2 / 40); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
+    this.tickRides(dt, t);
     if (this.date) this.tickDate(dt, t);
     this.sunsetK = Math.max(0, Math.min(1, this.sunsetK + ((this.date?.spot.kind === 'sunset') ? dt / 4 : -dt / 4)));
     if (this.sunsetK > 0 && !(this.zombies && !this.zombies.ending)) this.applySunset(this.sunsetK);
@@ -1699,7 +1710,7 @@ export class World {
       for (const x of st) { const [e, f] = P(x, this.train.z); ctx.beginPath(); ctx.arc(e, f, 2, 0, 7); ctx.fill(); }
     }
     if (this.casino) { const [a, b] = P(this.casino.x, this.casino.z); ctx.fillStyle = '#ff4fd8'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🎰', a, b + (labels ? 3.5 : 2)); }
-    if (this.wheel) { const [a, b] = P(this.wheel.position.x, this.wheel.position.z); ctx.fillStyle = '#f2c31b'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🎡', a, b + (labels ? 3.5 : 2)); }
+    for (const [wx, wz, icon] of [...(this.wheel ? [[this.wheel.position.x, this.wheel.position.z, '🎡'] as const] : []), ...this.rides.map((r) => [r.grp.position.x, r.grp.position.z, r.def.icon] as const)]) { const [a, b] = P(wx, wz); ctx.fillStyle = '#f2c31b'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(icon, a, b + (labels ? 3.5 : 2)); }
     if (this.pumpPos) { const [a, b] = P(this.pumpPos.x, this.pumpPos.z); ctx.fillStyle = '#d94a3d'; ctx.beginPath(); ctx.arc(a, b, labels ? 6 : 3, 0, 7); ctx.fill(); if (labels) { ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('⛽', a, b + 3); } }
     const wp = new THREE.Vector3();
     const named: { x: number; y: number; text: string }[] = [];
@@ -2901,6 +2912,67 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (d.partner && t > d.nextLine) { d.nextLine = t + 8 + Math.random() * 7; const lines = DATE_LINES[sp.kind] ?? DATE_LINES.pier; this.botSays(d.partner, lines[Math.floor(Math.random() * lines.length)], 0); }
     if (d.partner && t > d.giftAt) { d.giftAt = t + 60; if (Math.random() < 0.5) { const g = GIFTS[Math.floor(Math.random() * GIFTS.length)]; store.receiveGift(d.partner.name, g.e); this.points += 5; this.ev.onPoints(this.points); this.showGift(d.partner, g.e); this.ev.onCollect({ name: `${d.partner.name} gave you ${g.e} ${g.n}`, points: 5, color: 0xe75480, shape: 'gem' }); this.ev.onHearts(); this.sfx.questDone(); } }
     if (!d.rewarded && t - d.t0 > 15) { d.rewarded = true; this.points += 20; this.ev.onPoints(this.points); this.ev.onCollect({ name: d.partner ? `A moment with ${d.partner.name}` : 'A quiet moment', points: 20, color: 0xe75480, shape: 'gem' }); if (d.partner) this.ev.onHearts(); }
+  }
+
+  // ---------- fairground rides: carousel, chair swing, pirate ship, the Sky Wheel ----------
+  private nearestRide() {
+    const p = this.player.group.position;
+    let best: { def: RideDef; grp: THREE.Group } | null = null, bd = 3.6;
+    for (const r of this.rides) { const d = Math.hypot(r.def.x - p.x, r.def.z - p.z); if (d < bd) { bd = d; best = r; } }
+    return best;
+  }
+
+  private tickRides(dt: number, t: number) {
+    for (const { def, grp } of this.rides) {
+      switch (def.kind) {
+        case 'wheel': grp.rotation.z += dt * (Math.PI * 2 / 48); for (const c of grp.children) if (c.name.startsWith('gondola')) c.rotation.z = -grp.rotation.z; break;
+        case 'carousel': grp.rotation.y += dt * 0.5; for (const c of grp.children) if (c.name.startsWith('horse')) c.position.y = Math.sin(t * 2.2 + Number(c.name.slice(5))) * 0.28; break;
+        case 'swing': grp.rotation.y += dt * 1.25; break;
+        case 'ship': grp.rotation.x = Math.sin(t * 0.78) * 1.05; break;
+      }
+    }
+    if (this.ride) this.tickRideSeat(dt, t);
+  }
+
+  private startRide(r: { def: RideDef; grp: THREE.Group }) {
+    if (this.ride || this.inMode() || this.date || this.dancing || this.pool || this.carrom) return;
+    if (this.driving) this.exitVehicle();
+    const t = this.elapsed;
+    let seat: THREE.Object3D | null = null, pseat: THREE.Object3D | null = null;
+    if (r.def.kind === 'wheel') {   // the cabin nearest the ground
+      let best = Infinity, g: THREE.Object3D | null = null;
+      for (const c of r.grp.children) if (c.name.startsWith('gondola')) { const y = c.getWorldPosition(new THREE.Vector3()).y; if (y < best) { best = y; g = c; } }
+      seat = g?.getObjectByName('seat0') ?? null; pseat = g?.getObjectByName('seat1') ?? null;
+    } else { seat = r.grp.getObjectByName('seat0') ?? null; pseat = r.grp.getObjectByName('seat1') ?? null; }
+    if (!seat) return;
+    const partner = this.datePartner();
+    if (partner) { partner.playing = true; partner.wait = 0; partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 90; }
+    this.ride = { r, seat, pseat: partner ? pseat : null, partner, t0: t };
+    this.airY = 0; this.vy = 0; this.pitch = r.def.kind === 'wheel' ? 0.15 : 0.35; this.dist = Math.max(this.dist, 9);
+    const first = !this.ridden.has(r.def.id); this.ridden.add(r.def.id);
+    if (first) { this.points += 20; this.ev.onPoints(this.points); }
+    this.ev.onCollect({ name: `${r.def.label}${partner ? ` with ${partner.name}` : ''}${first ? ' · +20' : ''}`, points: first ? 20 : 0, color: 0xf2c31b, shape: 'gem' });
+    this.sfx.checkpoint();
+    if (partner) this.botSays(partner, ['Eee, here we go! 🎢', 'Hold on tight!', 'I love this one 😄'][Math.floor(Math.random() * 3)], 1.2);
+  }
+
+  private tickRideSeat(dt: number, t: number) {
+    const rd = this.ride!, p = this.player.group.position;
+    const wp = rd.seat.getWorldPosition(new THREE.Vector3()), dir = rd.seat.getWorldDirection(new THREE.Vector3());
+    p.copy(wp); this.player.group.rotation.y = Math.atan2(dir.x, dir.z); poseSit(this.player);
+    if (rd.pseat && rd.partner) { const q = rd.pseat.getWorldPosition(new THREE.Vector3()); rd.partner.av.group.position.copy(q); rd.partner.av.group.rotation.y = this.player.group.rotation.y; poseSit(rd.partner.av); }
+    this.yaw += wrapAngle(this.player.group.rotation.y + Math.PI + Math.sin(t * 0.2) * 0.6 - this.yaw) * Math.min(1, dt * 1.5);
+    if (t - rd.t0 > RIDE_SECONDS) this.endRide();
+  }
+
+  private endRide() {
+    const rd = this.ride; if (!rd) return;
+    this.ride = null;
+    const { x, z, y } = rd.r.def, p = this.player.group.position;
+    p.set(x, this.groundAt(x, z, y), z); this.airY = 0; this.vy = 0;
+    this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.legL.rotation.set(0, 0, 0); this.player.legR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0);
+    if (rd.partner) { rd.partner.playing = false; rd.partner.av.group.position.set(x + 1.2, this.groundAt(x + 1.2, z, y), z); rd.partner.av.legL.rotation.x = rd.partner.av.legR.rotation.x = 0; rd.partner.wait = 1.5; if (this.hangout?.bot !== rd.partner) rd.partner.target = this.wanderFrom(rd.partner.av.group.position); this.botSays(rd.partner, ['Again? 😄', 'My legs are jelly.', 'That was fun!'][Math.floor(Math.random() * 3)], 0.5); }
+    this.questCooldown = 10;
   }
 
   private endDate() {

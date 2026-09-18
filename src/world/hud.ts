@@ -40,7 +40,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   <div class="hud">
     <a class="brand top-left" href="/"><span class="logo">🌍</span><div><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></div></a>
     <div class="quest" id="quest">
-      <div class="qhead"><span class="qicon">🎯</span><div><small id="qkicker">TASK</small><b id="qtitle">Looking for a task…</b></div><em id="qtime"></em></div>
+      <div class="qhead"><span class="qicon">🎯</span><div><small id="qkicker">TASK</small><b id="qtitle">Looking for a task…</b><span class="qmini" id="qmini"></span></div><em id="qtime"></em></div>
       <div class="qboard" id="qboard" hidden>
         <div class="side" id="qba"><small></small><b></b><span></span></div>
         <div class="mid"><i id="qbicon">🏏</i><em id="qbtime"></em></div>
@@ -255,6 +255,12 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const qTitle = root.querySelector<HTMLElement>('#qtitle')!, qKick = root.querySelector<HTMLElement>('#qkicker')!, qTime = root.querySelector<HTMLElement>('#qtime')!;
   const qDesc = root.querySelector<HTMLElement>('#qdesc')!, qFill = root.querySelector<HTMLElement>('#qfill')!;
   const qProg = root.querySelector<HTMLElement>('#qprog')!, qHint = root.querySelector<HTMLElement>('#qhint')!, qBtn = root.querySelector<HTMLButtonElement>('#qbtn')!;
+  // the card shows in full for a moment when a task starts or changes state, then folds to one line; tap to peek
+  const qMini = root.querySelector<HTMLElement>('#qmini')!;
+  let foldTimer = 0, lastKey = '';
+  const unfold = (ms: number) => { questEl.classList.remove('mini'); clearTimeout(foldTimer); foldTimer = window.setTimeout(() => questEl.classList.add('mini'), ms); };
+  qMini.textContent = 'Press T for a task'; unfold(3500);
+  questEl.addEventListener('click', (e) => { if ((e.target as HTMLElement).tagName === 'BUTTON') return; if (questEl.classList.contains('mini')) unfold(4000); else questEl.classList.add('mini'); });
   const qBoard = root.querySelector<HTMLElement>('#qboard')!, qLine = root.querySelector<HTMLElement>('#qline')!, qbIcon = root.querySelector<HTMLElement>('#qbicon')!, qbTime = root.querySelector<HTMLElement>('#qbtime')!;
   const qSide = (id: string, s: { name: string; score: string; sub?: string; on?: boolean }) => { const el = root.querySelector<HTMLElement>(id)!; el.classList.toggle('on', !!s.on); el.querySelector('small')!.textContent = s.name; el.querySelector('b')!.textContent = s.score; el.querySelector('span')!.textContent = s.sub ?? ''; };
   qBtn.addEventListener('click', actions.task);
@@ -314,7 +320,13 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     muted(m) { muteBtn.textContent = m ? '🔇' : '🔊'; },
     quest(q) {
-      questEl.className = `quest ${q?.status ?? 'idle'}${q?.board ? ' scorecard' : ''}`;
+      const wasMini = questEl.classList.contains('mini');
+      questEl.className = `quest ${q?.status ?? 'idle'}${q?.board ? ' scorecard' : ''}${wasMini ? ' mini' : ''}`;
+      const key = q ? `${q.status}|${q.title}` : 'idle';
+      if (q?.board) { questEl.classList.remove('mini'); clearTimeout(foldTimer); }   // a scoreboard stays open
+      else if (key !== lastKey) unfold(q && q.status !== 'active' ? 3500 : 2200);
+      lastKey = key;
+      qMini.textContent = q ? [q.progress, q.hint].filter(Boolean).join(' · ') : 'Press T for a task';
       qBoard.hidden = qLine.hidden = !q?.board; document.body.classList.toggle('scorecard', !!q?.board);
       if (q?.board) { const b = q.board; qbIcon.textContent = b.icon; qbTime.textContent = q.timeText ?? ''; qSide('#qba', b.a); qSide('#qbb', b.b); qLine.textContent = b.line; }
       if (!q) {

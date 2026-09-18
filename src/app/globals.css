@@ -626,3 +626,16 @@ body.inmode .labels .tag.me { display: none !important; }
   .quest.scorecard .qfoot span:nth-child(2) { display: none; }
   body.scorecard .hud .bottom-right { display: none !important; }   /* the minimap would sit on the scoreboard */
 }
+
+/* ---- task card folds to one line after a couple of seconds (tap to peek) ---- */
+.hud .quest { cursor: pointer; transition: padding .25s ease; }
+.quest .qmini { display: none; font-size: 11px; color: rgba(255,255,255,.75); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.quest.mini { padding: 8px 12px; }
+.quest.mini .qmini { display: block; }
+.quest.mini small, .quest.mini p, .quest.mini .qbar, .quest.mini .qfoot { display: none; }
+.quest.mini .qhead { gap: 8px; }
+.quest.mini .qhead > div { min-width: 0; }
+.quest.mini b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.quest.mini .qicon { font-size: 18px; }
+.quest.mini em { font-size: 15px; }
+@media (max-width: 720px) { .hud .quest.mini { width: auto; max-width: 62vw; padding: 6px 10px; } .quest.mini b { font-size: 12px; } .quest.mini .qmini { font-size: 10px; } .quest.mini em { font-size: 13px; } }

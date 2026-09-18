@@ -144,7 +144,8 @@ interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished
 
 interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; playing?: boolean; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
 // A real player elsewhere on the network: we get their state a few times a second and glide between updates.
-interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null; p: string; boardedAt: number }
+interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null; p: string; boardedAt: number; buf: { t: number; x: number; z: number; h: number; ry: number }[] }
+const NET_DELAY = 130;   // ms behind the newest packet we render peers at, so there is always a next sample to glide toward
 const NET_RATE = 1 / 8;
 // A pedestrian that has been hit: flies with `vel`, then lies on the ground for a moment before getting up.
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
@@ -324,7 +325,7 @@ export class World {
     net.onStatus((s) => { this.ev.onNet(s, net.kind); if (s === 'online') net.send({ t: 'hi', id: this.selfId, n: this.playerName, g: this.gender }); });
     net.onMessage((m) => this.onNet(m));
     net.send({ t: 'hi', id: this.selfId, n: this.playerName, g: this.gender });
-    const tick = setInterval(() => { if (this.player) net.send(this.statePacket()); }, NET_RATE * 1000);
+    const tick = setInterval(() => { if (!this.player) return; const now = performance.now(); if (now - this.lastNetSend >= (this.driving ? 1000 / 15 : NET_RATE * 1000) - 5) { this.lastNetSend = now; net.send(this.statePacket()); } }, 1000 / 30);
     this.cleanup.push(() => clearInterval(tick));
     this.countOnline();
     const bye = () => net.send({ t: 'bye', id: this.selfId });
@@ -405,13 +406,16 @@ export class World {
       const label = new CSS2DObject(el); label.position.y = 2.7; label.userData.orig = text; av.group.add(label);
       this.scene.add(av.group);
       b = { av, label, name: m.n, female: m.g === 'f', target: new THREE.Vector3(), speed: 0, wait: 0, walking: 0, riding: null, knocked: null, friend, asked: -99, reply: null, greeted: -99, bubbleUntil: 0,
-        remote: { id: m.id, tx: m.x, tz: m.z, ry: m.ry, w: m.w, j: m.j, v: '', h: m.h, lastSeen: Date.now(), car: null, p: '', boardedAt: 0 } };
+        remote: { id: m.id, tx: m.x, tz: m.z, ry: m.ry, w: m.w, j: m.j, v: '', h: m.h, lastSeen: Date.now(), car: null, p: '', boardedAt: 0, buf: [] } };
       this.bots.push(b);
       this.ev.onCollect({ name: `${m.n} joined the city`, points: 0, color: 0x3fb7d9, shape: 'gem' });
       this.sfx.collect(0);
     }
     const r = b.remote!;
     r.tx = m.x; r.tz = m.z; r.ry = m.ry; r.w = m.w; r.j = m.j; r.h = m.h; r.lastSeen = Date.now(); r.p = m.p ?? '';
+    const last = r.buf[r.buf.length - 1];
+    if (last && Math.hypot(m.x - last.x, m.z - last.z) > 12) r.buf.length = 0;   // teleported: do not glide across the city
+    r.buf.push({ t: performance.now(), x: m.x, z: m.z, h: m.h, ry: m.ry }); if (r.buf.length > 8) r.buf.shift();
     if (m.v !== r.v) this.setPeerVehicle(b, m.v as VehicleKind | '');
     this.countOnline();
   }
@@ -466,24 +470,44 @@ export class World {
     }
     // back on foot after riding with someone (a peer driving their own car stays in it)
     if (b.av.group.parent !== this.scene && b.av.group.parent !== r.car?.group) { b.av.group.removeFromParent(); this.scene.add(b.av.group); b.av.group.position.set(r.tx, this.groundAt(r.tx, r.tz, 0), r.tz); b.av.armL.rotation.x = b.av.armR.rotation.x = 0; b.av.legL.rotation.x = b.av.legR.rotation.x = 0; b.av.legL.rotation.z = b.av.legR.rotation.z = 0; }
+    const s = this.peerSample(r);
     if (r.car) {
       const vp = r.car.group.position;
-      vp.x += (r.tx - vp.x) * k; vp.z += (r.tz - vp.z) * k;
-      r.car.heading += wrapAngle(r.h - r.car.heading) * k;
+      const px = vp.x, pz = vp.z;
+      if (s) { vp.x = s.x; vp.z = s.z; r.car.heading += wrapAngle(s.h - r.car.heading) * Math.min(1, dt * 12); }
+      else { vp.x += (r.tx - vp.x) * k; vp.z += (r.tz - vp.z) * k; r.car.heading += wrapAngle(r.h - r.car.heading) * k; }
       this.settleVehicle(r.car);
-      const sp = Math.hypot(r.tx - vp.x, r.tz - vp.z);
-      for (const w of r.car.wheels) w.rotation.x += sp * dt * 4;
+      const sp = Math.hypot(vp.x - px, vp.z - pz) / Math.max(dt, 1e-3);
+      for (const w of r.car.wheels) w.rotation.x += (sp * dt) / 0.5;
     } else {
       const bp = b.av.group.position;
-      bp.x += (r.tx - bp.x) * k; bp.z += (r.tz - bp.z) * k;
+      if (s) { bp.x = s.x; bp.z = s.z; b.av.group.rotation.y += wrapAngle(s.ry - b.av.group.rotation.y) * Math.min(1, dt * 12); }
+      else { bp.x += (r.tx - bp.x) * k; bp.z += (r.tz - bp.z) * k; b.av.group.rotation.y += wrapAngle(r.ry - b.av.group.rotation.y) * k; }
       bp.y = this.groundAt(bp.x, bp.z, bp.y) + r.j;
-      b.av.group.rotation.y += wrapAngle(r.ry - b.av.group.rotation.y) * k;
       const far = Math.hypot(r.tx - bp.x, r.tz - bp.z);
       if (far > 12) { bp.x = r.tx; bp.z = r.tz; }             // teleport if we fell way behind
       if (r.j > 0.05) poseJump(b.av); else animateWalk(b.av, t, r.w);
     }
     if (b.bubbleUntil && t > b.bubbleUntil) { b.bubbleUntil = 0; b.label.element.textContent = b.label.userData.orig as string; b.label.element.classList.remove('talk'); }
     b.label.visible = true;
+  }
+
+  /** Where a peer is right now, played back NET_DELAY ms behind the newest packet: a glide between two samples,
+   *  or a short straight-line guess past the last one if the next packet is late. */
+  private peerSample(r: Remote): { x: number; z: number; h: number; ry: number } | null {
+    const buf = r.buf, n = buf.length; if (n === 0) return null;
+    const rt = performance.now() - NET_DELAY;
+    const last = buf[n - 1];
+    if (rt >= last.t) {   // ahead of the newest sample: extrapolate along the last velocity for up to 250 ms
+      const prev = buf[n - 2]; if (!prev) return last;
+      const span = Math.max(1, last.t - prev.t), f = Math.min(250, rt - last.t) / span;
+      return { x: last.x + (last.x - prev.x) * f, z: last.z + (last.z - prev.z) * f, h: last.h, ry: last.ry };
+    }
+    for (let i = n - 2; i >= 0; i--) {
+      const a = buf[i], b = buf[i + 1];
+      if (rt >= a.t) { const u = (rt - a.t) / Math.max(1, b.t - a.t); return { x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u, h: a.h + wrapAngle(b.h - a.h) * u, ry: a.ry + wrapAngle(b.ry - a.ry) * u }; }
+    }
+    return buf[0];
   }
 
   private markFriend(b: Bot) {
@@ -1090,6 +1114,8 @@ export class World {
   private tickRide() {
     const rw = this.ridingWith!; const car = rw.bot.remote?.car;
     if (!car || !this.bots.includes(rw.bot)) { this.leaveRide(true); return; }
+    const s = rw.bot.remote ? this.peerSample(rw.bot.remote) : null;   // move their car to this frame's sample first, so the seat is never a frame behind
+    if (s) { car.group.position.x = s.x; car.group.position.z = s.z; car.heading = s.h; this.settleVehicle(car); car.group.updateMatrixWorld(true); }
     const seats = this.seatsFor(car); const seat = seats[Math.min(seats.length - 1, Math.max(0, rw.seat))] ?? car.seat;
     const p = this.player.group.position; car.group.localToWorld(p.copy(seat));
     this.player.group.rotation.y = car.heading; this.airY = 0; this.vy = 0;

@@ -347,6 +347,9 @@ export function buildCity(g: THREE.Group, h: H) {
       kerb.position.copy(seg.position).add(V(nx * side * (TW / 2 + 0.6), 0.02, nz * side * (TW / 2 + 0.6))); kerb.rotation.copy(seg.rotation); g.add(kerb);
     }
     if (i % 10 === 0) { const dash = mesh(new THREE.BoxGeometry(0.3, 0.22, 2.5), 0xf4f4f4); dash.position.copy(seg.position); dash.rotation.copy(seg.rotation); g.add(dash); }
+    if (i % 24 === 12) {   // a big painted chevron pointing the way round
+      for (const sd of [-1, 1]) { const wing = mesh(new THREE.BoxGeometry(0.5, 0.23, 3.2), 0xf2c31b); wing.position.copy(seg.position).add(V(nx * sd * 1.3, 0.01, nz * sd * 1.3)); wing.rotation.copy(seg.rotation); wing.rotateY(sd * 0.6); g.add(wing); }
+    }
     if (i % 5 === 0) keep(ax, az, 13);
   }
   // boost pads: glowing chevrons on the straights; driving over one gives a burst of speed

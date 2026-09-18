@@ -58,7 +58,7 @@ interface Critter { a: Animal; target: THREE.Vector3; wait: number; walking: num
 interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 
 // An in-world circuit race on the FindurAI Speedway: your car plus three AI cars, three laps.
-interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean }
+interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean; nitroUntil: number; nitroAt: number }
 // Football at City Stadium: you + a team-mate against two rivals, one ball, two goals, 90 seconds.
 interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; slot: [number, number]; gk: boolean; kicked: number; bib: THREE.Mesh }
 interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mates: string; rivals: string; started: number; lastKick: Footballer | null }
@@ -123,7 +123,7 @@ function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) 
     case 'tiara': break;
   }
 }
-interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string }
+interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished: number; over: boolean; t0: number; endAt: number; opp: string; guide: THREE.Mesh[]; wrongWay: number }
 
 interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; playing?: boolean; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
 // A real player elsewhere on the network: we get their state a few times a second and glide between updates.
@@ -1941,7 +1941,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private setCreases() {
     const c = this.cricket!, o = this.oval!, y = this.terrain.h(o.x, o.z);
     const batter = c.innings === 1 ? this.player : c.opp.av, bowler = c.innings === 1 ? c.opp.av : this.player;
-    batter.group.position.set(o.x - 10 + 1.0, y, o.z + 0.45); batter.group.rotation.y = Math.PI / 2;   // bat arc sits on the line of a straight ball
+    batter.group.position.set(o.x - 10 + 1.0, y, o.z + 0.15); batter.group.rotation.y = Math.PI / 2;   // bat arc sits on the line of a straight ball
     bowler.group.position.set(o.x + 26, this.terrain.h(o.x + 26, o.z), o.z - 1.2); bowler.group.rotation.y = -Math.PI / 2;
     c.bat.removeFromParent(); batter.armR.add(c.bat);
     this.airY = 0; this.vy = 0; this.yaw = c.innings === 1 ? -Math.PI / 2 : Math.PI / 2;
@@ -2394,12 +2394,15 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       this.settleVehicle(car);
       this.scene.add(car.group);
       if (bot) { this.scene.remove(bot.av.group); car.group.add(bot.av.group); bot.av.group.position.copy(car.seat); bot.av.group.rotation.set(0, 0, 0); poseSit(bot.av); bot.riding = car; bot.label.visible = true; }
-      return { car, bot, name: i === 0 ? this.playerName : bot?.name ?? ['Ravi', 'Kenji', 'Mia'][i], idx: N - 3, lap: 0, prog: 0, done: 0, skill: i === 0 ? 0 : 0.86 + (i === 1 ? 0.12 : (3 - i) * 0.05), lane: (i % 2 ? 1 : -1) * 2.2, you: i === 0 };
+      return { car, bot, name: i === 0 ? this.playerName : bot?.name ?? ['Ravi', 'Kenji', 'Mia'][i], idx: N - 3, lap: 0, prog: 0, done: 0, skill: i === 0 ? 0 : 0.86 + (i === 1 ? 0.12 : (3 - i) * 0.05), lane: (i % 2 ? 1 : -1) * 2.2, you: i === 0, nitroUntil: 0, nitroAt: 6 + Math.random() * 6 };
     });
     this.vehicles.push(cars[0].car);
     this.enterVehicle(cars[0].car);
     this.yaw = heading + Math.PI;
-    this.race = { cars, countdown: 4.2, laps, finished: 0, over: false, t0: 0, endAt: 0, opp: opp?.name ?? 'the field' };
+    // a hologram racing line: glowing arrows that run ahead of your car so the route is never in doubt
+    const guide: THREE.Mesh[] = [];
+    for (let k = 0; k < 10; k++) { const m = new THREE.Mesh(new THREE.ConeGeometry(0.9, 1.8, 3), new THREE.MeshStandardMaterial({ color: 0x3fd36f, emissive: 0x3fd36f, emissiveIntensity: 1.2, transparent: true, opacity: 0.85 })); m.rotation.x = Math.PI / 2; this.scene.add(m); guide.push(m); }
+    this.race = { cars, countdown: 4.2, laps, finished: 0, over: false, t0: 0, endAt: 0, opp: opp?.name ?? 'the field', guide, wrongWay: 0 };
     this.raceLock = true;
     this.ev.onMode({ icon: '', label: '', button: false });   // focus mode: fewer labels and chips
     this.clearQuest();
@@ -2430,6 +2433,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         const bend = Math.abs(wrapAngle(Math.atan2(pts[a2].x - tp.x, pts[a2].z - tp.z) - Math.atan2(dir.x, dir.z)));
         let target = v.spec.maxSpeed * c.skill * (bend > 0.35 ? 0.62 : 1);
         for (const pad of this.circuit!.pads) if (Math.abs(vp.x - pad.x) < 4.5 && Math.abs(vp.z - pad.z) < 4.5) target *= 1.35;
+        // rivals use nitro too: a burst on a straight every 8-14 s, more eagerly when behind you
+        if (t > c.nitroAt && bend < 0.18 && t > r.t0 + 2) { const behind = c.prog < r.cars[0].prog; c.nitroUntil = t + (behind ? 2.2 : 1.6); c.nitroAt = t + 8 + Math.random() * 6; if (vp.distanceTo(r.cars[0].car.group.position) < 60) this.sfx.boost(); }
+        const nitro = t < c.nitroUntil;
+        if (nitro) target *= 1.45;
+        for (const f of v.flames) { f.visible = nitro; if (nitro) f.scale.setScalar(0.8 + Math.random() * 0.5); }
         v.speed += (target - v.speed) * Math.min(1, dt * (v.speed < target ? 1.1 : 3));
         v.heading += Math.max(-1, Math.min(1, diff * 2.5)) * v.spec.turn * dt * Math.min(1, v.speed / 6);
         vp.x += Math.sin(v.heading) * v.speed * dt; vp.z += Math.cos(v.heading) * v.speed * dt;
@@ -2453,6 +2461,19 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         } else if (c.bot) this.botSays(c.bot, c.done === 1 ? 'Winner!' : 'Good race!', 0.3);
       }
     }
+    {   // racing line ahead of you + wrong-way check
+      const me = r.cars[0], vp = me.car.group.position;
+      for (let k = 0; k < r.guide.length; k++) {
+        const i = (me.idx + 4 + k * 5) % N, q = pts[i], nq = pts[(i + 1) % N], m = r.guide[k];
+        m.position.set(q.x, q.y + 0.9 + Math.sin(t * 6 - k * 0.7) * 0.15, q.z);
+        m.rotation.set(Math.PI / 2, 0, -Math.atan2(nq.x - q.x, nq.z - q.z));
+        (m.material as THREE.MeshStandardMaterial).opacity = 0.9 - k * 0.07;
+        m.visible = !r.over && r.countdown <= 0;
+      }
+      const d = pts[(me.idx + 3) % N].clone().sub(pts[me.idx]).setY(0).normalize();
+      const facing = Math.sin(me.car.heading) * d.x + Math.cos(me.car.heading) * d.z;
+      r.wrongWay = facing < -0.3 && me.car.speed > 3 ? r.wrongWay + dt : 0;
+    }
     if (t - this.lastRaceHud > 0.2) {
       this.lastRaceHud = t;
       const order = [...r.cars].sort((a, b) => (a.done && b.done ? a.done - b.done : a.done ? -1 : b.done ? 1 : b.prog - a.prog));
@@ -2461,7 +2482,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       const SECTORS: [number, string][] = [[0, 'Pit straight'], [3, 'Sunset sweeper'], [7, 'Neon chicane'], [10, 'Back straight'], [13, 'Valley straight'], [17, 'Big Bend'], [21, 'Return run'], [23, 'Esses'], [26, 'Grandstand hairpin']];
       const segF = (((me.idx + 6) % N) / N) * 28;
       const sector = [...SECTORS].reverse().find(([s]) => segF >= s)?.[1] ?? 'Pit straight';
-      const title = r.countdown > 1.2 ? `On the grid... ${cd}` : r.countdown > 0 ? 'GO! GO! GO!' : r.over ? `Race over - P${me.done}` : `Lap ${Math.max(1, Math.min(r.laps, me.lap))} / ${r.laps} - P${place} - ${sector}`;
+      const title = r.countdown > 1.2 ? `On the grid... ${cd}` : r.countdown > 0 ? 'GO! GO! GO!' : r.over ? `Race over - P${me.done}` : r.wrongWay > 0.8 ? '⚠️ WRONG WAY - turn around' : `Lap ${Math.max(1, Math.min(r.laps, me.lap))} / ${r.laps} - P${place} - ${sector}`;
       this.ev.onQuest({ status: r.over ? (me.done === 1 ? 'done' : 'failed') : 'active', title, desc: order.map((c, k) => `${k + 1}. ${c.name}`).join('   '), progress: `${r.laps} laps - green pads = boost - Shift nitro`, remaining: r.t0 ? t - r.t0 : 0, total: 600, reward: 250, hint: null });
     }
   }
@@ -2470,6 +2491,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const r = this.race!;
     this.race = null; this.raceLock = false;
     this.ev.onMode(null);
+    for (const m of r.guide) this.scene.remove(m);
     for (const c of r.cars) {
       if (c.you) continue;
       if (c.bot) { c.car.group.remove(c.bot.av.group); this.scene.add(c.bot.av.group); const p = c.car.group.position; c.bot.av.group.position.set(p.x + 2, this.groundAt(p.x + 2, p.z, p.y), p.z); c.bot.av.group.rotation.set(0, c.car.heading, 0); c.bot.av.armL.rotation.x = c.bot.av.armR.rotation.x = 0; c.bot.riding = null; c.bot.wait = 2; c.bot.target = this.randomLandPoint(8, 120); }

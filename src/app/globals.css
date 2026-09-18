@@ -259,7 +259,7 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .skyline { position: absolute; left: 0; right: 0; bottom: 45%; display: flex; align-items: flex-end; justify-content: center; gap: 10px; padding: 0 6vw; }
 .skyline i { display: block; flex: 1; max-width: 70px; background: linear-gradient(180deg, #2b4f42, #1c3b30); border-radius: 4px 4px 0 0; transform-origin: bottom; animation: rise .8s cubic-bezier(.2,.8,.2,1) both; box-shadow: inset -6px 0 0 rgba(0,0,0,.18); }
 @keyframes rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
-.splash { position: relative; text-align: center; padding: 20px; }
+.gate > .splash { position: relative; text-align: center; padding: 20px; }
 .splash-logo { display: flex; justify-content: center; gap: .18em; font-weight: 800; font-size: clamp(38px, 8vw, 72px); letter-spacing: .3em; margin-left: .3em; }
 .splash-logo span { display: inline-block; animation: letter .7s cubic-bezier(.2,.8,.2,1) both; text-shadow: 0 6px 24px rgba(0,0,0,.4); }
 @keyframes letter { from { transform: translateY(40px) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
@@ -516,3 +516,72 @@ body.inmode .labels .place, body.inmode .labels .shop, body.inmode .labels .pill
 /* ---- indoors (Neon Palace): the city's labels stay outside ---- */
 body.indoors .labels .place, body.indoors .labels .shop, body.indoors .labels .pill, body.indoors .labels .sign { display: none !important; }
 body.indoors .hud .bottom-left, body.indoors .hints { display: none !important; }
+
+/* ---- splash v2: dusk-to-day sky, stars, clouds, the wheel, lit windows, a smoother bar ---- */
+.gate { background: linear-gradient(180deg, #14213a 0%, #1c3b30 55%, #11251d 100%); transition: opacity .8s ease, transform .8s ease; }
+.gate.leaving { opacity: 0; transform: scale(1.04); }
+.gate-sky { opacity: 1; background: linear-gradient(180deg, #2a2f6b 0%, #7fc4d8 38%, #f3c78a 52%, #6fb35e 55%, #4f9a3e 100%); animation: dawn 6s ease-out both; }
+@keyframes dawn { from { filter: brightness(.55) saturate(.7); } to { filter: none; } }
+.gate-sky::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(20,33,58,.55), rgba(20,33,58,0) 40%, rgba(17,37,29,.45) 100%); }
+.stars { position: absolute; inset: 0; pointer-events: none; }
+.stars i { position: absolute; border-radius: 50%; background: #fff; opacity: .9; animation: twinkle 2.4s ease-in-out infinite, starfade 6s ease-out both; }
+@keyframes twinkle { 50% { opacity: .25; transform: scale(.7); } }
+@keyframes starfade { 0% { filter: none; } 100% { opacity: .35; } }
+.gate-sun { top: 30%; width: 180px; height: 180px; margin-left: -90px; background: radial-gradient(circle, #fff9dd 0%, #f6cf5a 34%, rgba(246,207,90,.35) 52%, rgba(246,207,90,0) 70%); animation: sunrise 3.2s cubic-bezier(.2,.8,.2,1) both, sunglow 4s ease-in-out 3s infinite; }
+@keyframes sunglow { 50% { transform: scale(1.06); } }
+.clouds { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.clouds i { position: absolute; left: -30%; width: 22vw; max-width: 260px; height: 46px; border-radius: 999px; background: rgba(255,255,255,.55); box-shadow: 40px -18px 0 -4px rgba(255,255,255,.55), -40px -8px 0 -8px rgba(255,255,255,.5), 90px 4px 0 -12px rgba(255,255,255,.45); filter: blur(1px); animation: drift linear infinite; }
+@keyframes drift { from { transform: translateX(0); } to { transform: translateX(160vw); } }
+.wheel { position: absolute; right: 8vw; bottom: 45%; width: 120px; height: 120px; pointer-events: none; }
+.wheel .rim { position: absolute; inset: 0; border-radius: 50%; border: 4px solid rgba(255,255,255,.55); background: repeating-conic-gradient(from 0deg, rgba(255,255,255,.55) 0 1.5deg, transparent 1.5deg 45deg); animation: spin 26s linear infinite; }
+.wheel .hub { position: absolute; left: 50%; top: 50%; width: 14px; height: 14px; margin: -7px; border-radius: 50%; background: #f2c31b; box-shadow: 0 0 14px #f2c31b; }
+.wheel .leg { position: absolute; left: 50%; top: 50%; width: 5px; height: 78px; margin-left: -2px; background: rgba(255,255,255,.5); transform-origin: top; }
+.wheel .leg.l { transform: rotate(24deg); } .wheel .leg.r { transform: rotate(-24deg); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.skyline i { background: linear-gradient(180deg, #2b4f42, #1c3b30); background-image: radial-gradient(rgba(255,240,180,.9) 1.2px, transparent 1.6px), linear-gradient(180deg, #2b4f42, #1c3b30); background-size: 12px 12px, 100% 100%; }
+.splash-logo span { background: linear-gradient(180deg, #fff 0%, #ffe9a8 55%, #f2c31b 100%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 8px 22px rgba(0,0,0,.45)); }
+.splash-logo { position: relative; }
+.splash-logo::after { content: ''; position: absolute; inset: -10px -20px; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%); background-size: 200% 100%; animation: shimmer 3.2s ease-in-out 1.2s infinite; pointer-events: none; mix-blend-mode: screen; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 60%, 100% { background-position: -200% 0; } }
+.splash-bar { position: relative; height: 10px; background: rgba(255,255,255,.14); box-shadow: inset 0 1px 3px rgba(0,0,0,.35); }
+.splash-bar i { transition: width .45s cubic-bezier(.2,.8,.2,1); background: linear-gradient(90deg, #e8c46a, #f2c31b, #ffe9a8, #f2c31b); background-size: 200% 100%; animation: barshine 1.6s linear infinite; box-shadow: 0 0 12px rgba(242,195,27,.6); }
+@keyframes barshine { to { background-position: -200% 0; } }
+.splash-bar em { position: absolute; right: -44px; top: -4px; font-style: normal; font-size: 12px; font-variant-numeric: tabular-nums; color: rgba(255,255,255,.8); }
+.splash-hint { animation: hintin .4s ease both; min-height: 16px; }
+@keyframes hintin { from { opacity: 0; transform: translateY(4px); } }
+.splash-tip { margin: 14px auto 0; max-width: 340px; font-size: 12.5px; line-height: 1.45; color: rgba(255,255,255,.7); animation: tipin .5s ease both; }
+@keyframes tipin { from { opacity: 0; transform: translateY(6px); } }
+.gcard { animation: cardin .5s cubic-bezier(.2,.8,.2,1) both; }
+.gcard:nth-child(2) { animation-delay: .12s; }
+@keyframes cardin { from { opacity: 0; transform: translateY(18px) scale(.96); } }
+@media (max-width: 720px) { .wheel { width: 84px; height: 84px; right: 5vw; } .wheel .leg { height: 56px; } .gate-sun { width: 130px; height: 130px; margin-left: -65px; } .splash-bar em { right: -40px; } }
+@media (prefers-reduced-motion: reduce) { .clouds i, .wheel .rim, .splash-logo::after, .splash-bar i, .stars i { animation: none; } }
+.gate > .splash { transform: translateY(-9vh); z-index: 2; }
+.skyline i { max-width: 54px; opacity: .92; }
+.skyline { gap: 8px; }
+.wheel { right: 5vw; width: 96px; height: 96px; opacity: .9; }
+.wheel .leg { height: 62px; }
+.splash-logo span { filter: drop-shadow(0 6px 18px rgba(0,0,0,.55)) drop-shadow(0 0 12px rgba(242,195,27,.35)); }
+@media (max-height: 560px) { .gate > .splash { transform: translateY(-4vh); } }
+/* ---- splash v2 layout: lower horizon, sun rising behind the skyline, text on a soft vignette ---- */
+.gate-sky { background: linear-gradient(180deg, #2a2f6b 0%, #5f9fc9 30%, #9fd0e2 48%, #f3c78a 63%, #6fb35e 66%, #4f9a3e 100%); }
+.skyline, .wheel { bottom: 34%; }
+.gate-sun { top: auto; bottom: calc(34% - 70px); animation: sunrise 3.6s cubic-bezier(.2,.8,.2,1) both, sunglow 4s ease-in-out 3.6s infinite; }
+.clouds i { opacity: .55; }
+.gate > .splash { transform: translateY(-7vh); padding: 36px 48px; background: radial-gradient(ellipse 62% 58% at 50% 50%, rgba(14,22,42,.6), rgba(14,22,42,0) 100%); }
+.splash-logo::after { content: none; }
+.splash-logo span { background: linear-gradient(120deg, #fff 0%, #ffe9a8 30%, #f2c31b 50%, #ffe9a8 70%, #fff 100%); background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; animation: letter .7s cubic-bezier(.2,.8,.2,1) both, shine 4s ease-in-out infinite; }
+@keyframes shine { 0%, 100% { background-position: 100% 0; } 50% { background-position: 0% 0; } }
+.splash-tag { margin-bottom: 22px; }
+.splash-bar { margin-left: auto; margin-right: auto; }
+.splash-tip { min-height: 36px; }
+@media (max-width: 720px) { .skyline, .wheel { bottom: 30%; } .gate-sun { bottom: calc(30% - 60px); } .gate > .splash { padding: 28px 20px; transform: translateY(-9vh); } .skyline i { max-width: 34px; } }
+@media (max-height: 560px) { .gate > .splash { transform: translateY(-3vh); } .skyline { display: none; } .wheel { opacity: .5; } }
+.gate-sky { background: linear-gradient(180deg, #2a2f6b 0%, #5f9fc9 32%, #9fd0e2 52%, #f3c78a 67%, #6fb35e 70%, #4f9a3e 100%); }
+.skyline, .wheel { bottom: 30%; }
+.gate-sun { bottom: calc(30% - 70px); }
+.gate > .splash { transform: translateY(-11vh); background: radial-gradient(closest-side, rgba(14,22,42,.62), rgba(14,22,42,.3) 55%, rgba(14,22,42,0) 100%); }
+@media (max-width: 720px) { .skyline, .wheel { bottom: 26%; } .gate-sun { bottom: calc(26% - 60px); } .gate > .splash { transform: translateY(-10vh); } }
+.splash-bar { overflow: visible; }
+.splash-bar i { border-radius: 999px; }
+@media (max-width: 720px) { .skyline { padding: 0 24vw 0 5vw; } .wheel { right: 3vw; } }

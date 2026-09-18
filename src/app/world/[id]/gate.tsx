@@ -39,13 +39,14 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
     let done = false;
     loading.then(() => { done = true; setLoaded(true); });
     // creep toward 85% while the bundle downloads, snap to 100% when it lands
-    const iv = setInterval(() => setProgress((p) => (done ? p : Math.min(60, p + (60 - p) * 0.08 + 0.4))), 120);
+    const iv = setInterval(() => setProgress((p) => (done ? p : Math.min(60, p + (60 - p) * 0.035 + 0.15))), 50);
     return () => clearInterval(iv);
   }, [loading]);
 
   useEffect(() => {
     if (!loaded || phase !== "splash") return;
-    const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt.current));
+    const hold = process.env.NODE_ENV !== 'production' && typeof location !== 'undefined' && new URLSearchParams(location.search).has('splash') ? 20000 : 0;   // dev: ?splash keeps the splash up to look at it
+    const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt.current)) + hold;
     const t = setTimeout(() => {
       if (store.gender()) enter(); else setPhase("profile");
     }, wait + 250);
@@ -54,6 +55,8 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
   }, [loaded, phase]);
 
   const enter = () => { setPhase("building"); setTimeout(onEnter, 80); };   // let the splash paint "Building…" before the heavy work
+  const [tip, setTip] = useState(0);
+  useEffect(() => { const t = setInterval(() => setTip((k) => (k + 1) % TIPS.length), 2600); return () => clearInterval(t); }, []);
   const save = () => {
     if (!gender) return;
     store.setGender(gender);
@@ -63,7 +66,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
 
   return (
     <div className={`gate ${phase}`}>
-      <div className="gate-sky"><div className="gate-sun" /><Skyline /></div>
+      <div className="gate-sky"><Stars /><div className="gate-sun" /><Clouds /><Wheel /><Skyline /></div>
 
       {phase !== "profile" && (
         <div className="splash">
@@ -71,8 +74,9 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
             {"FINDURAI".split("").map((c, i) => <span key={i} style={{ animationDelay: `${i * 70}ms` }}>{c}</span>)}
           </div>
           <p className="splash-tag">one city · countless stories</p>
-          <div className="splash-bar"><i style={{ width: `${progress}%` }} /></div>
-          <p className="splash-hint">{fatal ?? (failed ? "Could not load the city." : phase === "leaving" || ready ? "Ready" : phase === "building" ? build?.label ?? "Building the city…" : "Loading…")}</p>
+          <div className="splash-bar"><i style={{ width: `${progress}%` }} /><em>{Math.round(progress)}%</em></div>
+          <p className="splash-hint" key={fatal ?? (failed ? 'f' : phase === "leaving" || ready ? 'r' : phase === "building" ? build?.label ?? 'b' : 'l')}>{fatal ?? (failed ? "Could not load the city." : phase === "leaving" || ready ? "Ready — see you in there" : phase === "building" ? build?.label ?? "Building the city…" : "Loading the city…")}</p>
+          <p className="splash-tip" key={`tip${tip}`}>💡 {TIPS[tip]}</p>
           {(slow || fatal || failed) && !ready && <button className="enter-btn" onClick={() => { try { sessionStorage.removeItem("findurai.reloaded"); } catch { /* ignore */ } location.reload(); }}>{fatal || failed ? "Reload" : "Taking a while — reload"}</button>}
         </div>
       )}
@@ -138,12 +142,36 @@ function AvatarCard({ g, label, sel, onPick }: { g: "m" | "f"; label: string; se
   );
 }
 
+const TIPS = [
+  'Walk up to anyone and a card appears — tap an opener to break the ice.',
+  'Press E on the Neon Palace dance floor to dance. The lasers are free.',
+  'Real 8-ball and carrom are on the tables inside the Neon Palace.',
+  'Sunset at Lighthouse Point turns the whole sky gold. Take someone.',
+  'The Sunset Wheel by the beach is a 60-second ride for two.',
+  'Green pads on the Speedway give you a burst — Shift for nitro.',
+  'Press Z for zombie night. Running away will not save you.',
+  'Send a rose, chai or a love note from the Gift button on any card.',
+  'Buses do not brake. Look both ways on Neon Lane.',
+  'Cricket: pick your overs, shuffle with ◀ ▶, time the shot with Bat.',
+];
+
+function Stars() {
+  const pts = Array.from({ length: 26 }, (_, i) => ({ x: (i * 37) % 100, y: (i * 53) % 42, d: (i % 5) * 0.4, s: 1 + (i % 3) }));
+  return <div className="stars">{pts.map((p, i) => <i key={i} style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.s, height: p.s, animationDelay: `${p.d}s` }} />)}</div>;
+}
+function Clouds() {
+  return <div className="clouds"><i style={{ top: '5%', animationDuration: '46s' }} /><i style={{ top: '13%', animationDuration: '62s', animationDelay: '-20s', transform: 'scale(.7)' }} /><i style={{ top: '19%', animationDuration: '54s', animationDelay: '-38s', transform: 'scale(1.3)' }} /></div>;
+}
+function Wheel() {
+  return <div className="wheel"><div className="rim" /><div className="hub" /><div className="leg l" /><div className="leg r" /></div>;
+}
+
 function Skyline() {
   // a few low-poly towers + trees, purely decorative
-  const blocks = [40, 90, 60, 130, 75, 110, 55, 95, 70, 120, 50, 85];
+  const blocks = [22, 46, 32, 66, 38, 56, 28, 50, 36, 62, 26, 44];
   return (
     <div className="skyline">
-      {blocks.map((h, i) => <i key={i} style={{ height: `${h}px`, animationDelay: `${i * 90}ms` }} />)}
+      {blocks.map((h, i) => <i key={i} style={{ height: `${h}px`, animationDelay: `${i * 90}ms`, backgroundPositionY: `${(i * 7) % 12}px` }} />)}
     </div>
   );
 }

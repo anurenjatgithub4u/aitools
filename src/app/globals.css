@@ -512,3 +512,7 @@ body.inmode .labels .place, body.inmode .labels .shop, body.inmode .labels .pill
   .meet .mrow.games button { width: 58px; }
   .meet .mhead b { font-size: 14px; }
 }
+
+/* ---- indoors (Neon Palace): the city's labels stay outside ---- */
+body.indoors .labels .place, body.indoors .labels .shop, body.indoors .labels .pill, body.indoors .labels .sign { display: none !important; }
+body.indoors .hud .bottom-left, body.indoors .hints { display: none !important; }

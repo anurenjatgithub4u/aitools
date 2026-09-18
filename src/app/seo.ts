@@ -27,7 +27,7 @@ export const FEATURES = {
     ["Downtown Plaza", "fountain, big screen and the spawn point — where everyone meets"],
     ["Café Row & Food-truck Park", "Chai Corner, Waffle Wonders, taco and biryani trucks"],
     ["Neon Lane", "Tipsy Turtle Pub, Whiskey & Wings, Bass Drop Club, Karaoke Kingdom, Skyline Rooftop Bar, Mojito Shack"],
-    ["Neon Palace casino & club", "dance floor, DJ, bar, slots, roulette, lasers inside and out, and two real 8-ball tables"],
+    ["Neon Palace casino & club", "dance floor, DJ, bar, slots, roulette, lasers inside and out, two real 8-ball tables and a carrom board"],
     ["Sunset Beach", "sand, shacks, volleyball net, a pier, boats and a lifeguard tower"],
     ["Central Park", "a lake, benches and a bandstand"],
     ["City Stadium", "a full 56 × 36 m football pitch with goals, stands and floodlights"],

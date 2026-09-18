@@ -10,6 +10,7 @@ import { makePetrolStation } from './landmarks';
 import { Sfx } from './audio';
 import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG, DATE_LINES, GIFT_THANKS, POOL_TALK } from './chat';
 import { createPool, POOL, POOL_COLORS, POOL_POCKETS, isStripe, type PoolGame } from './poolEngine';
+import { createCarrom, CARROM, type CarromGame } from './carromEngine';
 import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
@@ -128,7 +129,9 @@ function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) 
 // Date spots: benches, a candle table, the Ferris wheel, the boat. Read from the city.
 interface Spot { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][]; face?: boolean }
 // The Neon Palace: dance floor, lasers and two real pool tables.
-interface Casino { x: number; z: number; w: number; d: number; floor: { x: number; z: number; w: number; d: number }; tables: { x: number; z: number; ry: number; y: number }[] }
+interface Casino { x: number; z: number; w: number; d: number; floor: { x: number; z: number; w: number; d: number }; tables: { x: number; z: number; ry: number; y: number }[]; carrom: { x: number; z: number; y: number }[] }
+interface CarromState { game: CarromGame; board: { x: number; z: number; y: number }; opp: Bot; coins: THREE.Mesh[]; strikerMesh: THREE.Mesh; aimLine: THREE.Mesh; phase: 'slide' | 'aim' | 'power'; aim: number; power: number; over: boolean; endAt: number; status: string; botAim: { until: number } | null; lastHud: number }
+const CARROM_SCALE = 1.0 / CARROM.W;   // board units → metres (a 1 m board)
 interface Dancer { av: Avatar; phase: number; style: number }
 interface PoolState { game: PoolGame; table: Casino['tables'][number]; opp: Bot; meshes: THREE.Mesh[]; cueStick: THREE.Mesh; aimLine: THREE.Mesh; aim: number; power: number; charging: boolean; status: string; over: boolean; endAt: number; botAim: { angle: number; until: number } | null; lastHud: number }
 const POOL_SCALE = 2.9 / POOL.W;   // table units → metres
@@ -209,6 +212,8 @@ export class World {
   private dancers: Dancer[] = [];
   private dancing: { partner: Bot | null; t0: number; rewarded: boolean; nextLine: number } | null = null;
   private pool: PoolState | null = null;
+  private carrom: CarromState | null = null;
+  private clubK = 0;
   private inClub = false;
   private pending: { at: number; bot: Bot; text: string }[] = [];
   private playerName = 'Explorer';
@@ -1158,6 +1163,7 @@ export class World {
     if (this.date) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.endDate(); } }   // seated: Space / Jump stands up
     if (this.dancing) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.stopDancing(); } }
     if (this.pool) { ix = 0; iz = 0; if (this.wantKick || this.wantJump) { this.wantKick = false; this.wantJump = false; this.poolButton(); } }
+    if (this.carrom) { ix = 0; iz = 0; if (this.wantKick || this.wantJump) { this.wantKick = false; this.wantJump = false; this.carromButton(); } }
     if (this.wantKick) { this.wantKick = false; if (this.match && !this.match.over) this.shoot(); else if (this.cricket) this.swing(); else if (this.zombies && !this.zombies.ending) this.punch(); }
 
     // --- enter / leave vehicles
@@ -1166,8 +1172,8 @@ export class World {
       if (this.driving) this.exitVehicle();
       else if (this.date) this.endDate();
       else if (this.dancing) this.stopDancing();
-      else if (this.pool) { /* E does nothing mid-frame; use Shoot */ }
-      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); if (pt) this.startPool(pt); else if (this.onDanceFloor()) this.startDancing(); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
+      else if (this.pool || this.carrom) { /* use Shoot / Flick */ }
+      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); const cb = this.nearestCarrom(); if (pt) this.startPool(pt); else if (cb) this.startCarrom(cb); else if (this.onDanceFloor()) this.startDancing(); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -1319,16 +1325,19 @@ export class World {
       if (this.airY > 0 || this.knock) poseJump(this.player); else animateWalk(this.player, t, moving);
       if (this.date) poseSit(this.player);
       if (this.dancing) this.dancePose(this.player, t, 0, 1);
+      if (this.carrom) { poseSit(this.player); this.player.armR.rotation.x = -1.4; this.player.armL.rotation.x = -0.8; this.player.body.rotation.x = 0.4; }
       if (this.pool) { this.player.armR.rotation.x = -1.2; this.player.armL.rotation.x = -1.0; this.player.armR.rotation.z = -0.3; this.player.armL.rotation.z = 0.5; this.player.body.rotation.x = 0.35; }
       if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
 
-      focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
+      focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : this.carrom ? new THREE.Vector3(this.carrom.board.x, this.carrom.board.y + 0.2, this.carrom.board.z) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
       const sp = this.date || this.dancing || this.pool ? null : this.nearestSpot();
-      const ptab = this.date || this.dancing || this.pool ? null : this.nearestPoolTable();
-      if (this.pool) this.prompt(null, false);
+      const ptab = this.date || this.dancing || this.pool || this.carrom ? null : this.nearestPoolTable();
+      const cboard = this.date || this.dancing || this.pool || this.carrom || ptab ? null : this.nearestCarrom();
+      if (this.pool || this.carrom) this.prompt(null, false);
+      else if (cboard && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Play carrom${pt ? ` with ${pt.name}` : ''}`, false); }
       else if (this.dancing) this.prompt(`${this.mobile ? 'Tap Jump' : 'Press E or Space'} to stop dancing`, false);
       else if (ptab && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Rack up 8-ball${pt ? ` with ${pt.name}` : ''}`, false); }
       else if (this.onDanceFloor() && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Dance${pt ? ` with ${pt.name}` : ''}`, false); }
@@ -1499,6 +1508,7 @@ export class World {
     if (this.race) this.tickRace(dt, t);
     this.tickClub(dt, t);
     if (this.pool) this.tickPool(dt, t);
+    if (this.carrom) this.tickCarrom(dt, t);
     if (this.wheel) { this.wheel.rotation.z += dt * (Math.PI * 2 / 40); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
     if (this.date) this.tickDate(dt, t);
     this.sunsetK = Math.max(0, Math.min(1, this.sunsetK + ((this.date?.spot.kind === 'sunset') ? dt / 4 : -dt / 4)));
@@ -1927,7 +1937,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   cyclePace() { const c = this.cricket; if (!c || c.innings !== 2 || c.phase === 'flight' || c.phase === 'hit') return; c.pace = ((c.pace + 1) % 3) as 0 | 1 | 2; this.ev.onCollect({ name: ['🐢 Slow ball — more bounce, harder to time', '🎯 Medium pace', '⚡ Fast — beats the bat, but loose ones fly'][c.pace], points: 0, color: 0x3fb7d9, shape: 'gem' }); }
 
   /** In a game, race or zombie night: the HUD and the world drop everything that is not the game. */
-  private inMode() { return !!(this.match || this.cricket || this.race || this.pool || (this.zombies && !this.zombies.ending)); }
+  private inMode() { return !!(this.match || this.cricket || this.race || this.pool || this.carrom || (this.zombies && !this.zombies.ending)); }
 
   private onStrip() {
     const o = this.oval; if (!o) return false;
@@ -2471,7 +2481,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const c = this.casino, root = this.landmarkRoot; if (!c || !root) return;
     const near = Math.hypot(this.player.group.position.x - c.x, this.player.group.position.z - c.z) < 60;
     const inside = this.insideClub();
-    if (inside !== this.inClub) { this.inClub = inside; this.sfx.club(inside); if (inside) this.ev.onCollect({ name: '🎶 Welcome to the Neon Palace — dance floor, bar, slots and real 8-ball', points: 0, color: 0xff4fd8, shape: 'gem' }); }
+    this.clubK = Math.max(0, Math.min(1, this.clubK + (inside ? dt / 1.2 : -dt / 1.2)));
+    if (this.clubK > 0 && !(this.zombies && !this.zombies.ending) && this.sunsetK <= 0) this.applyClub(this.clubK);
+    if (inside !== this.inClub) { this.inClub = inside; this.sfx.club(inside); document.body.classList.toggle('indoors', inside); if (inside) this.ev.onCollect({ name: '🎶 Welcome to the Neon Palace — dance floor, bar, slots and real 8-ball', points: 0, color: 0xff4fd8, shape: 'gem' }); }
     if (!near) return;
     // outside lasers sweep, inside lasers spin, floor tiles chase colours, the mirror ball turns
     root.traverse((o) => {
@@ -2485,6 +2497,15 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       if (dn.partner) { this.dancePose(dn.partner.av, t, 1.5, 1); dn.partner.label.visible = true; if (t > dn.nextLine) { dn.nextLine = t + 8 + Math.random() * 6; this.botSays(dn.partner, DATE_LINES.party[Math.floor(Math.random() * DATE_LINES.party.length)], 0); } }
       if (!dn.rewarded && t - dn.t0 > 15) { dn.rewarded = true; this.points += 20; this.ev.onPoints(this.points); this.ev.onCollect({ name: dn.partner ? `Dancing with ${dn.partner.name} · party!` : 'Party! You have the moves', points: 20, color: 0xff4fd8, shape: 'gem' }); if (dn.partner) this.ev.onHearts(); }
     }
+  }
+
+  /** Inside the Palace: the sky goes to night, the fog closes in, the sun steps back so the lasers and neon carry the room. */
+  private applyClub(k: number) {
+    const dl = this.daylight;
+    (this.scene.background as THREE.Color).setHex(dl.sky).lerp(new THREE.Color(0x0b0714), k);
+    const fog = this.scene.fog as THREE.Fog; fog.color.setHex(dl.fog).lerp(new THREE.Color(0x120a1e), k); fog.near = dl.near + (30 - dl.near) * k; fog.far = dl.far + (110 - dl.far) * k;
+    this.sun.color.setHex(dl.sun).lerp(new THREE.Color(0xff4fd8), k * 0.6); this.sun.intensity = dl.sunI * (1 - 0.7 * k);
+    this.hemi.intensity = dl.hemiI * (1 - 0.45 * k);
   }
 
   private startDancing() {
@@ -2606,6 +2627,99 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.scene.remove(ps.cueStick); this.scene.remove(ps.aimLine);
     ps.opp.playing = false; ps.opp.wait = 2; ps.opp.av.body.rotation.set(0, 0, 0); ps.opp.av.armL.rotation.set(0, 0, 0); ps.opp.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== ps.opp) ps.opp.target = this.randomLandPoint(8, 120);
     this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0);
+    this.pitch = 0.3; this.dist = 10; this.camDist = 10;
+    this.ev.onMode(null); this.ev.onQuest(null);
+    this.questCooldown = 10;
+  }
+
+  // ---------- carrom on the Palace board ----------
+  private nearestCarrom() {
+    const c = this.casino; if (!c) return null;
+    const p = this.player.group.position;
+    return c.carrom.find((b) => Math.hypot(b.x - p.x, b.z - p.z) < 2.6) ?? null;
+  }
+
+  private boardPos(b: CarromState['board'], x: number, y: number, out: THREE.Vector3) {
+    return out.set(b.x + (x - CARROM.W / 2) * CARROM_SCALE, b.y + 0.012, b.z + (y - CARROM.W / 2) * CARROM_SCALE);
+  }
+
+  startCarrom(board: Casino['carrom'][number], oppBot?: Bot) {
+    if (this.carrom || this.inMode()) return;
+    if (this.driving) this.exitVehicle();
+    if (this.date) this.endDate(); if (this.dancing) this.stopDancing();
+    const opp = oppBot ?? this.datePartner() ?? this.bots.filter((b) => !b.remote && !b.riding && !b.knocked && !b.playing).sort((a, b) => a.av.group.position.distanceTo(this.player.group.position) - b.av.group.position.distanceTo(this.player.group.position))[0];
+    if (!opp) return;
+    opp.playing = true; opp.wait = 0; opp.label.visible = true;
+    const y = this.terrain.h(board.x, board.z);
+    this.player.group.position.set(board.x, y, board.z + 1.15); this.player.group.rotation.y = Math.PI; poseSit(this.player);
+    opp.av.group.position.set(board.x, y, board.z - 1.15); opp.av.group.rotation.y = 0; poseSit(opp.av);
+    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.05; this.dist = 2.4; this.camDist = 2.4;
+    const coins: THREE.Mesh[] = [];
+    const game = createCarrom(opp.name, {
+      status: (text) => { if (this.carrom) this.carrom.status = text; },
+      turn: (who) => { if (this.carrom && who === 'you') this.carrom.phase = 'slide'; },
+      finish: (win, why) => { const cs = this.carrom; if (!cs) return; cs.over = true; cs.endAt = this.elapsed + 5; cs.status = why; this.gameResult('carrom', win, opp.name); },
+      potted: () => this.sfx.click(),
+      botAim: () => { if (this.carrom) this.carrom.botAim = { until: this.elapsed + 0.6 }; if (Math.random() < 0.3) this.botSays(opp, POOL_TALK[Math.floor(Math.random() * POOL_TALK.length)], 0); },
+    }, 1000);
+    const disc = (r: number, color: number) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.012, 16), new THREE.MeshStandardMaterial({ color, roughness: 0.4 })); m.castShadow = true; this.scene.add(m); return m; };
+    game.coins.forEach((k, i) => { coins[i] = disc(CARROM.R * CARROM_SCALE, k.kind === 'w' ? 0xfdf5e0 : k.kind === 'b' ? 0x2a2a2a : 0xe04a3a); });
+    const strikerMesh = disc(CARROM.RS * CARROM_SCALE, 0x5fd0ee);
+    const aimLine = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.003, 0.5), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x111111, transparent: true, opacity: 0.8 })); aimLine.geometry.translate(0, 0, 0.25); this.scene.add(aimLine);
+    this.carrom = { game, board, opp, coins, strikerMesh, aimLine, phase: 'slide', aim: -Math.PI / 2, power: 0, over: false, endAt: 0, status: 'Your turn.', botAim: null, lastHud: 0 };
+    this.clearQuest(); this.questCooldown = 30;
+    this.ev.onMode({ icon: '🎯', label: 'Flick', arrows: true });
+    this.ev.onCollect({ name: `Carrom vs ${opp.name} · ◀ ▶ slide the striker, Flick, ◀ ▶ aim, Flick, Flick again at the right power`, points: 0, color: 0xf2c31b, shape: 'gem' });
+    this.botSays(opp, 'White is yours. Queen is mine 😉', 1.2);
+    this.sfx.questStart();
+  }
+
+  private carromButton() {
+    const cs = this.carrom!; if (cs.over) return;
+    const g = cs.game;
+    if (g.turn !== 'you' || g.moving) return;
+    if (cs.phase === 'slide') { cs.phase = 'aim'; cs.aim = Math.atan2(CARROM.W / 2 - g.striker.y, CARROM.W / 2 - g.striker.x); return; }
+    if (cs.phase === 'aim') { cs.phase = 'power'; cs.power = 0; return; }
+    g.shoot(cs.aim, 6 + cs.power * 18);
+    cs.phase = 'slide';
+    this.sfx.click();
+  }
+
+  private tickCarrom(dt: number, t: number) {
+    const cs = this.carrom!, g = cs.game, b = cs.board;
+    if (cs.over && t > cs.endAt) { this.endCarrom(); return; }
+    g.step();
+    const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
+    if (g.turn === 'you' && !g.moving) {
+      if (cs.phase === 'slide') g.striker.x = Math.max(CARROM.MIN_X, Math.min(CARROM.MAX_X, g.striker.x + held * dt * 180));
+      else if (cs.phase === 'aim') cs.aim += held * dt * (this.keys.has('shift') ? 0.3 : 0.9);
+      else cs.power = (Math.sin(t * 3.2) + 1) / 2;
+    }
+    const v = new THREE.Vector3();
+    g.coins.forEach((k, i) => { const m = cs.coins[i]; m.visible = !k.in; if (!k.in) m.position.copy(this.boardPos(b, k.x, k.y, v)); });
+    cs.strikerMesh.visible = !g.striker.in; if (!g.striker.in) cs.strikerMesh.position.copy(this.boardPos(b, g.striker.x, g.striker.y, v));
+    const showAim = !g.moving && !cs.over && ((g.turn === 'you' && cs.phase !== 'slide') || !!(cs.botAim && t < cs.botAim.until));
+    cs.aimLine.visible = showAim;
+    if (showAim) { const ang = g.turn === 'you' ? cs.aim : (g.botDecide()?.angle ?? 0); cs.aimLine.position.copy(cs.strikerMesh.position); cs.aimLine.rotation.set(0, -ang + Math.PI / 2, 0); cs.aimLine.scale.z = cs.phase === 'power' ? 0.6 + cs.power * 1.2 : 1; }
+    // the rival leans in on their turn
+    cs.opp.av.armR.rotation.x = g.turn === 'bot' && !g.moving ? -1.6 : -1.1; cs.opp.av.body.rotation.x = g.turn === 'bot' && !g.moving ? 0.45 : 0.15;
+    if (t - cs.lastHud > 0.15) {
+      cs.lastHud = t;
+      const you = `${g.potted.you} / 9 white${g.queen === 'you' ? ' + queen' : ''}`, them = `${g.potted.bot} / 9 black${g.queen === 'bot' ? ' + queen' : ''}`;
+      const step = cs.phase === 'slide' ? '◀ ▶ slide the striker · Flick to aim' : cs.phase === 'aim' ? '◀ ▶ aim (Shift = fine) · Flick to set power' : 'Flick again at the right power';
+      this.ev.onQuest({ status: cs.over ? (cs.status.startsWith('All nine') ? 'done' : 'failed') : 'active', title: `🎯 You ${you} · ${cs.opp.name} ${them}`, desc: cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : step) : cs.status, progress: cs.phase === 'power' && g.turn === 'you' ? `Power ${Math.round(cs.power * 100)}%` : g.turn === 'you' ? 'Your turn' : `${cs.opp.name}'s turn`, remaining: 1, total: 1, reward: 200, hint: null, fill: cs.phase === 'power' && g.turn === 'you' ? cs.power : g.turn === 'you' ? 1 : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
+    }
+  }
+
+  private endCarrom() {
+    const cs = this.carrom; if (!cs) return;
+    this.carrom = null;
+    cs.game.dispose();
+    for (const m of cs.coins) this.scene.remove(m);
+    this.scene.remove(cs.strikerMesh); this.scene.remove(cs.aimLine);
+    cs.opp.playing = false; cs.opp.wait = 2; cs.opp.av.body.rotation.set(0, 0, 0); cs.opp.av.armL.rotation.set(0, 0, 0); cs.opp.av.armR.rotation.set(0, 0, 0); cs.opp.av.legL.rotation.x = cs.opp.av.legR.rotation.x = 0; if (this.hangout?.bot !== cs.opp) cs.opp.target = this.randomLandPoint(8, 120);
+    this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0); this.player.legL.rotation.x = this.player.legR.rotation.x = 0;
+    const p = this.player.group.position; p.set(cs.board.x + 1.6, this.terrain.h(cs.board.x + 1.6, cs.board.z + 1.2), cs.board.z + 1.2);
     this.pitch = 0.3; this.dist = 10; this.camDist = 10;
     this.ev.onMode(null); this.ev.onQuest(null);
     this.questCooldown = 10;
@@ -2915,7 +3029,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       case 'pool': { const pt = this.casino && Math.hypot(this.player.group.position.x - this.casino.x, this.player.group.position.z - this.casino.z) < 30 ? this.casino.tables[0] : null; this.botSays(b, 'Rack them up 🎱', 0.2); if (pt && !b.remote) this.startPool(pt, b); else this.ev.onGame('pool', b.name); break; }
       case 'chess': this.botSays(b, 'White moves first — your go ♟️', 0.2); this.ev.onGame('chess', b.name); break;
       case 'ludo': this.botSays(b, 'Roll a six! 🎲', 0.2); this.ev.onGame('ludo', b.name); break;
-      case 'carrom': this.botSays(b, 'Flick it! 🎯', 0.2); this.ev.onGame('carrom', b.name); break;
+      case 'carrom': { const cb = this.casino && Math.hypot(this.player.group.position.x - this.casino.x, this.player.group.position.z - this.casino.z) < 30 ? this.casino.carrom[0] : null; this.botSays(b, 'Flick it! 🎯', 0.2); if (cb && !b.remote) this.startCarrom(cb, b); else this.ev.onGame('carrom', b.name); break; }
     }
   }
 

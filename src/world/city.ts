@@ -225,9 +225,22 @@ export function buildCity(g: THREE.Group, h: H) {
       { const blocker = at(box(3.7, 3, 2.3, 0x000000), px, cy + 1.5, pz); blocker.visible = false; g.add(blocker); }   // tall enough that nobody climbs onto the cloth
       poolTables.push({ x: px, z: pz, ry: 0, y: ty });
     }
+    // a carrom board on a low table by the bar (the world plays carrom on it)
+    const carromTables: { x: number; z: number; y: number }[] = [];
+    { const bx = cx + 9, bz = cz + 3, by = cy + 0.72;
+      g.add(at(box(1.4, 0.05, 1.4, 0x5d3d21), bx, by - 0.03, bz)); g.add(at(box(1.16, 0.04, 1.16, 0xf0dcb0), bx, by + 0.01, bz));   // frame + board
+      for (const [dx, dz] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) { const pk = at(cyl(0.05, 0.05, 0.03, 0x111111, 10), bx + dx, by + 0.03, bz + dz); pk.userData.noCollide = true; g.add(pk); }
+      for (const [w, d, dx, dz] of [[0.84, 0.01, 0, -0.42], [0.84, 0.01, 0, 0.42], [0.01, 0.84, -0.42, 0], [0.01, 0.84, 0.42, 0]] as const) g.add(at(box(w, 0.012, d, 0xc0392b), bx + dx, by + 0.032, bz + dz));   // baselines
+      g.add(at(cyl(0.08, 0.08, 0.012, 0xc0392b, 16), bx, by + 0.032, bz)); g.add(at(cyl(0.05, 0.05, 0.014, 0xf0dcb0, 16), bx, by + 0.033, bz));
+      for (const [dx, dz] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) g.add(at(box(0.08, by - cy - 0.06, 0.08, 0x3a2418), bx + dx, cy + (by - cy - 0.06) / 2, bz + dz));
+      { const blocker = at(box(1.5, 3, 1.5, 0x000000), bx, cy + 1.5, bz); blocker.visible = false; g.add(blocker); }
+      for (const dz of [-1.2, 1.2]) { g.add(at(cyl(0.3, 0.3, 0.06, 0x8a6a4a, 10), bx, cy + 0.45, bz + dz)); g.add(at(cyl(0.04, 0.04, 0.42, 0x555555, 6), bx, cy + 0.21, bz + dz)); }   // two stools
+      g.add(at(glow(1.2, 0.05, 0.3, 0xfff2a8), bx, by + 1.3, bz));
+      carromTables.push({ x: bx, z: bz, y: by + 0.035 });
+    }
     // a few high tables for hanging out
     for (const [dx, dz] of [[-12, 8], [-8, 9], [2, 9]]) { g.add(at(cyl(0.45, 0.45, 0.05, 0xe8c46a, 10), cx + dx, cy + 1.05, cz + dz)); g.add(at(cyl(0.05, 0.05, 1.05, 0x555555, 6), cx + dx, cy + 0.52, cz + dz)); }
-    g.userData.casino = { x: cx, z: cz, w: CW, d: CD, floor: { x: dfx, z: dfz, w: 12, d: 10 }, tables: poolTables };
+    g.userData.casino = { x: cx, z: cz, w: CW, d: CD, floor: { x: dfx, z: dfz, w: 12, d: 10 }, tables: poolTables, carrom: carromTables };
     place('Neon Palace · casino & club', cx, CH + 8, cz, 220);
     keep(cx, cz, 24); keep(cx, cz + CD / 2 + 4, 8);
   }

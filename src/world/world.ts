@@ -143,7 +143,7 @@ interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished
 
 interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; playing?: boolean; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
 // A real player elsewhere on the network: we get their state a few times a second and glide between updates.
-interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null }
+interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null; p: string; boardedAt: number }
 const NET_RATE = 1 / 8;
 // A pedestrian that has been hit: flies with `vel`, then lies on the ground for a moment before getting up.
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
@@ -331,7 +331,9 @@ export class World {
   private statePacket(): NetMsg {
     const v = this.driving;
     const p = v ? v.group.position : this.player.group.position;
-    return { t: 's', id: this.selfId, n: this.playerName, g: this.gender, x: +p.x.toFixed(2), z: +p.z.toFixed(2), ry: +this.player.group.rotation.y.toFixed(2), w: +this.moveAmount.toFixed(2), j: +this.airY.toFixed(2), v: v ? v.spec.kind : '', h: v ? +v.heading.toFixed(2) : 0, ts: Date.now() };
+    const m: NetMsg = { t: 's', id: this.selfId, n: this.playerName, g: this.gender, x: +p.x.toFixed(2), z: +p.z.toFixed(2), ry: +this.player.group.rotation.y.toFixed(2), w: +this.moveAmount.toFixed(2), j: +this.airY.toFixed(2), v: v ? v.spec.kind : '', h: v ? +v.heading.toFixed(2) : 0, ts: Date.now() };
+    if (this.ridingWith) m.p = this.ridingWith.bot.remote!.id;
+    return m;
   }
 
   private onNet(m: NetMsg) {
@@ -345,6 +347,14 @@ export class World {
         break;
       }
       case 's': this.upsertPeer(m); break;
+      case 'lift': if (m.to === this.selfId) {
+        const b = this.bots.find((x) => x.remote?.id === m.id);
+        if (!b) break;
+        if (m.on) { if (!this.ridingWith && !this.driving && !this.inMode() && !this.date && !this.dancing && b.remote!.car) { if (this.ridingWith) this.leaveRide(false); this.ridingWith = { bot: b, seat: m.seat }; this.ev.onCollect({ name: `${m.n} is giving you a lift · ${this.mobile ? 'Get out' : 'F / E'} to hop off`, points: 0, color: 0x3fb7d9, shape: 'gem' }); this.sfx.checkpoint(); } }
+        else if (this.ridingWith?.bot === b) this.leaveRide(false);
+        // they got out of my car by themselves
+        if (!m.on && b.riding && this.driving && b.riding === this.driving) this.detachPassenger(b);
+      } break;
       case 'bye': { const b = this.bots.find((x) => x.remote?.id === m.id); if (b) this.removePeer(b); break; }
       case 'c': {
         const b = this.bots.find((x) => x.remote?.id === m.id);
@@ -391,13 +401,13 @@ export class World {
       const label = new CSS2DObject(el); label.position.y = 2.7; label.userData.orig = text; av.group.add(label);
       this.scene.add(av.group);
       b = { av, label, name: m.n, female: m.g === 'f', target: new THREE.Vector3(), speed: 0, wait: 0, walking: 0, riding: null, knocked: null, friend, asked: -99, reply: null, greeted: -99, bubbleUntil: 0,
-        remote: { id: m.id, tx: m.x, tz: m.z, ry: m.ry, w: m.w, j: m.j, v: '', h: m.h, lastSeen: Date.now(), car: null } };
+        remote: { id: m.id, tx: m.x, tz: m.z, ry: m.ry, w: m.w, j: m.j, v: '', h: m.h, lastSeen: Date.now(), car: null, p: '', boardedAt: 0 } };
       this.bots.push(b);
       this.ev.onCollect({ name: `${m.n} joined the city`, points: 0, color: 0x3fb7d9, shape: 'gem' });
       this.sfx.collect(0);
     }
     const r = b.remote!;
-    r.tx = m.x; r.tz = m.z; r.ry = m.ry; r.w = m.w; r.j = m.j; r.h = m.h; r.lastSeen = Date.now();
+    r.tx = m.x; r.tz = m.z; r.ry = m.ry; r.w = m.w; r.j = m.j; r.h = m.h; r.lastSeen = Date.now(); r.p = m.p ?? '';
     if (m.v !== r.v) this.setPeerVehicle(b, m.v as VehicleKind | '');
     this.countOnline();
   }
@@ -420,6 +430,8 @@ export class World {
 
   private removePeer(b: Bot) {
     const r = b.remote!;
+    if (this.ridingWith?.bot === b) this.leaveRide(false);
+    if (b.riding) this.detachPassenger(b);
     if (r.car) { this.scene.remove(r.car.group); } else this.scene.remove(b.av.group);
     this.bots.splice(this.bots.indexOf(b), 1);
     if (this.meet === b) { this.meet = null; this.lastMeet = ''; this.ev.onMeet(null); }
@@ -438,6 +450,17 @@ export class World {
     const r = b.remote!;
     if (Date.now() - r.lastSeen > 15000) { this.removePeer(b); return; }
     const k = Math.min(1, dt * 9);
+    if (b.riding) {   // in my car: parented to it, nothing to move — unless their state says they are no longer aboard
+      if (r.p !== this.selfId && Date.now() - r.boardedAt > 2500) this.detachPassenger(b);
+      b.label.visible = true; return;
+    }
+    const drv = r.p ? this.bots.find((x) => x.remote?.id === r.p) : null;
+    const drvCar = drv?.remote?.car ?? null;
+    if (drvCar) {   // riding with another real player: sit in that car
+      if (b.av.group.parent !== drvCar.group) { b.av.group.removeFromParent(); drvCar.group.add(b.av.group); const seats = this.seatsFor(drvCar); b.av.group.position.copy(seats[Math.min(seats.length - 1, 1)] ?? drvCar.seat); b.av.group.rotation.set(0, 0, 0); if (drvCar.spec.ride) poseRide(b.av); else poseSit(b.av); }
+      b.label.visible = true; return;
+    }
+    if (b.av.group.parent !== this.scene) { b.av.group.removeFromParent(); this.scene.add(b.av.group); b.av.group.position.set(r.tx, this.groundAt(r.tx, r.tz, 0), r.tz); b.av.armL.rotation.x = b.av.armR.rotation.x = 0; b.av.legL.rotation.x = b.av.legR.rotation.x = 0; b.av.legL.rotation.z = b.av.legR.rotation.z = 0; }
     if (r.car) {
       const vp = r.car.group.position;
       vp.x += (r.tx - vp.x) * k; vp.z += (r.tz - vp.z) * k;
@@ -1035,6 +1058,7 @@ export class World {
     const seat = this.seatsFor(v)[list.length];
     if (!seat) return false;
     list.push(b); this.passengers.set(v, list);
+    if (b.remote) { b.remote.boardedAt = Date.now(); b.remote.p = this.selfId; this.net?.send({ t: 'lift', id: this.selfId, to: b.remote.id, n: this.playerName, on: true, seat: list.length }); }
     b.riding = v; b.walking = 0;
     this.scene.remove(b.av.group);
     v.group.add(b.av.group);
@@ -1042,6 +1066,38 @@ export class World {
     b.av.group.rotation.set(0, 0, 0);
     if (v.spec.ride) poseRide(b.av); else poseSit(b.av);
     return true;
+  }
+
+  /** A real passenger hopped out of my car by themselves (or never accepted): let go without the drop-off bonus. */
+  private detachPassenger(b: Bot) {
+    const v = b.riding; if (!v) return;
+    const list = (this.passengers.get(v) ?? []).filter((x) => x !== b); this.passengers.set(v, list);
+    v.group.remove(b.av.group); this.scene.add(b.av.group);
+    const r = b.remote; const x = r ? r.tx : v.group.position.x + 2, z = r ? r.tz : v.group.position.z;
+    b.av.group.position.set(x, this.groundAt(x, z, v.group.position.y), z); b.av.group.rotation.set(0, v.heading, 0);
+    b.av.armL.rotation.x = b.av.armR.rotation.x = 0; b.av.legL.rotation.z = b.av.legR.rotation.z = 0; b.av.legL.rotation.x = b.av.legR.rotation.x = 0;
+    b.riding = null;
+  }
+
+  /** Riding in a real player's car: sit on their seat every frame; their car is where their state packets put it. */
+  private ridingWith: { bot: Bot; seat: number } | null = null;
+  private tickRide() {
+    const rw = this.ridingWith!; const car = rw.bot.remote?.car;
+    if (!car || !this.bots.includes(rw.bot)) { this.leaveRide(true); return; }
+    const seats = this.seatsFor(car); const seat = seats[Math.min(seats.length - 1, Math.max(0, rw.seat))] ?? car.seat;
+    const p = this.player.group.position; car.group.localToWorld(p.copy(seat));
+    this.player.group.rotation.y = car.heading; this.airY = 0; this.vy = 0;
+    if (car.spec.ride) poseRide(this.player); else poseSit(this.player);
+  }
+  private leaveRide(tell: boolean) {
+    const rw = this.ridingWith; if (!rw) return;
+    this.ridingWith = null;
+    const car = rw.bot.remote?.car; const p = this.player.group.position;
+    if (car) { const ang = car.heading + Math.PI / 2; p.x = car.group.position.x + Math.sin(ang) * 2.2; p.z = car.group.position.z + Math.cos(ang) * 2.2; }
+    p.y = this.groundAt(p.x, p.z, p.y); this.airY = 0;
+    this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.legL.rotation.set(0, 0, 0); this.player.legR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0);
+    if (tell && rw.bot.remote) this.net?.send({ t: 'lift', id: this.selfId, to: rw.bot.remote.id, n: this.playerName, on: false, seat: 0 });
+    this.ev.onCollect({ name: `Hopped off ${rw.bot.name}'s ride`, points: 0, color: 0x999999, shape: 'box' });
   }
 
   private dropPassengers(v: Vehicle) {
@@ -1056,6 +1112,7 @@ export class World {
       b.av.armL.rotation.x = b.av.armR.rotation.x = 0;
       b.av.legL.rotation.z = b.av.legR.rotation.z = 0;
       b.riding = null; b.wait = 2; b.target = this.wanderFrom(b.av.group.position);
+      if (b.remote) this.net?.send({ t: 'lift', id: this.selfId, to: b.remote.id, n: this.playerName, on: false, seat: 0 });
       this.questDropped(b, v);
       this.points += 30;
       this.ev.onCollect({ name: `Lift for ${b.name}`, points: 30, color: 0xe8c46a, shape: 'gem' });
@@ -1178,6 +1235,7 @@ export class World {
     if (this.cricket) { ix = 0; iz = 0; }   // you are at the crease: A/D or ◀ ▶ shuffle sideways (see tickCricket)
     if (this.date) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.endDate(); } }   // seated: Space / Jump stands up
     if (this.dancing) { ix = 0; iz = 0; if (this.wantJump) { this.wantJump = false; this.stopDancing(); } }
+    if (this.ridingWith) { ix = 0; iz = 0; if (this.wantJump || this.wantLift || this.wantToggleDrive) { this.wantJump = false; this.wantLift = false; this.wantToggleDrive = false; this.leaveRide(true); } }
     if (this.pool) { ix = 0; iz = 0; if (this.wantKick || this.wantJump) { this.wantKick = false; this.wantJump = false; this.poolButton(); } }
     if (this.carrom) { ix = 0; iz = 0; if (this.wantKick || this.wantJump) { this.wantKick = false; this.wantJump = false; this.carromButton(); } }
     if (this.wantKick) { this.wantKick = false; if (this.match && !this.match.over) this.shoot(); else if (this.cricket) this.swing(); else if (this.zombies && !this.zombies.ending) this.punch(); }
@@ -1340,6 +1398,7 @@ export class World {
       if (this.carrom) { poseSit(this.player); this.player.armR.rotation.x = -1.4; this.player.armL.rotation.x = -0.8; this.player.body.rotation.x = 0.4; }
       if (this.pool) { this.player.armR.rotation.x = -1.2; this.player.armL.rotation.x = -1.0; this.player.armR.rotation.z = -0.3; this.player.armL.rotation.z = 0.5; this.player.body.rotation.x = 0.35; }
       if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
+      if (this.ridingWith) this.tickRide();
 
       focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : this.carrom ? new THREE.Vector3(this.carrom.board.x, this.carrom.board.y + 0.2, this.carrom.board.z) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
@@ -1377,7 +1436,7 @@ export class World {
         // they notice you sometimes
         if (this.meet && !this.meet.remote && t - this.meet.greeted > 45 && Math.random() < 0.5) { this.meet.greeted = t; this.botSays(this.meet, HELLO_WHEN_NEAR[Math.floor(Math.random() * HELLO_WHEN_NEAR.length)], 0.6); }
       }
-      this.liftPrompt(this.rimHint(p));
+      this.liftPrompt(this.ridingWith ? `Riding with ${this.ridingWith.bot.name} · ${this.mobile ? 'tap Lift' : 'F / E'} to hop off` : this.rimHint(p));
     }
     this.wantLift = false;
     this.wantRefuel = false;

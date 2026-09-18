@@ -74,7 +74,7 @@ wss.on('connection', (ws) => {
     if (m.t === 's') room.get(id).last = m;
     if (m.t === 'c') m.text = String(m.text || '').slice(0, 160);
     if (m.t === 'g') m.gift = String(m.gift || '').slice(0, 4);
-    if (['s', 'c', 'f', 'fa', 'bye', 'hi', 'g', 'inv'].includes(m.t)) relay(m);
+    if (['s', 'c', 'f', 'fa', 'bye', 'hi', 'g', 'inv', 'lift'].includes(m.t)) relay(m);
   });
 
   const leave = () => {

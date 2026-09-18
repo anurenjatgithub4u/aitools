@@ -6,7 +6,7 @@
 export type Gender = 'm' | 'f';
 
 export type NetMsg =
-  | { t: 's'; id: string; n: string; g: Gender; x: number; z: number; ry: number; w: number; j: number; v: string; h: number; ts: number } // state
+  | { t: 's'; id: string; n: string; g: Gender; x: number; z: number; ry: number; w: number; j: number; v: string; h: number; ts: number; p?: string } // state (p = id of the driver whose car I am riding in)
   | { t: 'c'; id: string; n: string; text: string }                 // chat
   | { t: 'f'; id: string; to: string; n: string }                   // friend request
   | { t: 'fa'; id: string; to: string; n: string }                  // friend accepted
@@ -14,6 +14,7 @@ export type NetMsg =
   | { t: 'who'; peers: (Extract<NetMsg, { t: 's' }> | Extract<NetMsg, { t: 'hi' }>)[] }   // server: everyone already here
   | { t: 'g'; id: string; to: string; n: string; gift: string }                     // a gift
   | { t: 'inv'; id: string; to: string; n: string; kind: string; x: number; z: number }   // "come to the pier bench / my apartment"
+  | { t: 'lift'; id: string; to: string; n: string; on: boolean; seat: number }   // driver: hop in / out of my car
   | { t: 'bye'; id: string };
 
 export type NetStatus = 'connecting' | 'online' | 'offline';

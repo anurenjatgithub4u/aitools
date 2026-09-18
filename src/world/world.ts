@@ -32,7 +32,8 @@ export interface WorldEvents {
   onHurt(): void;
   onHearts(): void;
   onPick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
-  onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean } | null): void;
+  onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean } | null): void;
+  onTable(power: number, pos: number | null): void;
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
   onFriendRequest(req: { id: string; name: string } | null): void;
@@ -840,6 +841,7 @@ export class World {
       if (k === 'e' && !e.repeat) this.wantToggleDrive = true;
       if (k === 'z' && !e.repeat) this.toggleZombies();
       if (k === 'f' && !e.repeat) this.wantLift = true;
+      if (k === 'escape' && !e.repeat) this.exitMode();
       this.keys.add(k);
     };
     const up = (e: KeyboardEvent) => { if ((e.target as HTMLElement | null)?.tagName === 'INPUT') { this.keys.clear(); return; } this.keys.delete(e.key.toLowerCase()); };
@@ -1235,7 +1237,8 @@ export class World {
           const push = (r.t.length / 2 + s.length / 2 - d) + 1.2, nx2 = vp.x + (dx / d) * push, nz2 = vp.z + (dz / d) * push;
           if (this.vehicleFits(nx2, nz2, v.heading, s.length, s.width, vp.y)) { vp.x = nx2; vp.z = nz2; }
           v.speed *= 0.4; this.sfx.thud(); this.ev.onHurt();
-          this.ev.onCollect({ name: 'Bus! That will leave a dent', points: 0, color: 0xd94a3d, shape: 'box' });
+          this.points = Math.max(0, this.points - 20); this.ev.onPoints(this.points);
+          this.ev.onCollect({ name: 'Hit the bus! That will leave a dent', points: -20, color: 0xd94a3d, shape: 'box' });
         }
       }
       this.settleVehicle(v);
@@ -1292,10 +1295,12 @@ export class World {
         // never get stuck: if we are already inside a wall (stepped onto something odd), any move out is allowed
         const free = !this.walkable(p.x, p.z, py) && Math.hypot(nx, nz) < WORLD_RADIUS && this.terrain.onLand(nx, nz);
         const ok = (ax: number, az: number) => this.walkable(ax, az, py) && !this.hitsVehicle(ax, az);
-        if (free || ok(nx, nz)) { p.x = nx; p.z = nz; }
+        const hv = this.hitsVehicle(nx, nz);
+        if (hv?.bus && hv.speed > 0.5) this.busHit(hv, t);   // walking into a moving bus: you lose
+        else if (free || ok(nx, nz)) { p.x = nx; p.z = nz; }
         else if (ok(nx, p.z)) p.x = nx;        // slide along walls
         else if (ok(p.x, nz)) p.z = nz;
-        else if (this.hitsVehicle(nx, nz)) this.sfx.bump();
+        else if (hv) this.sfx.bump();
         this.player.group.rotation.y = Math.atan2(mx, mz);
         moving = Math.min(1, len) * (running ? 1.5 : 1);
         if (this.stick && !this.look && iz > 0.3) this.yaw += wrapAngle(Math.atan2(mx, mz) + Math.PI - this.yaw) * Math.min(1, dt * 1.2);
@@ -1309,15 +1314,7 @@ export class World {
         this.player.group.rotation.y += dt * 9;   // tumbling
       } else if (this.airY <= 0) {
         const hit = this.hitsVehicle(p.x, p.z, 0.2);
-        if (hit && hit.bus && t - this.lastHit > 2.5) {
-          this.lastHit = t;
-          const fx = Math.sin(hit.heading), fz = Math.cos(hit.heading), side = Math.sign((p.x - hit.pos.x) * fz - (p.z - hit.pos.z) * fx) || 1;
-          this.knock = new THREE.Vector3(fx * 9 + fz * side * 5, 0, fz * 9 - fx * side * 5);
-          this.vy = 6.5; this.airY = 0.01;
-          this.points = Math.max(0, this.points - 20); this.ev.onPoints(this.points);
-          this.sfx.thud(); this.sfx.ouch(); this.ev.onHurt();
-          this.ev.onCollect({ name: 'Hit by the bus! Look both ways', points: -20, color: 0xd94a3d, shape: 'box' });
-        }
+        if (hit && hit.bus) this.busHit(hit, t);
       }
       // --- jump
       if (this.wantJump && this.airY <= 0 && !this.knock) { if (!(this.match && !this.match.over && this.shoot()) && !(this.cricket && this.swing()) && !(this.zombies && this.punch())) { this.vy = JUMP_SPEED; this.sfx.jump(); } }
@@ -1768,7 +1765,7 @@ export class World {
     if (this.hangout) this.endHangout();
     this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rivals[0].name, mates: mates.map((b) => b.name).join(', '), rivals: rivals.map((b) => b.name).join(', '), started: this.elapsed, lastKick: null };
     this.resetKickoff();
-    this.ev.onMode({ icon: '⚽', label: 'Kick' });
+    this.ev.onMode({ icon: '⚽', label: 'Kick', run: true });
     this.yaw = -Math.PI / 2;   // look down the pitch toward the goal you attack (+x)
     this.clearQuest();
     this.questCooldown = 8;
@@ -1944,6 +1941,30 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   // ---------- cricket ----------
   kick() { this.wantKick = true; }
   batMove(dir: number) { this.batDir = Math.sign(dir); }
+  /** Table games: power and striker position come straight from the sliders (or W/S, Q/E). */
+  setPower(v: number) { v = Math.max(0.05, Math.min(1, v)); if (this.pool) this.pool.power = v; if (this.carrom) this.carrom.power = v; }
+  setPos(v: number) { const g = this.carrom?.game; if (!g || g.turn !== 'you' || g.moving) return; g.striker.x = CARROM.MIN_X + Math.max(0, Math.min(1, v)) * (CARROM.MAX_X - CARROM.MIN_X); }
+  /** The Exit button / Escape: walk away from whatever game is on. */
+  exitMode() {
+    if (this.pool) { this.endPool(); this.ev.onCollect({ name: 'You left the table', points: 0, color: 0x999999, shape: 'box' }); }
+    else if (this.carrom) { this.endCarrom(); this.ev.onCollect({ name: 'You left the board', points: 0, color: 0x999999, shape: 'box' }); }
+    else if (this.cricket) { this.endCricket(); this.ev.onCollect({ name: 'Match abandoned', points: 0, color: 0x999999, shape: 'box' }); }
+    else if (this.match) { this.endFootball(); this.ev.onCollect({ name: 'Match abandoned', points: 0, color: 0x999999, shape: 'box' }); }
+    else if (this.race) { this.endRace(); this.ev.onCollect({ name: 'Race abandoned', points: 0, color: 0x999999, shape: 'box' }); }
+    else if (this.zombies && !this.zombies.ending) this.endZombies(false);
+  }
+  /** Touched by a moving bus: sent flying, −20. The bus does not even slow down. */
+  private busHit(hit: { pos: THREE.Vector3; heading: number }, t: number) {
+    if (t - this.lastHit <= 2.5) return;
+    const p = this.player.group.position;
+    this.lastHit = t;
+    const fx = Math.sin(hit.heading), fz = Math.cos(hit.heading), side = Math.sign((p.x - hit.pos.x) * fz - (p.z - hit.pos.z) * fx) || 1;
+    this.knock = new THREE.Vector3(fx * 9 + fz * side * 5, 0, fz * 9 - fx * side * 5);
+    this.vy = 6.5; this.airY = 0.01;
+    this.points = Math.max(0, this.points - 20); this.ev.onPoints(this.points);
+    this.sfx.thud(); this.sfx.ouch(); this.ev.onHurt();
+    this.ev.onCollect({ name: 'Hit by the bus! Look both ways', points: -20, color: 0xd94a3d, shape: 'box' });
+  }
   /** Bowling speed: slow / medium / fast (cycles). */
   cyclePace() { const c = this.cricket; if (!c || c.innings !== 2 || c.phase === 'flight' || c.phase === 'hit') return; c.pace = ((c.pace + 1) % 3) as 0 | 1 | 2; this.ev.onCollect({ name: ['🐢 Slow ball — more bounce, harder to time', '🎯 Medium pace', '⚡ Fast — beats the bat, but loose ones fly'][c.pace], points: 0, color: 0x3fb7d9, shape: 'gem' }); }
 
@@ -2222,7 +2243,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.clearQuest();
     this.questCooldown = 30;
     this.sfx.siren();
-    this.ev.onMode({ icon: '🥊', label: 'Punch' });
+    this.ev.onMode({ icon: '🥊', label: 'Punch', run: true });
     this.ev.onCollect({ name: '🧟 Zombie night — they are coming for you', points: 0, color: 0x7a1f1f, shape: 'box' });
     document.getElementById('zombiebtn')?.classList.add('on');
   }
@@ -2560,7 +2581,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     // you at the near long side, they at the far one
     this.player.group.position.set(table.x, this.terrain.h(table.x, table.z), table.z + 1.9); this.player.group.rotation.y = Math.PI;
     opp.av.group.position.set(table.x, this.terrain.h(table.x, table.z), table.z - 1.9); opp.av.group.rotation.y = 0;
-    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 0.95; this.dist = 4.2; this.camDist = 4.2;
+    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.1; this.dist = 5; this.camDist = 5;   // high over your shoulder: the whole table in view
     const meshes: THREE.Mesh[] = [];
     const game = createPool(opp.name, {
       status: (text) => { if (this.pool) this.pool.status = text; },
@@ -2578,10 +2599,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     }
     const cueStick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 1.45, 8), new THREE.MeshStandardMaterial({ color: 0xc9a86a, roughness: 0.6 })); cueStick.geometry.translate(0, 0.72, 0); cueStick.rotation.x = Math.PI / 2; this.scene.add(cueStick);
     const aimLine = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.004, 1.2), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, transparent: true, opacity: 0.7 })); aimLine.geometry.translate(0, 0, 0.6); this.scene.add(aimLine);
-    this.pool = { game, table, opp, meshes, cueStick, aimLine, aim: 0, power: 0, charging: false, status: 'Your shot', over: false, endAt: 0, botAim: null, lastHud: 0 };
+    this.pool = { game, table, opp, meshes, cueStick, aimLine, aim: 0, power: 0.6, charging: false, status: 'Your shot', over: false, endAt: 0, botAim: null, lastHud: 0 };
     this.clearQuest(); this.questCooldown = 30;
-    this.ev.onMode({ icon: '🎱', label: 'Shoot', arrows: true });
-    this.ev.onCollect({ name: `8-ball vs ${opp.name} · ◀ ▶ aim, Shoot to set power, Shoot again to strike`, points: 0, color: 0xff4fd8, shape: 'gem' });
+    this.ev.onMode({ icon: '🎱', label: 'Shoot', arrows: true, table: 'pool' });
+    this.ev.onTable(0.6, null);
+    this.ev.onCollect({ name: `8-ball vs ${opp.name} · ◀ ▶ aim, set the power, Shoot`, points: 0, color: 0xff4fd8, shape: 'gem' });
     this.botSays(opp, 'Your break. Do not scratch 😏', 1.2);
     this.sfx.questStart();
   }
@@ -2591,8 +2613,6 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const g = ps.game;
     if (g.turn !== 'you' || g.moving) return;
     if (g.ballInHand) { g.autoPlaceCue(); return; }
-    if (!ps.charging) { ps.charging = true; ps.power = 0; return; }
-    ps.charging = false;
     g.shoot(ps.aim, 6 + ps.power * 18);
     this.sfx.click();
   }
@@ -2604,7 +2624,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     // aim with ◀ ▶ (or A/D); power meter bounces while charging
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
     if (g.turn === 'you' && !g.moving) ps.aim += held * dt * (this.keys.has('shift') ? 0.35 : 1.1);
-    if (ps.charging) ps.power = (Math.sin(t * 3.2) + 1) / 2;
+    const pw = (this.keys.has('w') || this.keys.has('arrowup') ? 1 : 0) - (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0);
+    if (pw) { this.setPower(ps.power + pw * dt * 0.6); this.ev.onTable(ps.power, null); }
     // balls
     const v = new THREE.Vector3();
     for (const b of g.balls) { const m = ps.meshes[b.n]; if (!m) continue; m.visible = !b.in; if (!b.in) { this.tablePos(tb, b.x, b.y, v); m.position.copy(v); m.rotation.x += b.vy * POOL_SCALE * 0.5; m.rotation.z -= b.vx * POOL_SCALE * 0.5; } }
@@ -2616,7 +2637,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     ps.aimLine.visible = showAim; ps.cueStick.visible = showAim;
     if (showAim) {
       ps.aimLine.position.copy(cueW); ps.aimLine.rotation.set(0, -worldAng + Math.PI / 2, 0);
-      const back = 0.06 + (ps.charging ? ps.power * 0.25 : 0.04);
+      const back = 0.06 + ps.power * 0.25;
       ps.cueStick.position.set(cueW.x - dx * back, cueW.y, cueW.z - dz * back);
       ps.cueStick.rotation.set(0, -worldAng - Math.PI / 2, 0); ps.cueStick.rotateX(Math.PI / 2);   // stick points along -aim, lying flat
     }
@@ -2626,7 +2647,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (t - ps.lastHud > 0.15) {
       ps.lastHud = t;
       const you = g.groups.you ? `${g.groupName('you')} · ${g.remaining('you')} left` : 'open table', them = g.groups.you ? `${g.groupName('bot')} · ${g.remaining('bot')} left` : 'open table';
-      this.ev.onQuest({ status: ps.over ? (ps.status.startsWith('You sank the 8-ball to win') || (ps.status.includes(ps.opp.name) && ps.status.includes('too early')) ? 'done' : 'failed') : 'active', title: `🎱 You (${you}) vs ${ps.opp.name} (${them})`, desc: ps.over ? ps.status : g.turn === 'you' ? (ps.charging ? 'Shoot again to strike at this power' : g.moving ? 'Balls rolling…' : `${this.mobile ? '◀ ▶' : '◀ ▶ / A D'} to aim (Shift = fine) · Shoot to start the power meter`) : ps.status, progress: ps.charging ? `Power ${Math.round(ps.power * 100)}%` : g.turn === 'you' ? 'Your shot' : `${ps.opp.name}'s shot`, remaining: 1, total: 1, reward: 250, hint: null, fill: ps.charging ? ps.power : g.turn === 'you' ? 1 : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
+      this.ev.onQuest({ status: ps.over ? (ps.status.startsWith('You sank the 8-ball to win') || (ps.status.includes(ps.opp.name) && ps.status.includes('too early')) ? 'done' : 'failed') : 'active', title: `🎱 You (${you}) vs ${ps.opp.name} (${them})`, desc: ps.over ? ps.status : g.turn === 'you' ? (g.moving ? 'Balls rolling…' : g.ballInHand ? 'Ball in hand · Shoot places the cue ball' : `${this.mobile ? '◀ ▶' : '◀ ▶ / A D'} to aim${this.mobile ? '' : ' (Shift = fine) · W S power'} · Shoot to strike`) : ps.status, progress: g.turn === 'you' ? `Power ${Math.round(ps.power * 100)}%` : `${ps.opp.name}'s shot`, remaining: 1, total: 1, reward: 250, hint: null, fill: g.turn === 'you' ? ps.power : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
     }
   }
 
@@ -2664,11 +2685,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const y = this.terrain.h(board.x, board.z);
     this.player.group.position.set(board.x, y, board.z + 1.15); this.player.group.rotation.y = Math.PI; poseSit(this.player);
     opp.av.group.position.set(board.x, y, board.z - 1.15); opp.av.group.rotation.y = 0; poseSit(opp.av);
-    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.05; this.dist = 2.4; this.camDist = 2.4;
+    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.15; this.dist = 3; this.camDist = 3;
     const coins: THREE.Mesh[] = [];
     const game = createCarrom(opp.name, {
       status: (text) => { if (this.carrom) this.carrom.status = text; },
-      turn: (who) => { if (this.carrom && who === 'you') this.carrom.phase = 'slide'; },
+      turn: (who) => { const cs = this.carrom; if (cs && who === 'you') { cs.aim = -Math.PI / 2; this.ev.onTable(cs.power, (cs.game.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X)); } },
       finish: (win, why) => { const cs = this.carrom; if (!cs) return; cs.over = true; cs.endAt = this.elapsed + 5; cs.status = why; this.gameResult('carrom', win, opp.name); },
       potted: () => this.sfx.click(),
       botAim: () => { if (this.carrom) this.carrom.botAim = { until: this.elapsed + 0.6 }; if (Math.random() < 0.3) this.botSays(opp, POOL_TALK[Math.floor(Math.random() * POOL_TALK.length)], 0); },
@@ -2677,10 +2698,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     game.coins.forEach((k, i) => { coins[i] = disc(CARROM.R * CARROM_SCALE, k.kind === 'w' ? 0xfdf5e0 : k.kind === 'b' ? 0x2a2a2a : 0xe04a3a); });
     const strikerMesh = disc(CARROM.RS * CARROM_SCALE, 0x5fd0ee);
     const aimLine = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.003, 0.5), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x111111, transparent: true, opacity: 0.8 })); aimLine.geometry.translate(0, 0, 0.25); this.scene.add(aimLine);
-    this.carrom = { game, board, opp, coins, strikerMesh, aimLine, phase: 'slide', aim: -Math.PI / 2, power: 0, over: false, endAt: 0, status: 'Your turn.', botAim: null, lastHud: 0 };
+    this.carrom = { game, board, opp, coins, strikerMesh, aimLine, phase: 'aim', aim: -Math.PI / 2, power: 0.6, over: false, endAt: 0, status: 'Your turn.', botAim: null, lastHud: 0 };
     this.clearQuest(); this.questCooldown = 30;
-    this.ev.onMode({ icon: '🎯', label: 'Flick', arrows: true });
-    this.ev.onCollect({ name: `Carrom vs ${opp.name} · ◀ ▶ slide the striker, Flick, ◀ ▶ aim, Flick, Flick again at the right power`, points: 0, color: 0xf2c31b, shape: 'gem' });
+    this.ev.onMode({ icon: '🎯', label: 'Flick', arrows: true, table: 'carrom' });
+    this.ev.onTable(0.6, (game.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X));
+    this.ev.onCollect({ name: `Carrom vs ${opp.name} · slide the striker, ◀ ▶ aim, set the power, Flick`, points: 0, color: 0xf2c31b, shape: 'gem' });
     this.botSays(opp, 'White is yours. Queen is mine 😉', 1.2);
     this.sfx.questStart();
   }
@@ -2689,10 +2711,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const cs = this.carrom!; if (cs.over) return;
     const g = cs.game;
     if (g.turn !== 'you' || g.moving) return;
-    if (cs.phase === 'slide') { cs.phase = 'aim'; cs.aim = Math.atan2(CARROM.W / 2 - g.striker.y, CARROM.W / 2 - g.striker.x); return; }
-    if (cs.phase === 'aim') { cs.phase = 'power'; cs.power = 0; return; }
     g.shoot(cs.aim, 6 + cs.power * 18);
-    cs.phase = 'slide';
     this.sfx.click();
   }
 
@@ -2702,23 +2721,25 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     g.step();
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
     if (g.turn === 'you' && !g.moving) {
-      if (cs.phase === 'slide') g.striker.x = Math.max(CARROM.MIN_X, Math.min(CARROM.MAX_X, g.striker.x + held * dt * 180));
-      else if (cs.phase === 'aim') cs.aim += held * dt * (this.keys.has('shift') ? 0.3 : 0.9);
-      else cs.power = (Math.sin(t * 3.2) + 1) / 2;
+      cs.aim += held * dt * (this.keys.has('shift') ? 0.3 : 0.9);
+      const slide = (this.keys.has('e') ? 1 : 0) - (this.keys.has('q') ? 1 : 0), pw = (this.keys.has('w') || this.keys.has('arrowup') ? 1 : 0) - (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0);
+      if (slide) g.striker.x = Math.max(CARROM.MIN_X, Math.min(CARROM.MAX_X, g.striker.x + slide * dt * 180));
+      if (pw) this.setPower(cs.power + pw * dt * 0.6);
+      if (slide || pw) this.ev.onTable(cs.power, (g.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X));
     }
     const v = new THREE.Vector3();
     g.coins.forEach((k, i) => { const m = cs.coins[i]; m.visible = !k.in; if (!k.in) m.position.copy(this.boardPos(b, k.x, k.y, v)); });
     cs.strikerMesh.visible = !g.striker.in; if (!g.striker.in) cs.strikerMesh.position.copy(this.boardPos(b, g.striker.x, g.striker.y, v));
-    const showAim = !g.moving && !cs.over && ((g.turn === 'you' && cs.phase !== 'slide') || !!(cs.botAim && t < cs.botAim.until));
+    const showAim = !g.moving && !cs.over && (g.turn === 'you' || !!(cs.botAim && t < cs.botAim.until));
     cs.aimLine.visible = showAim;
-    if (showAim) { const ang = g.turn === 'you' ? cs.aim : (g.botDecide()?.angle ?? 0); cs.aimLine.position.copy(cs.strikerMesh.position); cs.aimLine.rotation.set(0, -ang + Math.PI / 2, 0); cs.aimLine.scale.z = cs.phase === 'power' ? 0.6 + cs.power * 1.2 : 1; }
+    if (showAim) { const ang = g.turn === 'you' ? cs.aim : (g.botDecide()?.angle ?? 0); cs.aimLine.position.copy(cs.strikerMesh.position); cs.aimLine.rotation.set(0, -ang + Math.PI / 2, 0); cs.aimLine.scale.z = g.turn === 'you' ? 0.5 + cs.power * 1.3 : 1; }
     // the rival leans in on their turn
     cs.opp.av.armR.rotation.x = g.turn === 'bot' && !g.moving ? -1.6 : -1.1; cs.opp.av.body.rotation.x = g.turn === 'bot' && !g.moving ? 0.45 : 0.15;
     if (t - cs.lastHud > 0.15) {
       cs.lastHud = t;
       const you = `${g.potted.you} / 9 white${g.queen === 'you' ? ' + queen' : ''}`, them = `${g.potted.bot} / 9 black${g.queen === 'bot' ? ' + queen' : ''}`;
-      const step = cs.phase === 'slide' ? '◀ ▶ slide the striker · Flick to aim' : cs.phase === 'aim' ? '◀ ▶ aim (Shift = fine) · Flick to set power' : 'Flick again at the right power';
-      this.ev.onQuest({ status: cs.over ? (cs.status.startsWith('All nine') ? 'done' : 'failed') : 'active', title: `🎯 You ${you} · ${cs.opp.name} ${them}`, desc: cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : step) : cs.status, progress: cs.phase === 'power' && g.turn === 'you' ? `Power ${Math.round(cs.power * 100)}%` : g.turn === 'you' ? 'Your turn' : `${cs.opp.name}'s turn`, remaining: 1, total: 1, reward: 200, hint: null, fill: cs.phase === 'power' && g.turn === 'you' ? cs.power : g.turn === 'you' ? 1 : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
+      const step = this.mobile ? 'Striker slider · ◀ ▶ aim · Power slider · Flick' : 'Q E striker · ◀ ▶ / A D aim (Shift = fine) · W S power · Flick';
+      this.ev.onQuest({ status: cs.over ? (cs.status.startsWith('All nine') ? 'done' : 'failed') : 'active', title: `🎯 You ${you} · ${cs.opp.name} ${them}`, desc: cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : step) : cs.status, progress: g.turn === 'you' ? `Power ${Math.round(cs.power * 100)}%` : `${cs.opp.name}'s turn`, remaining: 1, total: 1, reward: 200, hint: null, fill: g.turn === 'you' ? cs.power : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
     }
   }
 

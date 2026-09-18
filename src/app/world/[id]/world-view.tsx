@@ -58,6 +58,9 @@ export function WorldView({ id }: { id: string }) {
       interact: (a) => world?.interact(a),
       say: (text) => world?.say(text),
       answerRequest: (id, yes) => world?.answerRequest(id, yes),
+      setPower: (v) => world?.setPower(v),
+      setPos: (v) => world?.setPos(v),
+      exitMode: () => world?.exitMode(),
     });
 
     loading.then(async (mod) => {
@@ -84,6 +87,7 @@ export function WorldView({ id }: { id: string }) {
           onHearts: () => hud.hearts(),
           onPick: (p, choose) => hud.pick(p, choose),
           onMode: (a) => hud.mode(a),
+          onTable: (p, pos) => hud.table(p, pos),
           onMeet: (m) => hud.meet(m),
           onChat: (from, text, mine) => hud.chat(from, text, mine),
           onFriendRequest: (req) => hud.friendRequest(req),

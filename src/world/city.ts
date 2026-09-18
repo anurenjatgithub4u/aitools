@@ -109,20 +109,20 @@ export function buildCity(g: THREE.Group, h: H) {
   place('Downtown Plaza', 0, 9, 0);
   keep(0, 0, 34); keep(0, -32, 10);
 
-  // café row south of the plaza
-  const cafes: [string, number, number][] = [['Bean There Café', -30, 0xd94a3d], ['Chai Corner', -15, 0xf27d3a], ['Waffle Wonders', 0, 0xf2c31b], ['Gelato Bar', 15, 0x3fb7d9], ['Pizza Point', 30, 0x2fa66a]];
+  // café row south of the plaza: the cafés face the z = 60 road across their terraces (and clear the x = 15 road)
+  const cafes: [string, number, number][] = [['Bean There Café', -46, 0xd94a3d], ['Chai Corner', -31, 0xf27d3a], ['Waffle Wonders', -16, 0xf2c31b], ['Gelato Bar', -1, 0x3fb7d9], ['Pizza Point', 25, 0x2fa66a]];
   for (const [name, x, c] of cafes) {
-    const z = 64, y = h(x, z);
+    const z = 72, y = h(x, z);
     g.add(at(box(12, 6, 10, 0xf4ede0), x, y + 3, z));
     g.add(at(box(12.4, 0.5, 10.4, c), x, y + 6.2, z));
     g.add(at(box(10, 2.4, 0.1, glass), x, y + 3, z - 5.05));
     g.add(rot(at(box(11, 0.12, 3.5, c), x, y + 4.4, z - 6.6), 'x', 0.25));                   // awning
-    for (const dx of [-3.5, 0, 3.5]) { g.add(at(cyl(0.9, 0.9, 0.1, 0xffffff, 10), x + dx, y + 0.9, z - 9)); g.add(at(cyl(0.08, 0.08, 0.9, 0x555555, 6), x + dx, y + 0.45, z - 9)); umbrella(g, x + dx, y, z - 9, c); }
+    for (const dx of [-3.5, 0, 3.5]) { g.add(at(cyl(0.9, 0.9, 0.1, 0xffffff, 10), x + dx, y + 0.9, z - 7.5)); g.add(at(cyl(0.08, 0.08, 0.9, 0x555555, 6), x + dx, y + 0.45, z - 7.5)); umbrella(g, x + dx, y, z - 7.5, c); }
     shop(name, x, 8.2, z);
-    keep(x, z, 9); keep(x, z - 9, 5);
+    keep(x, z, 9); keep(x, z - 7.5, 5);
   }
-  place('Café Row', 0, 12, 64);
-  { const x = -15, z = 55, y = h(x, z);   // the Chai Corner table becomes a coffee-date table: two chairs and two cups
+  place('Café Row', -10, 12, 72);
+  { const x = -31, z = 64.5, y = h(x, z);   // the Chai Corner table becomes a coffee-date table: two chairs and two cups
     for (const dx of [-0.9, 0.9]) { g.add(at(cyl(0.3, 0.3, 0.06, 0x8a6a4a, 10), x + dx, y + 0.48, z)); for (const [ax, az] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) g.add(at(cyl(0.025, 0.025, 0.48, 0x555555, 5), x + dx + ax, y + 0.24, z + az)); g.add(at(box(0.5, 0.5, 0.05, 0x8a6a4a), x + dx + (dx < 0 ? -0.28 : 0.28), y + 0.75, z)); }
     for (const dx of [-0.25, 0.25]) { g.add(at(cyl(0.07, 0.06, 0.1, 0xffffff, 8), x + dx, y + 1.0, z)); g.add(at(cyl(0.05, 0.05, 0.02, 0x5a3a2a, 8), x + dx, y + 1.06, z)); }
     g.userData.coffee = { x, z, y }; }
@@ -148,7 +148,7 @@ export function buildCity(g: THREE.Group, h: H) {
   // ================= NEON LANE — bars, pubs, club (z = -78) =================
   const bars: [string, number, number, 'pub' | 'bar' | 'club' | 'karaoke' | 'roof'][] = [
     ['The Tipsy Turtle Pub', -112, 0x8a5a2b, 'pub'], ['Whiskey & Wings', -90, 0xb0308a, 'bar'], ['Bass Drop Club', -66, 0x1a1a3a, 'club'],
-    ['Karaoke Kingdom', -42, 0x6a3fb0, 'karaoke'], ['Skyline Rooftop Bar', -18, 0x2c3e6b, 'roof'], ['Mojito Shack', 6, 0x2fa66a, 'bar'],
+    ['Karaoke Kingdom', -42, 0x6a3fb0, 'karaoke'], ['Skyline Rooftop Bar', -18, 0x2c3e6b, 'roof'], ['Mojito Shack', 2, 0x2fa66a, 'bar'],   // the shack stops short of the x = 15 road
   ];
   for (const [name, x, c, kind] of bars) {
     const z = -78, y = h(x, z), tall = kind === 'roof' ? 16 : kind === 'club' ? 11 : 8;

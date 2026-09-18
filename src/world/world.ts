@@ -2007,7 +2007,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private setCreases() {
     const c = this.cricket!, o = this.oval!, y = this.terrain.h(o.x, o.z);
     const batter = c.innings === 1 ? this.player : c.opp.av, bowler = c.innings === 1 ? c.opp.av : this.player;
-    batter.group.position.set(o.x - 10 + 1.0, y, o.z + 0.15); batter.group.rotation.y = Math.PI / 2;   // bat arc sits on the line of a straight ball
+    batter.group.position.set(o.x - 10 + 1.0, y, o.z - 0.15); batter.group.rotation.y = Math.PI / 2;   // bat arc sits on the line of a straight ball
     bowler.group.position.set(o.x + 26, this.terrain.h(o.x + 26, o.z), o.z - 1.2); bowler.group.rotation.y = -Math.PI / 2;
     c.bat.removeFromParent(); batter.armR.add(c.bat);
     this.airY = 0; this.vy = 0; this.yaw = c.innings === 1 ? -Math.PI / 2 : Math.PI / 2;
@@ -2025,7 +2025,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (c.phase !== 'flight' || c.hit) { if (c.phase === 'ready' || c.phase === 'runup') c.swingAt = this.elapsed; return true; }
     const o = this.oval!, dx = c.ball.position.x - (o.x - 10);   // distance still to travel to the bat
     const reach = Math.abs(c.ball.position.z - (this.player.group.position.z - 0.55));   // how far the ball is from the bat's arc
-    const q = Math.max(0, 1 - Math.abs(dx - 1.1) / 1.4) * (reach < 0.7 ? 1 : reach < 1.4 ? 0.55 : 0.08);   // 1 = perfect, out of reach = a waft
+    const q = Math.max(0, 1 - Math.abs(dx - 1.1) / 2.0) * (reach < 0.9 ? 1 : reach < 1.6 ? 0.6 : 0.1);   // 1 = perfect; a generous window, out of reach = a waft
     this.strike(q, dx > 1.1);
     return true;
   }
@@ -2034,8 +2034,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private strike(q: number, early: boolean) {
     const c = this.cricket!, o = this.oval!, ball = c.ball.position;
     c.swingAt = this.elapsed; c.hit = true;
-    if (q < 0.12) { c.note = q < 0.05 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.05) this.wicket(); else c.hit = false; return; }
-    const power = 14 + q * 20 + Math.random() * 3, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.7 ? 0.42 : 0.18;
+    if (q < 0.1) { c.note = q < 0.04 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.04 && (c.innings === 2 || Math.random() < 0.5)) this.wicket(); else { c.hit = false; c.note = 'Missed it…'; } return; }
+    const power = (c.innings === 1 ? 17 : 14) + q * 20 + Math.random() * 3, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.6 ? 0.42 : 0.2;   // your bat has a little more in it
     const side = early ? 1 : -1, ang = (1 - q) * 0.9 * side + (Math.random() - 0.5) * 0.3;   // early pulls to leg, late squirts to off
     c.vel.set(Math.cos(ang) * Math.cos(lift) * power, Math.sin(lift) * power, Math.sin(ang) * Math.cos(lift) * power);
     ball.set(o.x - 10 + 0.6, this.terrain.h(ball.x, ball.z) + 0.8, (c.innings === 1 ? this.player.group.position.z - 0.55 : o.z + 0.3));
@@ -2066,7 +2066,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     else if (c.phase === 'ready' || c.phase === 'runup') c.aim = Math.max(-1, Math.min(1, c.aim + held * 1.6 * dt));            // pick a line before you let go
     if (c.phase === 'ready' && t > c.t0) {
       c.phase = 'runup'; c.t0 = t; c.hit = false; c.released = -1; c.decided = false;
-      c.line = Math.random() < 0.6 ? (Math.random() - 0.5) * 0.5 : (Math.random() - 0.5) * 2.2; c.flightT = 0.8 + Math.random() * 0.35;
+      c.line = Math.random() < 0.65 ? (Math.random() - 0.5) * 0.5 : (Math.random() - 0.5) * 2.0; c.flightT = 0.95 + Math.random() * 0.3;   // their bowling: mostly straight, a touch slower so you can read it
       if (c.stumps) c.stumps.rotation.z = 0;
     }
     if (c.phase === 'runup') {

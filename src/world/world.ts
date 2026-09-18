@@ -689,6 +689,16 @@ export class World {
     return new THREE.Vector3(0, this.terrain.h(0, 0), 0);
   }
 
+  /** Somewhere to wander to from where a bot stands: nearby, on land, reachable — Eastside bots stay on Eastside. */
+  private wanderFrom(p: THREE.Vector3): THREE.Vector3 {
+    for (let i = 0; i < 30; i++) {
+      const a = Math.random() * Math.PI * 2, r = rand(6, 45);
+      const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r;
+      if (Math.hypot(x, z) < WORLD_RADIUS - 10 && this.terrain.onLand(x, z) && this.walkable(x, z) && this.terrain.inLand(x, z) === this.terrain.inLand(p.x, p.z)) return new THREE.Vector3(x, this.terrain.h(x, z), z);
+    }
+    return this.randomLandPoint(8, 120);
+  }
+
   /** Where the petrol station goes: beside the first road (on the side away from the landmark), else near spawn. */
   private pumpSpot(): { x: number; z: number; heading: number } {
     if (this.dest.pump) { const [x, z, heading] = this.dest.pump; return { x, z, heading }; }
@@ -1039,7 +1049,7 @@ export class World {
       b.av.group.rotation.set(0, v.heading, 0);
       b.av.armL.rotation.x = b.av.armR.rotation.x = 0;
       b.av.legL.rotation.z = b.av.legR.rotation.z = 0;
-      b.riding = null; b.wait = 2; b.target = this.randomLandPoint(8, 120);
+      b.riding = null; b.wait = 2; b.target = this.wanderFrom(b.av.group.position);
       this.questDropped(b, v);
       this.points += 30;
       this.ev.onCollect({ name: `Lift for ${b.name}`, points: 30, color: 0xe8c46a, shape: 'gem' });
@@ -1097,7 +1107,7 @@ export class World {
         // get back up and walk it off
         g.rotation.x = 0;
         b.av.armL.rotation.x = b.av.armR.rotation.x = 0;
-        b.knocked = null; b.wait = 0.5; b.target = this.randomLandPoint(8, 120);
+        b.knocked = null; b.wait = 0.5; b.target = this.wanderFrom(b.av.group.position);
         b.label.element.textContent = b.label.userData.orig as string;
       } else if (k.down > 2.4) g.rotation.x = -Math.PI / 2 * (1 - (k.down - 2.4) / 0.6);
     }
@@ -1409,22 +1419,23 @@ export class World {
         b.av.armR.rotation.x = -2.6 + Math.sin(t * 8) * 0.3;   // wave
         if (t >= b.reply.at) this.answerFriend(b);
       }
-      if (b.knocked) { this.updateKnocked(b, dt); b.label.visible = !this.inMode() && bp.distanceToSquared(focus) < this.labelRange * this.labelRange; continue; }
+      if (b.knocked) { this.updateKnocked(b, dt); b.label.visible = !this.inMode() && bp.distanceToSquared(focus) < 121; continue; }
       if (b.wait > 0) { b.wait -= dt; b.walking = Math.max(0, b.walking - dt * 3); }
       else {
         const dx = b.target.x - bp.x, dz = b.target.z - bp.z;
         const d = Math.hypot(dx, dz);
-        if (d < 0.6) { b.wait = rand(1, 4); b.target = this.randomLandPoint(8, 120); }
+        if (d < 0.6) { b.wait = rand(1, 4); b.target = this.wanderFrom(bp); }
         else {
           const nx = bp.x + (dx / d) * b.speed * dt, nz = bp.z + (dz / d) * b.speed * dt;
-          if (this.walkable(nx, nz, bp.y)) { bp.x = nx; bp.z = nz; } else b.target = this.randomLandPoint(8, 120);
+          if (this.walkable(nx, nz, bp.y)) { bp.x = nx; bp.z = nz; } else { b.target = this.wanderFrom(bp); b.wait = rand(0.5, 1.5); }
           b.av.group.rotation.y += wrapAngle(Math.atan2(dx, dz) - b.av.group.rotation.y) * Math.min(1, dt * 6);
           b.walking = Math.min(1, b.walking + dt * 3);
         }
       }
       bp.y = this.groundAt(bp.x, bp.z, bp.y);
       animateWalk(b.av, t * (b.speed / 3), b.walking * 0.8);
-      b.label.visible = !this.inMode() && bp.distanceToSquared(focus) < this.labelRange * this.labelRange;
+      const tagRange = b.friend || this.hangout?.bot === b || this.meet === b ? this.labelRange * 0.5 : this.driving ? 0 : 11;   // tags only up close, friends from further, none while driving
+      b.label.visible = !this.inMode() && bp.distanceToSquared(focus) < tagRange * tagRange;
     }
 
     // --- pickups
@@ -1925,7 +1936,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.match = null;
     this.ev.onMode(null);
     this.scene.remove(m.ball);
-    for (const f of m.side) { f.bib.removeFromParent(); if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.randomLandPoint(8, 120); f.bot.speed = rand(1.8, 3.4); } }
+    for (const f of m.side) { f.bib.removeFromParent(); if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.wanderFrom(f.bot.av.group.position); f.bot.speed = rand(1.8, 3.4); } }
     this.ev.onQuest(null);
     this.questCooldown = 10;
   }
@@ -2045,7 +2056,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const c = this.cricket!, o = this.oval!, ball = c.ball.position;
     c.swingAt = this.elapsed; c.hit = true;
     if (q < 0.1) { c.note = q < 0.04 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.04 && (c.innings === 2 || Math.random() < 0.5)) this.wicket(); else { c.hit = false; c.note = 'Missed it…'; } return; }
-    const power = (c.innings === 1 ? 17 : 14) + q * 20 + Math.random() * 3, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.6 ? 0.42 : 0.2;   // your bat has a little more in it
+    const power = c.innings === 1 ? 17 + q * 20 + Math.random() * 3 : 9 + q * 13 + Math.random() * 2, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.6 ? 0.42 : 0.2;   // your bat has more in it than theirs
     const side = early ? 1 : -1, ang = (1 - q) * 0.9 * side + (Math.random() - 0.5) * 0.3;   // early pulls to leg, late squirts to off
     c.vel.set(Math.cos(ang) * Math.cos(lift) * power, Math.sin(lift) * power, Math.sin(ang) * Math.cos(lift) * power);
     ball.set(o.x - 10 + 0.6, this.terrain.h(ball.x, ball.z) + 0.8, (c.innings === 1 ? this.player.group.position.z - 0.55 : o.z + 0.3));
@@ -2196,7 +2207,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.scene.remove(c.ball); c.bat.removeFromParent();
     if (c.stumps) c.stumps.rotation.z = 0;
     for (const av of [this.player, c.opp.av]) { av.armR.rotation.z = 0; av.armL.rotation.z = 0; av.body.rotation.set(0, 0, 0); av.body.position.y = 0.85; av.legL.rotation.z = 0; av.legR.rotation.z = 0; av.legL.rotation.x = 0; av.legR.rotation.x = 0; }
-    for (const b of [c.opp, ...c.fielders.map((f) => f.bot)]) { b.playing = false; b.av.armR.rotation.z = 0; b.av.armL.rotation.z = 0; b.wait = rand(1, 3); b.target = this.randomLandPoint(8, 120); b.speed = rand(1.8, 3.4); }
+    for (const b of [c.opp, ...c.fielders.map((f) => f.bot)]) { b.playing = false; b.av.armR.rotation.z = 0; b.av.armL.rotation.z = 0; b.wait = rand(1, 3); b.target = this.wanderFrom(b.av.group.position); b.speed = rand(1.8, 3.4); }
     this.ev.onMode(null);
     this.ev.onQuest(null);
     this.questCooldown = 10;
@@ -2522,7 +2533,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const dn = this.dancing; if (!dn) return;
     this.dancing = null;
     this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0); this.player.body.position.y = 0.85;
-    if (dn.partner) { dn.partner.playing = false; dn.partner.wait = 1; dn.partner.av.body.rotation.set(0, 0, 0); dn.partner.av.armL.rotation.set(0, 0, 0); dn.partner.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== dn.partner) dn.partner.target = this.randomLandPoint(8, 120); }
+    if (dn.partner) { dn.partner.playing = false; dn.partner.wait = 1; dn.partner.av.body.rotation.set(0, 0, 0); dn.partner.av.armL.rotation.set(0, 0, 0); dn.partner.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== dn.partner) dn.partner.target = this.wanderFrom(dn.partner.av.group.position); }
     this.questCooldown = 10;
   }
 
@@ -2625,7 +2636,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     ps.game.dispose();
     for (const m of ps.meshes) if (m) this.scene.remove(m);
     this.scene.remove(ps.cueStick); this.scene.remove(ps.aimLine);
-    ps.opp.playing = false; ps.opp.wait = 2; ps.opp.av.body.rotation.set(0, 0, 0); ps.opp.av.armL.rotation.set(0, 0, 0); ps.opp.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== ps.opp) ps.opp.target = this.randomLandPoint(8, 120);
+    ps.opp.playing = false; ps.opp.wait = 2; ps.opp.av.body.rotation.set(0, 0, 0); ps.opp.av.armL.rotation.set(0, 0, 0); ps.opp.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== ps.opp) ps.opp.target = this.wanderFrom(ps.opp.av.group.position);
     this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0);
     this.pitch = 0.3; this.dist = 10; this.camDist = 10;
     this.ev.onMode(null); this.ev.onQuest(null);
@@ -2717,7 +2728,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     cs.game.dispose();
     for (const m of cs.coins) this.scene.remove(m);
     this.scene.remove(cs.strikerMesh); this.scene.remove(cs.aimLine);
-    cs.opp.playing = false; cs.opp.wait = 2; cs.opp.av.body.rotation.set(0, 0, 0); cs.opp.av.armL.rotation.set(0, 0, 0); cs.opp.av.armR.rotation.set(0, 0, 0); cs.opp.av.legL.rotation.x = cs.opp.av.legR.rotation.x = 0; if (this.hangout?.bot !== cs.opp) cs.opp.target = this.randomLandPoint(8, 120);
+    cs.opp.playing = false; cs.opp.wait = 2; cs.opp.av.body.rotation.set(0, 0, 0); cs.opp.av.armL.rotation.set(0, 0, 0); cs.opp.av.armR.rotation.set(0, 0, 0); cs.opp.av.legL.rotation.x = cs.opp.av.legR.rotation.x = 0; if (this.hangout?.bot !== cs.opp) cs.opp.target = this.wanderFrom(cs.opp.av.group.position);
     this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0); this.player.legL.rotation.x = this.player.legR.rotation.x = 0;
     const p = this.player.group.position; p.set(cs.board.x + 1.6, this.terrain.h(cs.board.x + 1.6, cs.board.z + 1.2), cs.board.z + 1.2);
     this.pitch = 0.3; this.dist = 10; this.camDist = 10;
@@ -2807,7 +2818,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const gx = sp.x - Math.sin(sp.ry) * 1.2 + 1.2, gz = sp.z - Math.cos(sp.ry) * 1.2;
     p.set(gx, this.groundAt(gx, gz, sp.y), gz); this.airY = 0; this.vy = 0;
     if (sp.kind === 'boat' && this.dateBoat) { this.dateBoat.position.set(406, 0.3, -152); this.dateBoat.rotation.set(0, 0, 0); }
-    if (d.partner) { d.partner.playing = false; d.partner.av.group.position.set(gx + 1.2, this.groundAt(gx + 1.2, gz, sp.y), gz); d.partner.wait = 1.5; if (this.hangout?.bot !== d.partner) d.partner.target = this.randomLandPoint(8, 120); this.botSays(d.partner, ['That was lovely.', 'Same time tomorrow?', 'I needed that.', 'Okay, where next?'][Math.floor(Math.random() * 4)], 0.5); }
+    if (d.partner) { d.partner.playing = false; d.partner.av.group.position.set(gx + 1.2, this.groundAt(gx + 1.2, gz, sp.y), gz); d.partner.wait = 1.5; if (this.hangout?.bot !== d.partner) d.partner.target = this.wanderFrom(d.partner.av.group.position); this.botSays(d.partner, ['That was lovely.', 'Same time tomorrow?', 'I needed that.', 'Okay, where next?'][Math.floor(Math.random() * 4)], 0.5); }
     this.player.armL.rotation.x = this.player.armR.rotation.x = 0;
     this.questCooldown = 10;
   }
@@ -2968,7 +2979,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     for (const m of r.guide) this.scene.remove(m);
     for (const c of r.cars) {
       if (c.you) continue;
-      if (c.bot) { c.car.group.remove(c.bot.av.group); this.scene.add(c.bot.av.group); const p = c.car.group.position; c.bot.av.group.position.set(p.x + 2, this.groundAt(p.x + 2, p.z, p.y), p.z); c.bot.av.group.rotation.set(0, c.car.heading, 0); c.bot.av.armL.rotation.x = c.bot.av.armR.rotation.x = 0; c.bot.riding = null; c.bot.wait = 2; c.bot.target = this.randomLandPoint(8, 120); }
+      if (c.bot) { c.car.group.remove(c.bot.av.group); this.scene.add(c.bot.av.group); const p = c.car.group.position; c.bot.av.group.position.set(p.x + 2, this.groundAt(p.x + 2, p.z, p.y), p.z); c.bot.av.group.rotation.set(0, c.car.heading, 0); c.bot.av.armL.rotation.x = c.bot.av.armR.rotation.x = 0; c.bot.riding = null; c.bot.wait = 2; c.bot.target = this.wanderFrom(c.bot.av.group.position); }
       this.scene.remove(c.car.group);
     }
     this.ev.onQuest(null);
@@ -3037,7 +3048,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const hg = this.hangout;
     if (!hg) return;
     this.hangout = null;
-    hg.bot.speed = rand(1.8, 3.4); hg.bot.wait = 1; hg.bot.target = this.randomLandPoint(8, 120);
+    hg.bot.speed = rand(1.8, 3.4); hg.bot.wait = 1; hg.bot.target = this.wanderFrom(hg.bot.av.group.position);
     this.points += 15; this.ev.onPoints(this.points);
     this.ev.onCollect({ name: `Hangout with ${hg.bot.name} · fun!`, points: 15, color: 0x3fb7d9, shape: 'gem' });
     this.botSays(hg.bot, 'That was fun, see you! 👋', 0);
@@ -3269,7 +3280,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       this.scene.remove(v.group);
       q.oppVehicle = null;
     }
-    opp.wait = 1; opp.target = this.randomLandPoint(8, 120);
+    opp.wait = 1; opp.target = this.wanderFrom(opp.av.group.position);
     q.opp = null;
   }
 

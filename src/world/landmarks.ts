@@ -796,7 +796,7 @@ export function buildLandmark(dest: Destination, terrain: Terrain): THREE.Group 
     case 'eiffel-tower': eiffel(g); break;
     case 'pyramids-of-giza': pyramids(g); break;
     case 'kochi': kochi(g, h); break;
-    case 'city': buildCity(g, h); break;
+    case 'city': buildCity(g, h, terrain); break;
     case 'bengaluru': bengaluru(g, h); break;
   }
   return g;

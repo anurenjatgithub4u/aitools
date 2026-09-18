@@ -551,16 +551,6 @@ export class World {
     this.scene.add(sun, sun.target);
     this.sun = sun;
 
-    // ground
-    const size = 1240, segs = 230;
-    const geo = new THREE.PlaneGeometry(size, size, segs, segs);
-    geo.rotateX(-Math.PI / 2);
-    const pos = geo.attributes.position as THREE.BufferAttribute;
-    for (let i = 0; i < pos.count; i++) pos.setY(i, this.terrain.h(pos.getX(i), pos.getZ(i)));
-    geo.computeVertexNormals();
-    const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: theme.ground, roughness: 1, flatShading: true }));
-    ground.receiveShadow = true;
-    this.scene.add(ground);
 
     const water = this.dest.terrain.water;
     if (water) {
@@ -573,7 +563,18 @@ export class World {
       this.scene.add(wm);
     }
 
-    const landmark = buildLandmark(this.dest, this.terrain);
+    const landmark = buildLandmark(this.dest, this.terrain);   // (also smooths the ground under roads and the track)
+
+    // ground — sampled after the landmark so the road strips are in the heightfield
+    const size = 1240, segs = 310;
+    const geo = new THREE.PlaneGeometry(size, size, segs, segs);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) pos.setY(i, this.terrain.h(pos.getX(i), pos.getZ(i)));
+    geo.computeVertexNormals();
+    const ground = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: theme.ground, roughness: 1, flatShading: true }));
+    ground.receiveShadow = true;
+    this.scene.add(ground);
     const [px0, pz0] = this.spawnPoint();
     const pump = this.pumpSpot();
     const avoid = [{ x: px0, z: pz0, r: 16 }, { x: pump.x, z: pump.z, r: 14 }, ...VEHICLE_OFFSETS.map(([ox, oz]) => ({ x: px0 + ox, z: pz0 + oz, r: 5 }))];

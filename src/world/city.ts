@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { Terrain } from './terrain';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 
 // FindurAI City — an imaginary hangout city. Downtown plaza + café row, Neon Lane (bars, pubs,
@@ -78,10 +79,45 @@ export interface Clear { x: number; z: number; r: number }
 
 export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship'; label: string; x: number; z: number; y: number; icon: string }
 
-export function buildCity(g: THREE.Group, h: H) {
+// Every road segment in the city (x0, z0, x1, z1). Declared up front so the ground can be smoothed under
+// all of them before a single building is placed; road() below draws them and checks it is on this list.
+const BRIDGE_Z = -85;
+export const CITY_ROADS: [number, number, number, number][] = [
+  [-125, -62, 70, -62],
+  [15, -100, 15, -215], [15, -140, -80, -140], [15, -125, 70, -125],
+  [-60, 60, -125, 60],
+  [15, 60, 165, 60], [165, 60, 165, -120], [165, 60, 165, 140],
+  [15, 86, 15, 150], [15, 150, 120, 100], [15, 150, 70, 160],
+  [-60, 60, -60, 135], [-60, 135, -160, 135],
+  [-60, 135, -60, 160],
+  [165, BRIDGE_Z, 168, BRIDGE_Z],
+  [340, BRIDGE_Z, 470, BRIDGE_Z], [470, BRIDGE_Z, 470, 100], [470, 100, 340, 100], [340, 100, 340, BRIDGE_Z], [470, 0, 494, 0],
+  [15, -100, 15, 86], [15, 60, -60, 60],
+];
+// The Speedway centre line (world space): the GP loop in the north, a long run south into the valley and back.
+export const CIRCUIT_CTRL: [number, number][] = [
+  [-125, 226], [-80, 226], [-35, 226], [-6, 222], [8, 204], [6, 184], [-8, 170],   // pit straight → Sunset sweeper
+  [-24, 178], [-35, 165], [-51, 158],                                              // Neon chicane
+  [-90, 158], [-116, 158], [-140, 170],                                            // back straight
+  [-156, 195], [-168, 240], [-176, 300], [-172, 355],                              // Valley straight (south)
+  [-152, 400], [-112, 422], [-66, 412], [-34, 380],                                // Big Bend
+  [-24, 335], [-38, 300],                                                          // Return run
+  [-64, 280], [-92, 268], [-116, 256],                                             // Esses
+  [-140, 248], [-148, 234],                                                        // Grandstand hairpin
+];
+export const TRACK_WIDTH = 14;
+
+export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
+  // smooth ground under every road and the whole circuit before anything is placed
+  if (terrain) {
+    for (const [x0, z0, x1, z1] of CITY_ROADS) terrain.addStrip([[x0, z0], [x1, z1]], 9, 7);
+    const curve = new THREE.CatmullRomCurve3(CIRCUIT_CTRL.map(([x, z]) => V(x, 0, z)), true, 'catmullrom', 0.6);
+    terrain.addStrip(curve.getPoints(240).slice(0, 240).map((p) => [p.x, p.z] as [number, number]), TRACK_WIDTH + 4, 10, true);
+  }
   const clear: Clear[] = [];
   const keep = (x: number, z: number, r: number) => clear.push({ x, z, r });
   const road = (x0: number, z0: number, x1: number, z1: number) => {
+    if (!CITY_ROADS.some(([a, b, c, d]) => a === x0 && b === z0 && c === x1 && d === z1)) console.warn(`road ${x0},${z0} → ${x1},${z1} is not in CITY_ROADS: the ground under it is not smoothed`);
     ((g.userData.roads ??= []) as [number, number][][]).push([[x0, z0], [x1, z1]]);
     const n = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 8);
     for (let i = 0; i < n; i++) {
@@ -89,8 +125,8 @@ export function buildCity(g: THREE.Group, h: H) {
       const a = V(x0 + (x1 - x0) * t0, 0, z0 + (z1 - z0) * t0), b = V(x0 + (x1 - x0) * t1, 0, z0 + (z1 - z0) * t1);
       a.y = h(a.x, a.z) + 0.12; b.y = h(b.x, b.z) + 0.12;
       const seg = mesh(new THREE.BoxGeometry(7, 0.16, a.distanceTo(b) + 0.4), 0x5f5f5f);
-      seg.position.copy(a).add(b).multiplyScalar(0.5); seg.lookAt(b); g.add(seg);
-      const dash = mesh(new THREE.BoxGeometry(0.3, 0.18, 2.5), 0xf4f4f4); dash.position.copy(seg.position); dash.rotation.copy(seg.rotation); g.add(dash);
+      seg.position.copy(a).add(b).multiplyScalar(0.5); seg.lookAt(b); seg.userData.noCollide = true; g.add(seg);
+      const dash = mesh(new THREE.BoxGeometry(0.3, 0.18, 2.5), 0xf4f4f4); dash.position.copy(seg.position); dash.rotation.copy(seg.rotation); dash.userData.noCollide = true; g.add(dash);
       keep(a.x, a.z, 6);
     }
   };
@@ -399,36 +435,25 @@ export function buildCity(g: THREE.Group, h: H) {
   // ================= FINDURAI SPEEDWAY (south-west) =================
   // A GP-style circuit: pit straight past the grandstand, a fast sweeper, a chicane, a long back
   // straight and a hairpin. Centre line is a closed Catmull-Rom spline through the control points.
-  const scx = -62, scz = 192, TW = 14;
-  // world-space control points: the old GP loop in the north, then a long run south into the valley and back
-  const ctrl: [number, number][] = [
-    [-125, 226], [-80, 226], [-35, 226], [-6, 222], [8, 204], [6, 184], [-8, 170],   // pit straight → Sunset sweeper
-    [-24, 178], [-35, 165], [-51, 158],                                              // Neon chicane
-    [-90, 158], [-116, 158], [-140, 170],                                            // back straight
-    [-156, 195], [-168, 240], [-176, 300], [-172, 355],                              // Valley straight (south)
-    [-152, 400], [-112, 422], [-66, 412], [-34, 380],                                // Big Bend
-    [-24, 335], [-38, 300],                                                          // Return run
-    [-64, 280], [-92, 268], [-116, 256],                                             // Esses
-    [-140, 248], [-148, 234],                                                        // Grandstand hairpin
-  ];
+  const scx = -62, scz = 192, TW = TRACK_WIDTH, ctrl = CIRCUIT_CTRL;
   const curve = new THREE.CatmullRomCurve3(ctrl.map(([x, z]) => V(x, 0, z)), true, 'catmullrom', 0.6);
-  const N = 480;
+  const N = 720;
   const pts: [number, number][] = curve.getPoints(N - 1).slice(0, N).map((p) => [p.x, p.z]);
   for (let i = 0; i < N; i++) {
     const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % N];
     const a = V(ax, h(ax, az) + 0.14, az), b = V(bx, h(bx, bz) + 0.14, bz);
     const seg = mesh(new THREE.BoxGeometry(TW, 0.2, a.distanceTo(b) + 0.6), 0x4a4a4a);
-    seg.position.copy(a).add(b).multiplyScalar(0.5); seg.lookAt(b); g.add(seg);
+    seg.position.copy(a).add(b).multiplyScalar(0.5); seg.lookAt(b); seg.userData.noCollide = true; g.add(seg);
     const dir = b.clone().sub(a).normalize(), nx = -dir.z, nz = dir.x;
     for (const side of [-1, 1]) {
       const kerb = mesh(new THREE.BoxGeometry(1.4, 0.24, a.distanceTo(b) + 0.6), i % 2 ? 0xd94a3d : 0xf4f4f4);
-      kerb.position.copy(seg.position).add(V(nx * side * (TW / 2 + 0.6), 0.02, nz * side * (TW / 2 + 0.6))); kerb.rotation.copy(seg.rotation); g.add(kerb);
+      kerb.position.copy(seg.position).add(V(nx * side * (TW / 2 + 0.6), 0.02, nz * side * (TW / 2 + 0.6))); kerb.rotation.copy(seg.rotation); kerb.userData.noCollide = true; g.add(kerb);
     }
-    if (i % 10 === 0) { const dash = mesh(new THREE.BoxGeometry(0.3, 0.22, 2.5), 0xf4f4f4); dash.position.copy(seg.position); dash.rotation.copy(seg.rotation); g.add(dash); }
-    if (i % 24 === 12) {   // a big painted chevron pointing the way round
-      for (const sd of [-1, 1]) { const wing = mesh(new THREE.BoxGeometry(0.5, 0.23, 3.2), 0xf2c31b); wing.position.copy(seg.position).add(V(nx * sd * 1.3, 0.01, nz * sd * 1.3)); wing.rotation.copy(seg.rotation); wing.rotateY(sd * 0.6); g.add(wing); }
+    if (i % 15 === 0) { const dash = mesh(new THREE.BoxGeometry(0.3, 0.22, 2.5), 0xf4f4f4); dash.position.copy(seg.position); dash.rotation.copy(seg.rotation); dash.userData.noCollide = true; g.add(dash); }
+    if (i % 36 === 18) {   // a big painted chevron pointing the way round
+      for (const sd of [-1, 1]) { const wing = mesh(new THREE.BoxGeometry(0.5, 0.23, 3.2), 0xf2c31b); wing.userData.noCollide = true; wing.position.copy(seg.position).add(V(nx * sd * 1.3, 0.01, nz * sd * 1.3)); wing.rotation.copy(seg.rotation); wing.rotateY(sd * 0.6); g.add(wing); }
     }
-    if (i % 5 === 0) keep(ax, az, 13);
+    if (i % 8 === 0) keep(ax, az, 13);
   }
   // boost pads: glowing chevrons on the straights; driving over one gives a burst of speed
   const pads: [number, number, number][] = [];

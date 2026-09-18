@@ -19,7 +19,14 @@ export interface Terrain {
   h(x: number, z: number): number;
   onLand(x: number, z: number): boolean;
   inLand(x: number, z: number): boolean;   // inside one of the extra landmasses (no rim hills, no city-limits)
+  /** Smooth the ground along a path (a road, the race track): flat across `width`, gently graded along it,
+   *  eased into the hills over `blend`. Call before anything is placed on it. */
+  addStrip(path: [number, number][], width: number, blend: number, closed?: boolean): void;
 }
+
+interface StripSample { x: number; z: number; y: number }
+interface Strip { s: StripSample[]; hw: number; blend: number; closed: boolean }
+const CELL = 10;   // spatial hash for strip lookups
 
 const smooth = (t: number) => {
   t = Math.min(1, Math.max(0, t));
@@ -54,7 +61,7 @@ export function makeTerrain(p: TerrainProfile): Terrain {
     return y;
   };
   const flats = (p.flats ?? []).map((f) => ({ ...f, y: raw(f.x, f.z) }));
-  const h = (x: number, z: number) => {
+  const base = (x: number, z: number) => {
     let y = raw(x, z);
     for (const f of flats) {
       const d = Math.hypot(x - f.x, z - f.z);
@@ -62,6 +69,61 @@ export function makeTerrain(p: TerrainProfile): Terrain {
     }
     return y;
   };
+  // strips: roads and the track. Samples every ~3 m along the path with heights low-passed along it,
+  // indexed in a grid so h() only looks at the few segments nearby.
+  const strips: Strip[] = [];
+  const grid = new Map<string, [Strip, number][]>();
+  const key = (x: number, z: number) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+  const addStrip = (path: [number, number][], width: number, blend: number, closed = false) => {
+    const pts = closed ? [...path, path[0]] : path;
+    const s: StripSample[] = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [ax, az] = pts[i], [bx, bz] = pts[i + 1], n = Math.max(1, Math.ceil(Math.hypot(bx - ax, bz - az) / 3));
+      for (let k = 0; k < n; k++) { const u = k / n, x = ax + (bx - ax) * u, z = az + (bz - az) * u; s.push({ x, z, y: base(x, z) }); }
+    }
+    if (!closed) { const [lx, lz] = pts[pts.length - 1]; s.push({ x: lx, z: lz, y: base(lx, lz) }); }
+    // low-pass the profile along the path (σ ≈ 24 m) so grades are gentle and there are no bumps
+    const rawY = s.map((q) => q.y), R = 8;
+    for (let i = 0; i < s.length; i++) {
+      let sum = 0, wsum = 0;
+      for (let k = -3 * R; k <= 3 * R; k++) {
+        let j = i + k;
+        if (closed) j = ((j % s.length) + s.length) % s.length; else j = Math.min(s.length - 1, Math.max(0, j));
+        const w = Math.exp(-(k * k) / (2 * R * R)); sum += rawY[j] * w; wsum += w;
+      }
+      s[i].y = sum / wsum;
+    }
+    const strip: Strip = { s, hw: width / 2, blend, closed };
+    strips.push(strip);
+    const reach = Math.ceil((strip.hw + blend + 3) / CELL);
+    for (let i = 0; i < s.length; i++) {
+      const cx = Math.floor(s[i].x / CELL), cz = Math.floor(s[i].z / CELL);
+      for (let dx = -reach; dx <= reach; dx++) for (let dz = -reach; dz <= reach; dz++) { const k = `${cx + dx},${cz + dz}`; let list = grid.get(k); if (!list) grid.set(k, (list = [])); list.push([strip, i]); }
+    }
+  };
+  const h = (x: number, z: number) => {
+    let y = base(x, z);
+    const near = grid.get(key(x, z));
+    if (!near) return y;
+    // nearest point on each strip nearby, then a weighted blend of their heights (so junctions meet, not step)
+    const best = new Map<Strip, { d: number; y: number }>();
+    for (const [strip, i] of near) {   // distance to the segment after sample i (and the one before it, so seams are covered)
+      const s = strip.s, n = s.length;
+      for (const j of [i, i - 1]) {
+        const a = s[strip.closed ? ((j % n) + n) % n : j], b = s[strip.closed ? (((j + 1) % n) + n) % n : j + 1];
+        if (!a || !b) continue;
+        const dx = b.x - a.x, dz = b.z - a.z, len2 = dx * dx + dz * dz || 1;
+        const u = Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / len2));
+        const px = a.x + dx * u, pz = a.z + dz * u, d = Math.hypot(x - px, z - pz);
+        const cur = best.get(strip);
+        if (!cur || d < cur.d) best.set(strip, { d, y: a.y + (b.y - a.y) * u });
+      }
+    }
+    let W = 0, sum = 0;
+    for (const [strip, { d, y: sy }] of best) { const w = 1 - smooth((d - strip.hw) / strip.blend); if (w > 0) { W += w; sum += w * sy; } }
+    if (W > 0) y += (sum / W - y) * Math.min(1, W);
+    return y;
+  };
   const onLand = (x: number, z: number) => !p.water || h(x, z) > p.water.level - 0.35;
-  return { profile: p, h, onLand, inLand };
+  return { profile: p, h, onLand, inLand, addStrip };
 }

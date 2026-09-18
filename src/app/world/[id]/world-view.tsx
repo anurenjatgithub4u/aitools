@@ -53,6 +53,7 @@ export function WorldView({ id }: { id: string }) {
       zombies: () => world?.toggleZombies(),
       kick: () => world?.kick(),
       batMove: (dir) => world?.batMove(dir),
+      pace: () => world?.cyclePace(),
       befriend: () => world?.befriend(),
       interact: (a) => world?.interact(a),
       say: (text) => world?.say(text),

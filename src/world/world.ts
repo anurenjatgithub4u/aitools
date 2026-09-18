@@ -29,7 +29,7 @@ export interface WorldEvents {
   onRank(rank: number, of: number): void;
   onHurt(): void;
   onPick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
-  onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean } | null): void;
+  onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean } | null): void;
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
   onFriendRequest(req: { id: string; name: string } | null): void;
@@ -67,7 +67,7 @@ const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [
 const MATCH_SECONDS = 90;
 // Cricket: the bowler runs in, you time the shot. 12 balls, 3 wickets, beat the target.
 type CricketPhase = 'ready' | 'runup' | 'flight' | 'hit' | 'result' | 'over';
-interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number }
+interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2 }
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
@@ -174,6 +174,7 @@ export class World {
   private oval: { x: number; z: number; r: number; len: number } | null = null;
   private wantKick = false;
   private batDir = 0;   // ◀ ▶ held: shuffle across the crease (batting) or aim the line (bowling)
+  private paceKey = false;
   private lastCricketHud = 0;
   private hemi!: THREE.HemisphereLight;
   private daylight = { sky: 0, fog: 0, sun: 0, sunI: 1.7, hemiI: 0.85, near: 90, far: 360 };
@@ -1856,6 +1857,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   // ---------- cricket ----------
   kick() { this.wantKick = true; }
   batMove(dir: number) { this.batDir = Math.sign(dir); }
+  /** Bowling speed: slow / medium / fast (cycles). */
+  cyclePace() { const c = this.cricket; if (!c || c.innings !== 2 || c.phase === 'flight' || c.phase === 'hit') return; c.pace = ((c.pace + 1) % 3) as 0 | 1 | 2; this.ev.onCollect({ name: ['🐢 Slow ball — more bounce, harder to time', '🎯 Medium pace', '⚡ Fast — beats the bat, but loose ones fly'][c.pace], points: 0, color: 0x3fb7d9, shape: 'gem' }); }
 
   /** In a game, race or zombie night: the HUD and the world drop everything that is not the game. */
   private inMode() { return !!(this.match || this.cricket || this.race || (this.zombies && !this.zombies.ending)); }
@@ -1886,7 +1889,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshStandardMaterial({ color: 0xe0392b, emissive: 0x5a0a0a, roughness: 0.5 }));
     ball.visible = false; this.scene.add(ball);
     const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
-    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0 };
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1 };
     for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
     this.setCreases();
     this.clearQuest();
@@ -1938,10 +1941,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private setCreases() {
     const c = this.cricket!, o = this.oval!, y = this.terrain.h(o.x, o.z);
     const batter = c.innings === 1 ? this.player : c.opp.av, bowler = c.innings === 1 ? c.opp.av : this.player;
-    batter.group.position.set(o.x - 10 + 1.0, y, o.z + 0.85); batter.group.rotation.y = Math.PI / 2;
+    batter.group.position.set(o.x - 10 + 1.0, y, o.z + 0.45); batter.group.rotation.y = Math.PI / 2;   // bat arc sits on the line of a straight ball
     bowler.group.position.set(o.x + 26, this.terrain.h(o.x + 26, o.z), o.z - 1.2); bowler.group.rotation.y = -Math.PI / 2;
     c.bat.removeFromParent(); batter.armR.add(c.bat);
-    this.airY = 0; this.vy = 0; this.yaw = c.innings === 1 ? -Math.PI / 2 : Math.PI / 2; this.pitch = 0.32;
+    this.airY = 0; this.vy = 0; this.yaw = c.innings === 1 ? -Math.PI / 2 : Math.PI / 2;
+    if (c.balls === 0) { this.pitch = 0.22; this.dist = 24; this.camDist = 24; }   // start each innings zoomed right out and low, like a broadcast camera
     c.ball.visible = false;
   }
 
@@ -1991,7 +1995,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.batPose(batter, c, t, batting);
     const bp = bowler.group.position;
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
-    if (batting) { const bz = this.player.group.position; bz.z = Math.max(o.z - 0.9, Math.min(o.z + 2.6, bz.z + held * 2.6 * dt)); }   // shuffle across to reach a wide one
+    if (batting) { const bz = this.player.group.position; bz.z = Math.max(o.z - 1.6, Math.min(o.z + 2.4, bz.z + held * 2.6 * dt)); }   // shuffle across to reach a wide one
+    if (!batting && (c.phase === 'ready' || c.phase === 'runup')) { if (this.keys.has('w') || this.keys.has('arrowup')) { if (!this.paceKey) { c.pace = Math.min(2, c.pace + 1) as 0 | 1 | 2; this.paceKey = true; } } else if (this.keys.has('s') || this.keys.has('arrowdown')) { if (!this.paceKey) { c.pace = Math.max(0, c.pace - 1) as 0 | 1 | 2; this.paceKey = true; } } else this.paceKey = false; }
     else if (c.phase === 'ready' || c.phase === 'runup') c.aim = Math.max(-1, Math.min(1, c.aim + held * 1.6 * dt));            // pick a line before you let go
     if (c.phase === 'ready' && t > c.t0) {
       c.phase = 'runup'; c.t0 = t; c.hit = false; c.released = -1; c.decided = false;
@@ -2008,7 +2013,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           const rel = c.released < 0 ? 0.55 : c.released;
           c.quality = Math.max(0, 1 - Math.abs(rel - 0.93) / 0.22);     // 1 = released right at the top
           c.line = c.aim * 1.1 + (c.quality > 0.7 ? (Math.random() - 0.5) * 0.4 : c.quality > 0.35 ? (Math.random() - 0.5) * 1.2 : (Math.random() < 0.5 ? -1 : 1) * (0.8 + Math.random()));
-          c.flightT = c.quality > 0.7 ? 0.75 + Math.random() * 0.15 : 0.95 + Math.random() * 0.3;
+          c.flightT = [1.05, 0.85, 0.66][c.pace] + (c.quality > 0.7 ? Math.random() * 0.08 : Math.random() * 0.25);
           c.note = c.quality > 0.7 ? 'Good ball' : c.quality > 0.35 ? 'A bit loose' : 'Way down leg…';
         }
         c.phase = 'flight'; c.t0 = t; c.ball.visible = true; ball.set(bp.x, bp.y + 2.2, o.z); c.hit = false;
@@ -2023,10 +2028,10 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       // the AI batter decides as the ball arrives
       if (!batting && !c.decided && ball.x - batX < 1.6) {
         c.decided = true;
-        const r = Math.random(), qb = c.quality;
-        if (qb > 0.7) { if (r < 0.45) { /* beaten */ } else this.strike(r < 0.8 ? 0.2 + Math.random() * 0.25 : 0.55 + Math.random() * 0.25, Math.random() < 0.3); }
+        const r = Math.random(), qb = c.quality + (c.pace === 2 ? 0.08 : c.pace === 0 ? -0.05 : 0), soft = c.pace === 0 ? 0.8 : 1;   // fast beats the bat more; slow balls are hit softer but sat up when loose
+        if (qb > 0.7) { if (r < 0.45 + (c.pace === 2 ? 0.08 : 0)) { /* beaten */ } else this.strike(r < 0.8 ? 0.2 + Math.random() * 0.25 : 0.55 + Math.random() * 0.25, Math.random() < 0.3); }
         else if (qb > 0.35) { if (r < 0.18) { /* beaten */ } else this.strike(r < 0.55 ? 0.35 + Math.random() * 0.3 : 0.7 + Math.random() * 0.25, Math.random() < 0.4); }
-        else { if (r < 0.06) { /* beaten */ } else this.strike(0.8 + Math.random() * 0.2, Math.random() < 0.5); }
+        else { if (r < 0.06) { /* beaten */ } else this.strike((0.8 + Math.random() * 0.2) * (c.pace === 2 ? 1.05 : soft), Math.random() < 0.5); }
         if (c.phase === 'flight') c.swingAt = t;   // swung and missed, or left it
       }
       if (u >= 1 && !c.hit) {
@@ -2082,7 +2087,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           c.first = c.runs; c.target = c.runs + 1; c.innings = 2; c.runs = 0; c.wkts = 0; c.balls = 0; c.last = ''; c.note = '';
           this.setCreases();
           c.phase = 'ready'; c.t0 = t + 3;
-          this.ev.onMode({ icon: '🏏', label: 'Bowl', arrows: true });
+          this.ev.onMode({ icon: '🏏', label: 'Bowl', arrows: true, pace: true });
           this.ev.onCollect({ name: `Innings over · you made ${c.first}. Now bowl: tap Bowl at the top of your action`, points: 0, color: 0x3fb7d9, shape: 'gem' });
           this.botSays(c.opp, `${c.first}? Easy 😏`, 1);
           this.sfx.questStart();
@@ -2101,8 +2106,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       this.ev.onQuest({
         status: 'active',
         title: batting ? `🏏 You ${c.runs} / ${c.wkts}` : `🏏 ${c.opp.name} ${c.runs} / ${c.wkts} · needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls}`,
-        desc: batting ? `${c.opp.name} bowling · ◀ ▶ shuffle into line, Space / Bat as the ball reaches you. Perfect timing = six, early = high, late = along the ground.` : `You are bowling · ◀ ▶ aim the line, tap Bowl / Space at the top of your action (bar in the green). Wickets +25, dot balls +5.`,
-        progress: runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : 'Running in…') : c.last ? `Last ball: ${c.last}` : 'First ball coming up',
+        desc: batting ? `${c.opp.name} bowling · ◀ ▶ shuffle into line, Space / Bat as the ball reaches you. Perfect timing = six, early = high, late = along the ground.` : `You are bowling · ◀ ▶ aim the line, Speed button / W S for pace, tap Bowl / Space at the top of your action. Wickets +25, dot balls +5.`,
+        progress: runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last}${!batting ? ` · ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]}` : ''}` : 'First ball coming up',
         remaining: c.total - c.balls, total: c.total, reward: 200, hint: null,
         fill: runupU !== null ? runupU : c.balls / c.total, timeText: `${c.balls}/${c.total}`,
       });

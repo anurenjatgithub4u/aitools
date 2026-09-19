@@ -1480,23 +1480,6 @@ export class World {
     this.wantRefuel = false;
     this.wantFriend = false;
 
-    // --- camera
-    const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
-    const dir = new THREE.Vector3(Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp);
-    // pull the camera in front of trees / buildings that block the view
-    this.ray.set(focus, dir);
-    this.ray.far = this.dist;
-    const hit = this.ray.intersectObjects(this.occluders, true)[0];
-    const wantDist = hit ? Math.max(2.5, hit.distance - 0.6) : this.dist;
-    this.camDist += (wantDist - this.camDist) * Math.min(1, dt * (wantDist < this.camDist ? 14 : 3));
-    const cam = dir.multiplyScalar(this.camDist).add(focus);
-    cam.y = Math.max(cam.y, this.terrain.h(cam.x, cam.z) + 1);
-    if (this.firstFrame) { this.camera.position.copy(cam); this.firstFrame = false; }
-    else this.camera.position.lerp(cam, 1 - Math.pow(0.001, dt));
-    this.camera.lookAt(focus);
-    this.sun.position.set(focus.x + 70, focus.y + 110, focus.z + 50);
-    this.sun.target.position.copy(focus);
-
     // --- bots wander
     for (const b of [...this.bots]) {
       if (b.remote) { this.updatePeer(b, dt, t); continue; }
@@ -1656,6 +1639,26 @@ export class World {
       this.countOnline();
       this.pushRank();
     }
+
+    // --- camera: placed last, after rides, dates and passengers have moved the player this frame,
+    // so it never trails the seat by a frame
+    const carried = !!this.ride || !!this.ridingWith || (this.date?.spot.kind === 'wheel' || this.date?.spot.kind === 'boat');
+    if (carried) focus = this.player.group.position.clone().add(new THREE.Vector3(0, 1.7, 0));
+    const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+    const dir = new THREE.Vector3(Math.sin(this.yaw) * cp, sp, Math.cos(this.yaw) * cp);
+    // pull the camera in front of trees / buildings that block the view (not on a ride: its own poles and cabins
+    // would keep yanking the camera in and out)
+    let wantDist = this.dist;
+    if (!this.ride) { this.ray.set(focus, dir); this.ray.far = this.dist; const hit = this.ray.intersectObjects(this.occluders, true)[0]; if (hit) wantDist = Math.max(2.5, hit.distance - 0.6); }
+    this.camDist += (wantDist - this.camDist) * Math.min(1, dt * (wantDist < this.camDist ? 14 : 3));
+    const cam = dir.multiplyScalar(this.camDist).add(focus);
+    cam.y = Math.max(cam.y, this.terrain.h(cam.x, cam.z) + 1);
+    if (this.firstFrame) { this.camera.position.copy(cam); this.firstFrame = false; }
+    else if (carried) this.camera.position.copy(cam);                       // ride the motion exactly: any lag reads as wobble
+    else this.camera.position.lerp(cam, 1 - Math.pow(0.001, dt));
+    this.camera.lookAt(focus);
+    this.sun.position.set(focus.x + 70, focus.y + 110, focus.z + 50);
+    this.sun.target.position.copy(focus);
 
     this.updateQuest(focus, focusRadius, dt, t);
     if (this.driving) this.moveAmount = 0;

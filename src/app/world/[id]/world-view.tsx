@@ -61,6 +61,8 @@ export function WorldView({ id }: { id: string }) {
       setPower: (v) => world?.setPower(v),
       setPos: (v) => world?.setPos(v),
       exitMode: () => world?.exitMode(),
+      setPace: (i) => world?.setPace(i),
+      setLine: (i) => world?.setLine(i),
     });
 
     loading.then(async (mod) => {
@@ -88,6 +90,8 @@ export function WorldView({ id }: { id: string }) {
           onPick: (p, choose) => hud.pick(p, choose),
           onMode: (a) => hud.mode(a),
           onTable: (p, pos) => hud.table(p, pos),
+          onBowl: (s) => hud.bowl(s),
+          onZombieClock: (s, on) => hud.zombieClock(s, on),
           onMeet: (m) => hud.meet(m),
           onChat: (from, text, mine) => hud.chat(from, text, mine),
           onFriendRequest: (req) => hud.friendRequest(req),

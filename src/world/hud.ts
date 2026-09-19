@@ -24,6 +24,8 @@ export interface Hud {
   pick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
   mode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean } | null): void;
   table(power: number, pos: number | null): void;
+  bowl(s: { pace: number; line: number } | null): void;
+  zombieClock(seconds: number | null, on: boolean): void;
   meet(m: { name: string; friend: boolean; real: boolean } | null): void;
   chat(from: string, text: string, mine: boolean): void;
   friendRequest(req: { id: string; name: string } | null): void;
@@ -33,7 +35,7 @@ export interface Hud {
   onMapToggle(fn: (open: boolean) => void): void;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void; kick(): void; batMove(dir: number): void; pace(): void; setPower(v: number): void; setPos(v: number): void; exitMode(): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void; kick(): void; batMove(dir: number): void; pace(): void; setPower(v: number): void; setPos(v: number): void; exitMode(): void; setPace(i: number): void; setLine(i: number): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
@@ -54,7 +56,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     <div class="top-center">
       <div class="chip big">🏆 <b id="pts">${points}</b> points</div>
       <div class="chip online" id="online"><i class="dot"></i> connecting…</div>
-      <div class="row"><div class="chip rank" id="rank">🏅 Rank #–</div><div class="chip friends" id="friends">🤝 ${store.friends().length} friends</div><button class="chip zombie" id="zombiebtn" title="Zombie night (Z)">🧟 Zombie night</button></div>
+      <div class="row"><div class="chip rank" id="rank">🏅 Rank #–</div><div class="chip friends" id="friends">🤝 ${store.friends().length} friends</div><div class="chip zombie" id="zombiebtn" title="Zombie night comes on its own — be ready">🧟 Zombies in --:--</div></div>
     </div>
     <div class="top-right">
       <a class="round" href="/" title="All worlds">🌍</a>
@@ -88,7 +90,6 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
           <button data-a="race">🏁<small>Race</small></button>
           <button data-a="football">⚽<small>Football</small></button>
           <button data-a="cricket">🏏<small>Cricket</small></button>
-          <button data-a="zombies">🧟<small>Zombies</small></button>
           <button data-a="hunt">💰<small>Prize hunt</small></button>
           <button data-a="pool">🎱<small>8-ball</small></button>
           <button data-a="carrom">🎯<small>Carrom</small></button>
@@ -123,6 +124,11 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <button class="act" id="jump">⤒<small>Jump</small></button>
       <button class="act" id="run">🏃<small>Run</small></button>
     </div>
+    <div class="bowlctl" id="bowlctl" hidden>
+      <div class="brow"><span>Speed</span><div class="seg" id="segpace"><button type="button" data-i="0">🐢 Slow</button><button type="button" data-i="1">🎯 Medium</button><button type="button" data-i="2">⚡ Fast</button></div></div>
+      <div class="brow"><span>Line</span><div class="seg" id="segline"><button type="button" data-i="0">◀ Leg</button><button type="button" data-i="1">Stumps</button><button type="button" data-i="2">Off ▶</button></div></div>
+      <small>Tap <b>Bowl</b> to run in · Bowl again at the top of your action</small>
+    </div>
     <div class="tablectl" id="tablectl" hidden>
       <div class="trow"><span>Aim</span><button type="button" class="tbtn" id="aiml" title="Aim left (A)">◀</button><button type="button" class="tbtn" id="aimr" title="Aim right (D)">▶</button><small>hold · Shift = fine</small></div>
       <label class="trow" id="posrow"><span>Striker</span><input type="range" id="posrng" min="0" max="100" value="50"></label>
@@ -148,7 +154,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     <div class="pick" id="pick" hidden><b id="picktitle"></b><small id="picksub"></small><div class="popts" id="pickopts"></div><button class="pcancel" id="pickcancel">Not now</button></div>
     <div class="help" id="helpbox" hidden>
       <h3>How to play</h3>
-      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, football, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Football</b> walk onto the City Stadium pitch and press <b>E</b> (or pick Football from an explorer's card): five-a-side, 90 seconds. Run into the ball to dribble (it sticks to your feet), <b>Space</b> / the Jump button to shoot — harder while running, and aimed toward the goal when you face it.<br><b>Cricket</b> walk onto the strip at the FindurAI Cricket Ground (Eastside) and press <b>E</b>, or pick Cricket on an explorer's card: pick 1, 2, 3 or 5 overs a side (2, 3 or 5 wickets). You bat first: press <b>Bat</b> / <b>Space</b> as the ball reaches you — perfect timing drives it for six, early pulls it high (catchable), late nicks it along the ground. Then you bowl: ◀ ▶ aim the line, <b>Speed</b> (or W/S) picks slow, medium or fast, and press <b>Bowl</b> / <b>Space</b> at the top of your action (bar in the green) for a good ball; loose balls get punished. Wickets +25, dots +5, win the match +200.<br><b>Neon Palace</b> the casino &amp; club at the end of Neon Lane: walk onto the dance floor and press <b>E</b> to dance (with whoever is with you), or press <b>E</b> at a pool table for real 8-ball — ◀ ▶ / A D aim (Shift for fine aim), the Power slider or W/S sets the strength, <b>Shoot</b> strikes. Press <b>E</b> at the carrom board by the bar: the Striker slider or Q/E slides the striker along your baseline, ◀ ▶ aim, Power slider or W/S, <b>Flick</b>. <b>Exit</b> (or Esc) leaves any game. Lasers, DJ, bar, slots.<br><b>Dates</b> press <b>E</b> with someone at the coffee table at Chai Corner, the pier bench, the candle-lit table on the sand, the campfire, the sunset bench at the lighthouse, the Sunset Wheel or the marina boat. <b>Gift</b> on any card sends a rose, ice cream, chai, teddy, chocolate or a note.<br><b>Zombie night</b> press <b>Z</b> or the 🧟 chip: waves of zombies shamble toward you — walkers, headless ones, runners, crawlers, hoppers that leap at you, bloaters that burst in a cloud, and brutes that take a beating and hit like a truck. <b>Space</b> / Jump punches the one in front of you (three hits each), vehicles crush them. Every bite drains your ❤ health — clear a wave to heal, die and you wake up back downtown.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
+      <p><b>Move</b> W A S D or arrow keys · hold <b>Shift</b> to run (or tap the Run button to stay running) · <b>Space</b> to jump.<br><b>Look</b> drag with the mouse, or two-finger swipe on a touchpad · mouse wheel or pinch to zoom.<br><b>Drive</b> walk up to a jeep, tuk-tuk, bike or cycle and press <b>E</b> · W/S accelerate · A/D steer · Space brake · <b>Shift</b> nitro boost · <b>H</b> horn · E to get out.<br><b>People</b> walk up to any explorer and a card appears: send a <b>friend</b> request (G), start a <b>game</b> — race, football, prize hunt, 8-ball, carrom, chess or Ludo — <b>hang out</b> (they walk with you for a while) or <b>chat</b> (C opens the chat box; people nearby answer). Friends keep a 🤝 badge every time you visit.<br><b>Tasks</b> timed challenges appear in the top-left card (or press <b>T</b>): find hidden cash, dash through checkpoints, run a taxi job or gather snacks. Finish fast for up to double points.<br><b>Petrol</b> a tank lasts about 5 km (boosting burns double). When it runs dry, coast to the ⛽ station, stop, and press <b>R</b> to fill up. <b>M</b> toggles sound.<br><b>Touch</b> left half = joystick · right half = look · buttons for jump and drive.<br><b>Football</b> walk onto the City Stadium pitch and press <b>E</b> (or pick Football from an explorer's card): five-a-side, 90 seconds. Run into the ball to dribble (it sticks to your feet), <b>Space</b> / the Jump button to shoot — harder while running, and aimed toward the goal when you face it.<br><b>Cricket</b> walk onto the strip at the FindurAI Cricket Ground (Eastside) and press <b>E</b>, or pick Cricket on an explorer's card: pick 1, 2, 3 or 5 overs a side (2, 3 or 5 wickets). You bat first: press <b>Bat</b> / <b>Space</b> as the ball reaches you — perfect timing drives it for six, early pulls it high (catchable), late nicks it along the ground. After a shot, press <b>Run</b> / <b>W</b> to run between the wickets with your partner — press again for another, but be home before the fielder's throw or you are run out. Then you bowl: before each ball pick the <b>speed</b> and <b>line</b> on the panel, tap <b>Bowl</b> to run in, and press <b>Bowl</b> / <b>Space</b> again at the top of your action (bar in the green) for a good ball; loose balls get punished. Wickets +25, dots +5, win the match +200.<br><b>Neon Palace</b> the casino &amp; club at the end of Neon Lane: walk onto the dance floor and press <b>E</b> to dance (with whoever is with you), or press <b>E</b> at a pool table for real 8-ball — ◀ ▶ / A D aim (Shift for fine aim), the Power slider or W/S sets the strength, <b>Shoot</b> strikes. Press <b>E</b> at the carrom board by the bar: the Striker slider or Q/E slides the striker along your baseline, ◀ ▶ aim, Power slider or W/S, <b>Flick</b>. <b>Exit</b> (or Esc) leaves any game. Lasers, DJ, bar, slots.<br><b>Dates</b> press <b>E</b> with someone at the coffee table at Chai Corner, the pier bench, the candle-lit table on the sand, the campfire, the sunset bench at the lighthouse, the Sunset Wheel or the marina boat. <b>Gift</b> on any card sends a rose, ice cream, chai, teddy, chocolate or a note.<br><b>Zombie night</b> comes on its own — the 🧟 chip counts down to it. Waves of zombies shamble toward you — walkers, headless ones, runners, crawlers, hoppers that leap at you, bloaters that burst in a cloud, and brutes that take a beating and hit like a truck. <b>Space</b> / Jump punches the one in front of you (three hits each), vehicles crush them. Every bite drains your ❤ health — clear a wave to heal, die and you wake up back downtown.<br><b>Lifts</b> while driving slowly next to an explorer press <b>F</b> to pick them up, F again to drop them off for +30.<br><b>Collect</b> walk (or drive) over any floating item with a number.</p>
       <p>${d.blurb}</p>
       <div class="me" id="mecard"></div>
       <button id="closehelp">Got it</button> <button id="changeavatar" class="ghost">🧍 Change my explorer</button>
@@ -264,8 +270,12 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const qBoard = root.querySelector<HTMLElement>('#qboard')!, qLine = root.querySelector<HTMLElement>('#qline')!, qbIcon = root.querySelector<HTMLElement>('#qbicon')!, qbTime = root.querySelector<HTMLElement>('#qbtime')!;
   const qSide = (id: string, s: { name: string; score: string; sub?: string; on?: boolean }) => { const el = root.querySelector<HTMLElement>(id)!; el.classList.toggle('on', !!s.on); el.querySelector('small')!.textContent = s.name; el.querySelector('b')!.textContent = s.score; el.querySelector('span')!.textContent = s.sub ?? ''; };
   qBtn.addEventListener('click', actions.task);
-  const zombieBtn = root.querySelector<HTMLButtonElement>('#zombiebtn')!, hurtEl = root.querySelector<HTMLElement>('#hurt')!;
-  zombieBtn.addEventListener('click', actions.zombies);
+  const zombieBtn = root.querySelector<HTMLElement>('#zombiebtn')!, hurtEl = root.querySelector<HTMLElement>('#hurt')!;
+  // bowling picker
+  const bowlEl = root.querySelector<HTMLElement>('#bowlctl')!, segPace = root.querySelector<HTMLElement>('#segpace')!, segLine = root.querySelector<HTMLElement>('#segline')!;
+  const segSel = (seg: HTMLElement, i: number) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === i));
+  segPace.addEventListener('pointerdown', (e) => { const b = (e.target as HTMLElement).closest('button'); if (!b) return; e.preventDefault(); actions.setPace(Number(b.dataset.i)); });
+  segLine.addEventListener('pointerdown', (e) => { const b = (e.target as HTMLElement).closest('button'); if (!b) return; e.preventDefault(); actions.setLine(Number(b.dataset.i)); });
   let hurtT = 0;
   root.querySelector('#help')!.addEventListener('click', () => (helpbox.hidden = !helpbox.hidden));
   root.querySelector('#closehelp')!.addEventListener('click', () => (helpbox.hidden = true));
@@ -393,6 +403,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       tableEl.hidden = !tbl; posRow.hidden = tbl !== 'carrom';
       document.body.classList.toggle('inmode', !!a); document.body.classList.toggle('tablemode', !!tbl);
     },
+    bowl(s) { bowlEl.hidden = !s; if (s) { segSel(segPace, s.pace); segSel(segLine, s.line); } },
+    zombieClock(seconds, on) { zombieBtn.classList.toggle('on', on); zombieBtn.textContent = on ? '🧟 Zombie night!' : seconds === null ? '🧟 Zombies' : `🧟 Zombies in ${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`; },
     table(power, pos) { if (sliding) return; pwrRng.value = String(Math.round(power * 100)); pwrVal.textContent = `${pwrRng.value}%`; if (pos !== null) posRng.value = String(Math.round(pos * 100)); },
     pick(p, choose) {
       const el = root.querySelector<HTMLElement>('#pick')!, opts = root.querySelector<HTMLElement>('#pickopts')!;

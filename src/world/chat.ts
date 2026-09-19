@@ -94,5 +94,6 @@ export const GIFT_THANKS: Record<string, string[]> = {
   '🧸': ['A teddy!! 🧸', 'I am naming it after you.', 'This is going on my sofa.'],
   '🍫': ['Chocolate 🍫 you are dangerous.', 'Sharing? …Fine, half.', 'How did you know?'],
   '💌': ['A note? *reads it twice* 💌', 'I am keeping this.', 'That is the nicest thing anyone said today.'],
+  '💎': ['A diamond?! 💎 You did not have to…', 'Okay, now everyone will be jealous 💎', 'I am never taking this off.'],
 };
 export const POOL_TALK = ['Nice shot!', 'Ooh, unlucky.', 'Watch this.', 'Chalk up.', 'That was pure luck 😄', 'Corner pocket, calling it.'];

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { FEATURES, SITE, SITE_NAME } from "../seo";
+import { AdScript, AdSlot } from "../ads";
 
 export const metadata: Metadata = {
   title: "About FindurAI — a free 3D city to hang out, date, race and play",
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export default function About() {
   return (
     <main className="landing page">
+      <AdScript />
       <nav className="top"><Link href="/" className="brand"><span className="logo">🌍</span><span><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></span></Link><Link href="/" className="cta">Play now →</Link></nav>
       <section className="hero">
         <p className="eyebrow">About {SITE_NAME}</p>
@@ -21,6 +23,8 @@ export default function About() {
           FindurAI is a free browser metaverse: one imaginary city with bars, a beach, a stadium, a cricket ground and a race track, where real people walk, drive, chat and play games together. No download, no sign-up — pick a name and an avatar and you are in, on a phone or a laptop.
         </p>
       </section>
+
+      <AdSlot />
 
       <section>
         <h2>Places to explore</h2>
@@ -57,6 +61,8 @@ export default function About() {
         <h3>Can I play with my friends?</h3><p>Yes — everyone on the site is in the same city. Share the link, find each other at Downtown Plaza and send a friend request.</p>
         <h3>Does it work on mobile?</h3><p>Yes. There is a joystick on the left and Jump, Run, Drive, Kick and Bat buttons on the right.</p>
       </section>
+
+      <AdSlot />
 
       <p className="lede"><Link href="/" className="cta">Enter the city →</Link></p>
     </main>

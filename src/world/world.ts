@@ -15,6 +15,7 @@ import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
 import type { RideDef } from './city';
+import { loadAds, interstitial, rewarded, adsEnabled } from './ads';
 import { createTransport, type Transport, type NetMsg, type Gender } from './net';
 
 export interface WorldEvents {
@@ -44,7 +45,7 @@ export interface WorldEvents {
   onGame(kind: GameKind, opponent: string): void;
 }
 export type GameKind = 'pool' | 'chess' | 'ludo' | 'carrom' | 'race' | 'football' | 'cricket';
-export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | 'gift' | 'casino' | GameKind;
+export type MeetAction = 'friend' | 'hangout' | 'chat' | 'race' | 'hunt' | 'zombies' | 'gift' | 'adgift' | 'casino' | GameKind;
 
 const BOT_NAMES = [
   'Aarav (Kochi)', 'Mia (Berlin)', 'Kenji (Osaka)', 'Sofia (Lisbon)', 'Liam (Toronto)', 'Zara (Dubai)',
@@ -82,7 +83,7 @@ interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel:
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
-interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean; blasts: { mesh: THREE.Mesh; t0: number }[]; nextSpawn: number }
+interface ZombieState { list: Zombie[]; wave: number; hp: number; kills: number; breather: number; punchAt: number; fade: number; ending: boolean; blasts: { mesh: THREE.Mesh; t0: number }[]; nextSpawn: number; revived: boolean }
 // Who they were before: office worker, chef, cop, patient, jogger, builder, bride, nurse, student, party girl…
 interface ZombieLook { style: AvatarStyle; prop?: 'tie' | 'chef' | 'gown' | 'hivis' | 'veil' | 'nursecap' | 'tiara' | 'apron' | 'party' | 'bandage' }
 const ZOMBIE_SKINS = [0x8fbf6a, 0x9ccc7a, 0x7fb060, 0xa6d38a, 0x8f9a8a, 0x9d8fb0, 0xb7c9a0, 0x7f8f6a];
@@ -1252,6 +1253,7 @@ export class World {
   // ---------- loop ----------
   start() {
     this.clock.start();
+    loadAds();
     this.pushRank();
     const tick = () => { this.raf = requestAnimationFrame(tick); this.update(); };
     tick();
@@ -2434,7 +2436,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (this.zombies && !this.zombies.ending) { this.endZombies(false); return; }
     if (this.zombies) { this.applyNight(0); this.zombies = null; }   // still dawning: skip straight to day and start over
     if (this.race || this.match) return;
-    this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false, blasts: [], nextSpawn: 0 };
+    this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false, blasts: [], nextSpawn: 0, revived: false };
     this.clearQuest();
     this.questCooldown = 30;
     this.sfx.siren();
@@ -2658,6 +2660,14 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     z.blasts = [];
     this.zombieAt = this.elapsed + 12 * 60;
     if (this.hangout && this.hangout.until - this.elapsed > 300) this.endHangout();
+    if (died && !z.revived && adsEnabled()) {   // one rewarded revive per night
+      z.ending = false; this.ev.onMode({ icon: '🥊', label: 'Punch', run: true });
+      this.ev.onPick({ title: `You went down on wave ${z.wave}`, sub: 'Watch a short ad to get back up with full health, or wake up downtown.', options: ['Watch an ad · revive ❤', 'Wake up downtown'] }, (i) => {
+        if (i === 0) rewarded('zombie-revive', () => { z.hp = 100; z.revived = true; z.breather = 4; this.ev.onCollect({ name: 'Back on your feet · full health', points: 0, color: 0x2fa66a, shape: 'gem' }); }, () => { z.revived = true; this.endZombies(true); });
+        else { z.revived = true; this.endZombies(true); }
+      });
+      return;
+    }
     if (died) {
       this.sfx.questFail();
       this.ev.onCollect({ name: `You died on wave ${z.wave} · ${z.kills} kills`, points: 0, color: 0xd94a3d, shape: 'box' });
@@ -3314,6 +3324,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         break;
       }
       case 'gift': this.ev.onPick({ title: `Send ${b.name} a gift`, sub: 'Gifts are free. Be nice, be creative.', options: GIFTS.map((g) => `${g.e} ${g.n}`) }, (i) => this.sendGift(b, GIFTS[i].e)); break;
+      case 'adgift': rewarded('diamond-gift', () => { this.giftAt.delete(b.remote?.id ?? b.name); this.sendGift(b, '💎'); this.points += 15; this.ev.onPoints(this.points); }, () => this.ev.onCollect({ name: 'No ad available right now — try again in a minute', points: 0, color: 0x999999, shape: 'box' })); break;
       case 'race': this.startCircuitRace(b); break;
       case 'football': this.botSays(b, 'Kick-off at the stadium! ⚽', 0.2); this.startFootball(b); break;
       case 'cricket': this.startCricket(b); break;
@@ -3365,6 +3376,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const b = this.bots.find((x) => x.name === opponent);
     const name = { pool: '8-ball', chess: 'chess', ludo: 'Ludo', carrom: 'carrom', race: 'the race', football: 'the match', cricket: 'the chase' }[kind];
     const prize = { pool: 250, chess: 300, ludo: 200, carrom: 200, race: 250, football: 300, cricket: 200 }[kind];
+    setTimeout(() => interstitial(`${kind}-over`), 2500);   // a natural break: after the result card has been read
     if (win === null) { this.ev.onCollect({ name: `Draw at ${name} vs ${opponent}`, points: 0, color: 0x999999, shape: 'box' }); return; }
     if (win) {
       this.points += prize; this.ev.onPoints(this.points);

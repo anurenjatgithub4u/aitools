@@ -651,3 +651,9 @@ body.inmode .labels .tag.me { display: none !important; }
 .chip.zombie { cursor: default; }
 .chip.zombie:hover { background: rgba(70, 110, 60, .85); }
 @media (max-width: 720px) { .hud .bowlctl { bottom: calc(180px + env(safe-area-inset-bottom)); width: min(340px, 94vw); padding: 8px 10px; gap: 6px; } .bowlctl .seg button { font-size: 11px; padding: 7px 2px; } .bowlctl > small { display: none; } }
+
+/* ---- ad units on the content pages ---- */
+.adbox { max-width: 760px; margin: 0 0 34px; padding: 10px 0 4px; border-top: 1px solid rgba(0,0,0,.08); border-bottom: 1px solid rgba(0,0,0,.08); }
+.adbox small { display: block; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: rgba(0,0,0,.4); margin-bottom: 6px; }
+.adbox .adsbygoogle { min-height: 90px; }
+.meet button.adgift { background: linear-gradient(135deg, rgba(122,215,255,.35), rgba(255,122,184,.35)); }

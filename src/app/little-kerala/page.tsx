@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE } from "../seo";
+import { AdScript, AdSlot } from "../ads";
 
 export const metadata: Metadata = {
   title: "Little Kerala / Kerala Dhilber fans — try FindurAI, a free 3D city game in your browser",
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export default function LittleKerala() {
   return (
     <main className="landing page">
+      <AdScript />
       <nav className="top"><Link href="/" className="brand"><span className="logo">🌍</span><span><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></span></Link><Link href="/" className="cta">Play now →</Link></nav>
       <section className="hero">
         <p className="eyebrow">For Little Kerala players</p>
@@ -21,6 +23,8 @@ export default function LittleKerala() {
           Little Kerala (kerala.dhilber.com, often searched as &ldquo;kerala dilber&rdquo; or &ldquo;kerala dhilber&rdquo;) showed how much fun a shared 3D Kerala-style world in the browser can be — walk around, meet people, chat. FindurAI takes the same idea and builds a bigger city around it, with things to actually do together.
         </p>
       </section>
+
+      <AdSlot />
 
       <section>
         <h2>What is the same</h2>
@@ -48,6 +52,8 @@ export default function LittleKerala() {
         <h3>Is it connected to Little Kerala or Dhilber?</h3><p>No. FindurAI is an independent project, built for the same players who enjoy hanging out in a 3D city with friends.</p>
         <h3>Can I play it with the same friends?</h3><p>Yes — send them <b>findurai.com</b>. You all land at Downtown Plaza and can find each other on the map.</p>
       </section>
+
+      <AdSlot />
 
       <p className="lede"><Link href="/" className="cta">Enter FindurAI City →</Link> · <Link href="/games/">All the games</Link> · <Link href="/about/">About</Link></p>
     </main>

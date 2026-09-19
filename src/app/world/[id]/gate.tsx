@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { store } from "@/world/store";
+import { preroll } from "@/world/ads";
 
 // Shown before the city: a splash while the 3D bundle loads, then (first time only)
 // "create your explorer" — a name and a gender, each option rendered as a live spinning avatar.
@@ -54,7 +55,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, phase]);
 
-  const enter = () => { setPhase("building"); setTimeout(onEnter, 80); };   // let the splash paint "Building…" before the heavy work
+  const enter = () => { setPhase("building"); preroll(() => setTimeout(onEnter, 80)); };   // a preroll ad (if configured) while the splash paints "Building…", then the heavy work
   const [tip, setTip] = useState(0);
   useEffect(() => { const t = setInterval(() => setTip((k) => (k + 1) % TIPS.length), 2600); return () => clearInterval(t); }, []);
   const save = () => {

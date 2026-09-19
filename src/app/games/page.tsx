@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE } from "../seo";
+import { AdScript, AdSlot } from "../ads";
 
 export const metadata: Metadata = {
   title: "Games in FindurAI City — race, football, cricket, zombie night, pool, chess, Ludo, carrom",
@@ -13,12 +14,15 @@ export const metadata: Metadata = {
 export default function Games() {
   return (
     <main className="landing page">
+      <AdScript />
       <nav className="top"><Link href="/" className="brand"><span className="logo">🌍</span><span><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></span></Link><Link href="/" className="cta">Play now →</Link></nav>
       <section className="hero">
         <p className="eyebrow">Games</p>
         <h1>Everything you can play in FindurAI City.</h1>
         <p className="lede">All of these happen inside the 3D world — no separate app, no download. Most can be started by walking to the place, or by picking the game on another explorer&apos;s card so they play with you.</p>
       </section>
+
+      <AdSlot />
 
       <section><h2>🏁 Speedway race — free car racing game in the browser</h2>
         <p>The FindurAI Speedway is a 960 m circuit: pit straight past the grandstand, the Sunset sweeper, the Neon chicane, a long back straight, the Valley run south of the city, Big Bend, the Return run, the Esses and a hairpin under the grandstand. Choose 1, 2, 3 or 5 laps against three rivals. Drive over the green boost pads for a burst of speed, hold Shift for nitro. The HUD shows your lap, position and sector.</p></section>
@@ -40,6 +44,8 @@ export default function Games() {
 
       <section><h2>Also in the city</h2>
         <p>Driving jeeps, tuk-tuks, bikes and cycles (with petrol and a fuel station), giving people lifts, the Harbour Bridge to Eastside island, buses and police on the roads, dogs, cats and birds, and a big map of it all.</p></section>
+
+      <AdSlot />
 
       <p className="lede"><Link href="/" className="cta">Play free now →</Link> · <Link href="/about/">About FindurAI</Link></p>
     </main>

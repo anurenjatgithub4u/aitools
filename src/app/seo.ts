@@ -14,10 +14,10 @@ export const KEYWORDS = [
   "kerala dilber", "kerala dhilber", "dilber kerala game", "little kerala", "little kerala game", "little kerala online", "kerala game",
   "kerala 3d game online", "kerala metaverse", "kerala virtual city", "kerala.dhilber.com alternative", "games like little kerala",
   "malayalam game online", "kerala online game free",
-  // games inside the city
-  "football game online free", "5 a side football browser game", "cricket game online free", "cricket batting bowling game browser",
-  "zombie survival game browser", "zombie game online no download", "car racing game online", "tuk-tuk driving game", "jeep driving game",
-  "treasure hunt game", "cash hunt game", "chess online free", "ludo online", "carrom online", "8 ball pool online",
+  // games inside the city (each has its own landing page under /play/ that owns the long tail)
+  "cricket game online free", "football game online free", "zombie game online free", "car racing game online free",
+  "8 ball pool online free", "carrom game online free", "ludo online free", "chess online free no account",
+  "games to play with friends online free", "virtual dating game online free", "online games for couples", "games to play with girlfriend online long distance",
   // places
   "virtual beach hangout", "virtual bar pub club online", "virtual stadium football", "virtual cricket ground",
 ];

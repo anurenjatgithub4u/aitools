@@ -24,6 +24,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
   const [gender, setGender] = useState<"m" | "f" | null>(() => store.gender());
   const [name, setName] = useState(() => store.name() || "Explorer");
   const returning = !!store.gender();
+  const urlStart = ((): QuickStart => { if (typeof location === 'undefined') return 'explore'; const s = new URLSearchParams(location.search).get('start') ?? ''; return (QUICK.some(([k]) => k === s) ? s : 'explore') as QuickStart; })();
   const [slow, setSlow] = useState(false);
   const [failed, setFailed] = useState(false);
   const startedAt = useRef(Date.now());
@@ -56,7 +57,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
     const hold = process.env.NODE_ENV !== 'production' && typeof location !== 'undefined' && new URLSearchParams(location.search).has('splash') ? 20000 : 0;   // dev: ?splash keeps the splash up to look at it
     const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt.current)) + hold;
     const t = setTimeout(() => {
-      setPhase("profile");   // every visit: who you are, and where to go
+      if (urlStart !== 'explore' && store.gender()) enter(urlStart); else setPhase("profile");   // a landing page sent them to a game: go straight there
     }, wait + 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,7 +104,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
           </div>
           <p className="qhead">Where to?</p>
           <div className="quick">
-            {QUICK.map(([k, icon, label]) => <button key={k} type="button" className={k === 'explore' ? 'qbtn main' : 'qbtn'} disabled={!gender} onClick={() => save(k)}><span>{icon}</span>{label}</button>)}
+            {QUICK.map(([k, icon, label]) => <button key={k} type="button" className={(k === 'explore' ? 'qbtn main' : 'qbtn') + (k === urlStart && k !== 'explore' ? ' hot' : '')} disabled={!gender} onClick={() => save(k)}><span>{icon}</span>{label}</button>)}
           </div>
           <p className="pnote">{returning ? 'Change your name or avatar above any time.' : 'Real people see your name and avatar. You can change both later.'}</p>
         </div>

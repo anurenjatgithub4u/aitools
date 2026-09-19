@@ -670,3 +670,6 @@ body.inmode .labels .tag.me { display: none !important; }
 @media (max-width: 720px) { .profile .quick { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } .profile .qbtn { font-size: 11px; padding: 8px 4px 7px; border-radius: 12px; } .profile .qbtn span { font-size: 21px; } .profile .qbtn.main { font-size: 15px; padding: 12px; } .gcards { margin-bottom: 14px; } .profile h1 { margin-bottom: 10px; } }
 @media (max-height: 860px) { .gcard canvas { height: 150px; } .gcard { width: 150px; } .profile h1 { font-size: clamp(22px, 4vw, 30px); margin-bottom: 10px; } .gcards { margin-bottom: 14px; } .profile .qbtn span { font-size: 20px; } }
 body.tablemode .stick { display: none !important; }   /* no joystick ghost behind the table panel */
+
+.landing .cta.big { font-size: 18px; padding: 14px 28px; }
+.profile .qbtn.hot { border-color: var(--gold); background: rgba(232,196,106,.22); }

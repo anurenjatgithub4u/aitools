@@ -1366,7 +1366,7 @@ export class World {
         if (!atPump || v.fuel >= 1) { this.refuelling = false; this.sfx.pumpState(false); if (v.fuel >= 1) this.sfx.refuelDone(); }
         else v.fuel = Math.min(1, v.fuel + dt / 5);
       }
-      this.sfx.engineState(true, Math.abs(v.speed) / s.maxSpeed, boosting, empty);
+      if (s.kind === 'cycle') this.sfx.engineState(false, 0, false, false); else this.sfx.engineState(true, Math.abs(v.speed) / s.maxSpeed, boosting, empty);   // a cycle has no engine
       this.camera.fov += ((boosting ? 74 : 60) - this.camera.fov) * Math.min(1, dt * 4);
       this.camera.updateProjectionMatrix();
       if (t - this.lastDash > 0.1) {

@@ -30,6 +30,8 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image", title: TAGLINE, description: DESCRIPTION, creator: "@findurai" },
   formatDetection: { telephone: false },
+  // AdSense site verification (the game page carries no ad script, so the account is claimed with this tag + /ads.txt)
+  ...(process.env.NEXT_PUBLIC_ADSENSE_CLIENT ? { other: { "google-adsense-account": process.env.NEXT_PUBLIC_ADSENSE_CLIENT } } : {}),
 };
 
 export const viewport: Viewport = {

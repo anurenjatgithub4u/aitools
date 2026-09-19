@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Gate } from "./gate";
+import { Gate, type QuickStart } from "./gate";
 import { byId } from "@/world/destinations";
 import { renderHud } from "@/world/hud";
 import { store } from "@/world/store";
@@ -24,6 +24,7 @@ export function WorldView({ id }: { id: string }) {
   // the 3D bundle starts downloading behind the splash; the world is built once the player has an explorer
   const [loading] = useState(() => (typeof window === "undefined" ? Promise.resolve(null) : import("@/world/world")));
   const [entered, setEntered] = useState(false);
+  const startRef = useRef<QuickStart>('explore');
   const [ready, setReady] = useState(false);
   const [build, setBuild] = useState<{ f: number; label: string } | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);
@@ -116,6 +117,7 @@ export function WorldView({ id }: { id: string }) {
       hud.onMapToggle((open) => { stopBig?.(); stopBig = open ? world!.attachBigMap(hud.bigmap) : null; });
       hud.muted(world.sfx.muted);
       world.start();
+      if (startRef.current !== 'explore') { const start = startRef.current; setTimeout(() => world?.quickStart(start), 900); }   // straight into the game they picked
       if (process.env.NODE_ENV !== 'production') (window as unknown as { __findurai: unknown }).__findurai = world;   // dev console handle
       requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));   // first frame is on screen
       setTimeout(() => setReady(true), 2500);                                       // …or a background tab that never paints
@@ -137,7 +139,7 @@ export function WorldView({ id }: { id: string }) {
     <div className="in-world">
       <div ref={stageRef} className="stage" />
       <div ref={hudRef} />
-      {!gateGone && <Gate loading={loading} ready={ready} build={build} fatal={fatal} onEnter={() => setEntered(true)} />}
+      {!gateGone && <Gate loading={loading} ready={ready} build={build} fatal={fatal} onEnter={(start) => { startRef.current = start; setEntered(true); }} />}
     </div>
   );
 }

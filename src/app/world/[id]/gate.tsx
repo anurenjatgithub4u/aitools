@@ -11,12 +11,19 @@ type Phase = "splash" | "profile" | "building" | "leaving";
 const SPLASH_MIN_MS = 700;
 
 // `ready` flips true once the world has rendered its first frame; only then does the gate fade out.
-export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promise<unknown>; ready: boolean; build: { f: number; label: string } | null; fatal: string | null; onEnter: () => void }) {
+export type QuickStart = 'explore' | 'cricket' | 'football' | 'race' | 'zombies' | 'ludo' | 'chess' | 'pool' | 'carrom';
+const QUICK: [QuickStart, string, string][] = [
+  ['explore', '🌆', 'Explore the city'], ['cricket', '🏏', 'Cricket'], ['football', '⚽', 'Football'], ['race', '🏁', 'Race'],
+  ['zombies', '🧟', 'Zombie night'], ['ludo', '🎲', 'Ludo'], ['chess', '♟️', 'Chess'], ['pool', '🎱', '8-ball'], ['carrom', '🎯', 'Carrom'],
+];
+
+export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promise<unknown>; ready: boolean; build: { f: number; label: string } | null; fatal: string | null; onEnter: (start: QuickStart) => void }) {
   const [phase, setPhase] = useState<Phase>("splash");
   const [progress, setProgress] = useState(4);
   const [loaded, setLoaded] = useState(false);
-  const [gender, setGender] = useState<"m" | "f" | null>(null);
-  const [name, setName] = useState("Explorer");
+  const [gender, setGender] = useState<"m" | "f" | null>(() => store.gender());
+  const [name, setName] = useState(() => store.name() || "Explorer");
+  const returning = !!store.gender();
   const [slow, setSlow] = useState(false);
   const [failed, setFailed] = useState(false);
   const startedAt = useRef(Date.now());
@@ -49,20 +56,20 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
     const hold = process.env.NODE_ENV !== 'production' && typeof location !== 'undefined' && new URLSearchParams(location.search).has('splash') ? 20000 : 0;   // dev: ?splash keeps the splash up to look at it
     const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt.current)) + hold;
     const t = setTimeout(() => {
-      if (store.gender()) enter(); else setPhase("profile");
+      setPhase("profile");   // every visit: who you are, and where to go
     }, wait + 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, phase]);
 
-  const enter = () => { setPhase("building"); preroll(() => setTimeout(onEnter, 80)); };   // a preroll ad (if configured) while the splash paints "Building…", then the heavy work
+  const enter = (start: QuickStart = 'explore') => { setPhase("building"); preroll(() => setTimeout(() => onEnter(start), 80)); };   // a preroll ad (if configured) while the splash paints "Building…", then the heavy work
   const [tip, setTip] = useState(0);
   useEffect(() => { const t = setInterval(() => setTip((k) => (k + 1) % TIPS.length), 2600); return () => clearInterval(t); }, []);
-  const save = () => {
+  const save = (start: QuickStart = 'explore') => {
     if (!gender) return;
     store.setGender(gender);
-    store.setName(name);
-    enter();
+    store.setName(name.trim() || 'Explorer');
+    enter(start);
   };
 
   return (
@@ -84,8 +91,8 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
 
       {phase === "profile" && (
         <div className="profile">
-          <p className="eyebrow">Create your explorer</p>
-          <h1>Who are you in the city?</h1>
+          <p className="eyebrow">{returning ? 'Welcome back' : 'Create your explorer'}</p>
+          <h1>{returning ? `Good to see you, ${name}.` : 'Who are you in the city?'}</h1>
           <label className="pname">
             <span>Your name</span>
             <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} autoFocus />
@@ -94,8 +101,11 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
             <AvatarCard g="m" label="Male" sel={gender === "m"} onPick={() => setGender("m")} />
             <AvatarCard g="f" label="Female" sel={gender === "f"} onPick={() => setGender("f")} />
           </div>
-          <button className="enter-btn big" disabled={!gender} onClick={save}>Enter the city →</button>
-          <p className="pnote">Real people see your name and avatar. You can change both later from the home page.</p>
+          <p className="qhead">Where to?</p>
+          <div className="quick">
+            {QUICK.map(([k, icon, label]) => <button key={k} type="button" className={k === 'explore' ? 'qbtn main' : 'qbtn'} disabled={!gender} onClick={() => save(k)}><span>{icon}</span>{label}</button>)}
+          </div>
+          <p className="pnote">{returning ? 'Change your name or avatar above any time.' : 'Real people see your name and avatar. You can change both later.'}</p>
         </div>
       )}
     </div>

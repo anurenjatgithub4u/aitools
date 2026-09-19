@@ -2058,6 +2058,21 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   /** Table games: power and striker position come straight from the sliders (or W/S, Q/E). */
   setPower(v: number) { v = Math.max(0.05, Math.min(1, v)); if (this.pool) this.pool.power = v; if (this.carrom) this.carrom.power = v; }
   setPos(v: number) { const g = this.carrom?.game; if (!g || g.turn !== 'you' || g.moving) return; g.striker.x = CARROM.MIN_X + Math.max(0, Math.min(1, v)) * (CARROM.MAX_X - CARROM.MIN_X); }
+  /** Straight from the profile screen into a game: go there and start it. */
+  quickStart(kind: string) {
+    const tp = (x: number, z: number) => { if (this.driving) this.exitVehicle(); this.player.group.position.set(x, this.groundAt(x, z, this.terrain.h(x, z)), z); this.airY = 0; this.vy = 0; };
+    const partner = () => this.bots.find((b) => !b.remote && !b.riding && !b.knocked && !b.playing) ?? null;
+    switch (kind) {
+      case 'cricket': if (this.oval) { tp(this.oval.x - 8, this.oval.z); this.startCricket(); } break;
+      case 'football': if (this.field) { tp(this.field.x, this.field.z + 3); this.startFootball(); } break;
+      case 'race': this.startCircuitRace(); break;
+      case 'zombies': if (!this.zombies) this.toggleZombies(); break;
+      case 'pool': if (this.casino) { const tb = this.casino.tables[0]; tp(tb.x + 1.5, tb.z + 1.5); this.startPool(tb); } break;
+      case 'carrom': if (this.casino) { const cb = this.casino.carrom[0]; tp(cb.x + 1, cb.z + 1.5); this.startCarrom(cb); } break;
+      case 'ludo': case 'chess': { const b = partner(); if (b) { const p = this.player.group.position; b.av.group.position.set(p.x + 1.5, p.y, p.z); b.playing = true; b.wait = 0; this.ev.onGame(kind, b.name); setTimeout(() => { b.playing = false; b.wait = 1; }, 1500); } break; }
+    }
+  }
+
   /** The Exit button / Escape: walk away from whatever game is on. */
   exitMode() {
     if (this.pool) { this.endPool(); this.ev.onCollect({ name: 'You left the table', points: 0, color: 0x999999, shape: 'box' }); }

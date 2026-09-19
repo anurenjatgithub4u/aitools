@@ -657,3 +657,15 @@ body.inmode .labels .tag.me { display: none !important; }
 .adbox small { display: block; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: rgba(0,0,0,.4); margin-bottom: 6px; }
 .adbox .adsbygoogle { min-height: 90px; }
 .meet button.adgift { background: linear-gradient(135deg, rgba(122,215,255,.35), rgba(255,122,184,.35)); }
+
+/* ---- profile screen: where to? ---- */
+.profile .qhead { margin: 4px 0 10px; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.7); }
+.profile .quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; max-width: 620px; margin: 0 auto 12px; }
+.profile .qbtn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 9px; border-radius: 14px; border: 2px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: transform .15s, background .15s, border-color .15s; }
+.profile .qbtn span { font-size: 24px; line-height: 1; }
+.profile .qbtn:hover:not(:disabled) { transform: translateY(-2px); background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.4); }
+.profile .qbtn:disabled { opacity: .45; cursor: not-allowed; }
+.profile .qbtn.main { grid-column: 1 / -1; flex-direction: row; justify-content: center; gap: 10px; font-size: 16px; padding: 14px; background: var(--green); border-color: transparent; box-shadow: var(--shadow); }
+.profile .qbtn.main span { font-size: 22px; }
+@media (max-width: 720px) { .profile .quick { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; } .profile .qbtn { font-size: 11px; padding: 8px 4px 7px; border-radius: 12px; } .profile .qbtn span { font-size: 21px; } .profile .qbtn.main { font-size: 15px; padding: 12px; } .gcards { margin-bottom: 14px; } .profile h1 { margin-bottom: 10px; } }
+@media (max-height: 860px) { .gcard canvas { height: 150px; } .gcard { width: 150px; } .profile h1 { font-size: clamp(22px, 4vw, 30px); margin-bottom: 10px; } .gcards { margin-bottom: 14px; } .profile .qbtn span { font-size: 20px; } }

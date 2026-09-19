@@ -272,8 +272,8 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
       g.add(at(cyl(0.08, 0.08, 0.012, 0xc0392b, 16), bx, by + 0.032, bz)); g.add(at(cyl(0.05, 0.05, 0.014, 0xf0dcb0, 16), bx, by + 0.033, bz));
       for (const [dx, dz] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) g.add(at(box(0.08, by - cy - 0.06, 0.08, 0x3a2418), bx + dx, cy + (by - cy - 0.06) / 2, bz + dz));
       { const blocker = at(box(1.5, 3, 1.5, 0x000000), bx, cy + 1.5, bz); blocker.visible = false; g.add(blocker); }
-      for (const dz of [-1.2, 1.2]) { g.add(at(cyl(0.3, 0.3, 0.06, 0x8a6a4a, 10), bx, cy + 0.45, bz + dz)); g.add(at(cyl(0.04, 0.04, 0.42, 0x555555, 6), bx, cy + 0.21, bz + dz)); }   // two stools
-      g.add(at(glow(1.2, 0.05, 0.3, 0xfff2a8), bx, by + 1.3, bz));
+      for (const dz of [-1.5, 1.5]) { g.add(at(cyl(0.3, 0.3, 0.06, 0x8a6a4a, 10), bx, cy + 0.45, bz + dz)); g.add(at(cyl(0.04, 0.04, 0.42, 0x555555, 6), bx, cy + 0.21, bz + dz)); }   // two stools
+      { const lamp = at(glow(1.2, 0.05, 0.3, 0xfff2a8), bx, cy + CH - 0.4, bz); lamp.userData.noCollide = true; g.add(lamp); }   // strip light on the ceiling, out of the top-down camera's way
       carromTables.push({ x: bx, z: bz, y: by + 0.035 });
     }
     // a few high tables for hanging out

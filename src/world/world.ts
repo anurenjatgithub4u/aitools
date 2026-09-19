@@ -1442,7 +1442,7 @@ export class World {
       if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
       if (this.ridingWith) this.tickRide();
 
-      focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : this.carrom ? new THREE.Vector3(this.carrom.board.x, this.carrom.board.y + 0.2, this.carrom.board.z) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
+      focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : this.carrom ? new THREE.Vector3(this.carrom.board.x, this.carrom.board.y + 0.2, this.carrom.board.z + 0.35) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
@@ -1657,7 +1657,7 @@ export class World {
     // pull the camera in front of trees / buildings that block the view (not on a ride: its own poles and cabins
     // would keep yanking the camera in and out)
     let wantDist = this.dist;
-    if (!this.ride) { this.ray.set(focus, dir); this.ray.far = this.dist; const hit = this.ray.intersectObjects(this.occluders, true)[0]; if (hit) wantDist = Math.max(2.5, hit.distance - 0.6); }
+    if (!this.ride && !this.pool && !this.carrom) { this.ray.set(focus, dir); this.ray.far = this.dist; const hit = this.ray.intersectObjects(this.occluders, true)[0]; if (hit) wantDist = Math.max(2.5, hit.distance - 0.6); }
     this.camDist += (wantDist - this.camDist) * Math.min(1, dt * (wantDist < this.camDist ? 14 : 3));
     const cam = dir.multiplyScalar(this.camDist).add(focus);
     cam.y = Math.max(cam.y, this.terrain.h(cam.x, cam.z) + 1);
@@ -2838,6 +2838,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   private tickPool(dt: number, t: number) {
     const ps = this.pool!, g = ps.game, tb = ps.table;
+    this.yaw = 0; this.pitch = 1.1; this.dist = 5;   // fixed high camera while the game is on
     if (ps.over && t > ps.endAt) { this.endPool(); return; }
     g.step();
     // aim with ◀ ▶ (or A/D); power meter bounces while charging
@@ -2902,9 +2903,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (!opp) return;
     opp.playing = true; opp.wait = 0; opp.label.visible = true;
     const y = this.terrain.h(board.x, board.z);
-    this.player.group.position.set(board.x, y, board.z + 1.15); this.player.group.rotation.y = Math.PI; poseSit(this.player);
-    opp.av.group.position.set(board.x, y, board.z - 1.15); opp.av.group.rotation.y = 0; poseSit(opp.av);
-    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.15; this.dist = 3; this.camDist = 3;
+    this.player.group.position.set(board.x, y, board.z + 1.45); this.player.group.rotation.y = Math.PI; poseSit(this.player);
+    opp.av.group.position.set(board.x, y, board.z - 1.45); opp.av.group.rotation.y = 0; poseSit(opp.av);   // knees clear of the board in the top-down view
+    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.5; this.dist = 2.4; this.camDist = 2.4;   // straight down on the board
+    this.player.group.visible = false;   // you are looking over your own head: hide yourself, the board is what matters (others still see you)
+    this.sun.castShadow = false;         // no avatar shadows sweeping across the board from straight above on the board, your baseline at the bottom of the screen
     const coins: THREE.Mesh[] = [];
     const game = createCarrom(opp.name, {
       status: (text) => { if (this.carrom) this.carrom.status = text; },
@@ -2936,6 +2939,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   private tickCarrom(dt: number, t: number) {
     const cs = this.carrom!, g = cs.game, b = cs.board;
+    this.yaw = 0; this.pitch = 1.5; this.dist = 2.4;   // fixed top-down camera while the game is on
     if (cs.over && t > cs.endAt) { this.endCarrom(); return; }
     g.step();
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
@@ -2965,6 +2969,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private endCarrom() {
     const cs = this.carrom; if (!cs) return;
     this.carrom = null;
+    this.player.group.visible = true; this.sun.castShadow = true;
     cs.game.dispose();
     for (const m of cs.coins) this.scene.remove(m);
     this.scene.remove(cs.strikerMesh); this.scene.remove(cs.aimLine);

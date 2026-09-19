@@ -405,6 +405,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       exitBtn.hidden = !a || !!tbl; jumpBtn.hidden = !!a; runBtn.hidden = !!a && !a.run;
       tableEl.hidden = !tbl; posRow.hidden = tbl !== 'carrom';
       document.body.classList.toggle('inmode', !!a); document.body.classList.toggle('tablemode', !!tbl);
+      driveBtn.hidden = promptEl.hidden || !!a;   // e.g. Get out again once a race is over and you are still in the car
     },
     bowl(s) { bowlEl.hidden = !s; if (s) { segSel(segPace, s.pace); segSel(segLine, s.line); } },
     zombieClock(seconds, on) { zombieBtn.classList.toggle('on', on); zombieBtn.textContent = on ? '🧟 Zombie night!' : seconds === null ? '🧟 Zombies' : `🧟 Zombies in ${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`; },

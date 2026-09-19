@@ -1442,7 +1442,7 @@ export class World {
       if (this.zombies && t - this.zombies.punchAt < 0.22) this.player.armR.rotation.x = -1.7;
       if (this.ridingWith) this.tickRide();
 
-      focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : this.carrom ? new THREE.Vector3(this.carrom.board.x, this.carrom.board.y + 0.2, this.carrom.board.z + 0.35) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
+      focus = this.pool ? new THREE.Vector3(this.pool.table.x, this.pool.table.y + 0.4, this.pool.table.z) : this.carrom ? new THREE.Vector3(this.carrom.board.x, this.carrom.board.y + 0.2, this.carrom.board.z + (this.mobile ? 0.35 : 0.3)) : p.clone().add(new THREE.Vector3(0, 1.7, 0));
       if (this.lastDash !== -1) { this.lastDash = -1; this.ev.onDash(null); }
       if (Math.abs(this.camera.fov - 60) > 0.01) { this.camera.fov += (60 - this.camera.fov) * Math.min(1, dt * 4); this.camera.updateProjectionMatrix(); }
       const near = this.nearestVehicle();
@@ -1881,6 +1881,7 @@ export class World {
     this.resetKickoff();
     this.ev.onMode({ icon: '⚽', label: 'Kick', run: true });
     this.yaw = -Math.PI / 2;   // look down the pitch toward the goal you attack (+x)
+    this.pitch = 0.55; this.dist = 20; this.camDist = 20;   // zoomed out so most of the pitch and both goals are in view
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
@@ -2905,7 +2906,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const y = this.terrain.h(board.x, board.z);
     this.player.group.position.set(board.x, y, board.z + 1.45); this.player.group.rotation.y = Math.PI; poseSit(this.player);
     opp.av.group.position.set(board.x, y, board.z - 1.45); opp.av.group.rotation.y = 0; poseSit(opp.av);   // knees clear of the board in the top-down view
-    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.5; this.dist = 2.4; this.camDist = 2.4;   // straight down on the board
+    const cd = this.mobile ? 2.3 : 1.8;   // as close as the board still fits in the frame
+    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.5; this.dist = cd; this.camDist = cd;   // straight down on the board
     this.player.group.visible = false;   // you are looking over your own head: hide yourself, the board is what matters (others still see you)
     this.sun.castShadow = false;         // no avatar shadows sweeping across the board from straight above on the board, your baseline at the bottom of the screen
     const coins: THREE.Mesh[] = [];
@@ -2939,7 +2941,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   private tickCarrom(dt: number, t: number) {
     const cs = this.carrom!, g = cs.game, b = cs.board;
-    this.yaw = 0; this.pitch = 1.5; this.dist = 2.4;   // fixed top-down camera while the game is on
+    this.yaw = 0; this.pitch = 1.5; this.dist = this.mobile ? 2.3 : 1.8;   // fixed top-down camera while the game is on
     if (cs.over && t > cs.endAt) { this.endCarrom(); return; }
     g.step();
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);

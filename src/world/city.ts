@@ -259,7 +259,6 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
       g.add(at(box(3.5, 0.3, 2.1, 0x3a2418), px, ty - 0.27, pz));                                       // frame
       for (const [dx, dz] of [[-1.55, -0.85], [0, -0.9], [1.55, -0.85], [-1.55, 0.85], [0, 0.9], [1.55, 0.85]]) { const pk = at(cyl(0.09, 0.09, 0.06, 0x111111, 10), px + dx, ty + 0.02, pz + dz); pk.userData.noCollide = true; g.add(pk); }
       for (const [dx, dz] of [[-1.4, -0.75], [1.4, -0.75], [-1.4, 0.75], [1.4, 0.75]]) g.add(at(box(0.18, ty - cy - 0.4, 0.18, 0x3a2418), px + dx, cy + (ty - cy - 0.4) / 2, pz + dz));
-      g.add(at(cyl(0.02, 0.02, 2, 0x333333, 4), px, ty + 2.2, pz)); g.add(at(box(2.4, 0.16, 0.5, 0x2a1f3d), px, ty + 1.25, pz)); g.add(at(glow(2.2, 0.05, 0.4, 0xfff2a8), px, ty + 1.16, pz));   // lamp
       { const blocker = at(box(3.7, 3, 2.3, 0x000000), px, cy + 1.5, pz); blocker.visible = false; g.add(blocker); }   // tall enough that nobody climbs onto the cloth
       poolTables.push({ x: px, z: pz, ry: 0, y: ty });
     }
@@ -273,7 +272,6 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
       for (const [dx, dz] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) g.add(at(box(0.08, by - cy - 0.06, 0.08, 0x3a2418), bx + dx, cy + (by - cy - 0.06) / 2, bz + dz));
       { const blocker = at(box(1.5, 3, 1.5, 0x000000), bx, cy + 1.5, bz); blocker.visible = false; g.add(blocker); }
       for (const dz of [-1.5, 1.5]) { g.add(at(cyl(0.3, 0.3, 0.06, 0x8a6a4a, 10), bx, cy + 0.45, bz + dz)); g.add(at(cyl(0.04, 0.04, 0.42, 0x555555, 6), bx, cy + 0.21, bz + dz)); }   // two stools
-      { const lamp = at(glow(1.2, 0.05, 0.3, 0xfff2a8), bx, cy + CH - 0.4, bz); lamp.userData.noCollide = true; g.add(lamp); }   // strip light on the ceiling, out of the top-down camera's way
       carromTables.push({ x: bx, z: bz, y: by + 0.035 });
     }
     // a few high tables for hanging out

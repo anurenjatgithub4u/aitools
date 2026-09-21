@@ -2471,14 +2471,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         return;
       }
       a.armL.rotation.z = 0; a.armR.rotation.z = 0;
-      // where they should be: home, walked in a couple of metres during the run-up, a few steps toward a hit ball
+      // where they should be: home and set while the bowler runs in, a few steps toward a hit ball
       let tx = f.home.x, tz = f.home.z;
-      const toBatX = batX - f.home.x, toBatZ = o.z - f.home.z, toBat = Math.hypot(toBatX, toBatZ) || 1;
-      if (c.phase === 'runup') { const u = Math.min(1, (t - c.t0) / 1.8); tx += (toBatX / toBat) * 2.2 * u; tz += (toBatZ / toBat) * 2.2 * u; }
-      else if (c.phase === 'flight') { tx += (toBatX / toBat) * 2.2; tz += (toBatZ / toBat) * 2.2; }
-      else if (c.phase === 'hit') { const bx = ball.x - f.home.x, bz = ball.z - f.home.z, bd = Math.hypot(bx, bz) || 1; const step = Math.min(6, bd * 0.35); tx += (bx / bd) * step; tz += (bz / bd) * step; }
+      if (c.phase === 'hit') { const bx = ball.x - f.home.x, bz = ball.z - f.home.z, bd = Math.hypot(bx, bz) || 1; const step = Math.min(6, bd * 0.35); tx += (bx / bd) * step; tz += (bz / bd) * step; }
       const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
-      if (d > 0.25) {   // jog there
+      if (d > 0.6) {   // jog there (a generous dead zone: no fidgeting on the spot)
         const sp = Math.min(d, (c.phase === 'result' || c.phase === 'ready' ? 4.5 : 3.2) * dt);
         p.x += (dx / d) * sp; p.z += (dz / d) * sp; p.y = this.terrain.h(p.x, p.z);
         g.rotation.y += wrapAngle(Math.atan2(dx, dz) - g.rotation.y) * Math.min(1, dt * 8);

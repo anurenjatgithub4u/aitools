@@ -30,83 +30,93 @@ function rbox(w: number, h: number, d: number, c: number, r = 0.06, pivotTop = f
   m.castShadow = true;
   return m;
 }
-function plain(w: number, h: number, d: number, c: number) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c));
-  m.castShadow = true;
-  return m;
-}
 const at = <T extends THREE.Object3D>(o: T, x: number, y: number, z: number) => { o.position.set(x, y, z); return o; };
 
-// Stylised explorer, ~2.1 units tall, facing +Z. Limb pivots sit at hip / shoulder.
+// Stylised explorer, ~2.4 units tall, facing +Z. Limb pivots sit at hip / shoulder. Round head, dot eyes and
+// a smile, short sleeves and shorts with skin showing, chunky shoes — a friendly low-poly person, not a crate.
+const sphere = (r: number, c: number, seg = 18) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, seg, Math.max(8, seg * 0.7)), mat(c)); m.castShadow = true; return m; };
+
 export function makeAvatar(style: AvatarStyle): Avatar {
   const skin = style.skin ?? 0xe0ac7e;
   const hairC = style.hair ?? 0x2b1d14;
-  const dark = 0x25211f;
+  const shorts = !style.female && style.hat !== 'explorer';   // explorers wear long trousers; everyone else shorts
+  const shoe = style.female ? 0xf4f4f4 : [0xf4f4f4, 0x25211f, 0xd94a3d][(style.shirt + style.pants) % 3];
   const g = new THREE.Group();
 
-  // legs + shoes (hip pivot at y 0.85)
-  const legL = at(rbox(0.3, 0.85, 0.32, style.pants, 0.07, true), -0.18, 0.85, 0);
-  const legR = at(rbox(0.3, 0.85, 0.32, style.pants, 0.07, true), 0.18, 0.85, 0);
-  for (const leg of [legL, legR]) leg.add(at(rbox(0.32, 0.16, 0.44, dark, 0.05), 0, -0.8, 0.06));
+  // legs: thigh in the shorts / trouser colour, shin in skin (shorts) or cloth, a chunky shoe (hip pivot at y 0.85)
+  const mkLeg = (x: number) => {
+    const thigh = at(rbox(0.24, 0.44, 0.26, style.pants, 0.1, true), x, 0.85, 0);
+    thigh.add(at(rbox(0.2, 0.4, 0.22, shorts || style.female ? skin : style.pants, 0.08), 0, -0.6, 0));
+    thigh.add(at(rbox(0.26, 0.15, 0.4, shoe, 0.06), 0, -0.78, 0.06));
+    thigh.add(at(rbox(0.27, 0.06, 0.42, 0xdddddd, 0.02), 0, -0.83, 0.06));   // sole
+    return thigh;
+  };
+  const legL = mkLeg(-0.15), legR = mkLeg(0.15);
 
   const body = new THREE.Group();
   body.position.y = 0.85;
   g.add(legL, legR, body);
 
-  // torso, belt, collar
-  body.add(at(rbox(0.76, 0.85, 0.44, style.shirt, 0.1), 0, 0.42, 0));
-  body.add(at(plain(0.78, 0.09, 0.46, dark), 0, 0.03, 0));
-  body.add(at(plain(0.34, 0.1, 0.24, style.shirt), 0, 0.9, 0.02));
+  // hips, torso (a T-shirt), round shoulders / short sleeves, neck
+  body.add(at(rbox(0.54, 0.24, 0.34, style.pants, 0.1), 0, 0.02, 0));
+  body.add(at(rbox(0.6, 0.72, 0.38, style.shirt, 0.14), 0, 0.42, 0));
+  for (const sx of [-1, 1]) body.add(at(rbox(0.24, 0.26, 0.3, style.shirt, 0.11), sx * 0.36, 0.68, 0));
+  body.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.16, 12), mat(skin)), 0, 0.84, 0));
   if (style.female) {
-    body.add(at(rbox(0.9, 0.42, 0.56, style.pants, 0.08), 0, -0.18, 0));          // skirt over the hips
-    body.add(at(plain(0.5, 0.06, 0.3, 0xf2c31b), 0, 0.02, 0.2));                    // waist band
+    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.44, 0.46, 14), mat(style.pants)); skirt.castShadow = true; body.add(at(skirt, 0, -0.16, 0));   // skirt from the hips
+    body.add(at(rbox(0.62, 0.07, 0.4, 0xf2c31b, 0.03), 0, 0.06, 0));                    // waist band
   }
   if (style.backpack) {
-    body.add(at(rbox(0.5, 0.6, 0.24, 0x8a5a2b, 0.06), 0, 0.45, -0.32));
-    body.add(at(rbox(0.3, 0.2, 0.1, 0x6b4520, 0.03), 0, 0.3, -0.48));
+    body.add(at(rbox(0.46, 0.56, 0.22, 0x8a5a2b, 0.08), 0, 0.42, -0.3));
+    body.add(at(rbox(0.28, 0.18, 0.1, 0x6b4520, 0.04), 0, 0.28, -0.44));
   }
 
-  // arms with hands (shoulder pivot)
-  const armL = at(rbox(0.22, 0.78, 0.24, style.shirt, 0.06, true), -0.5, 0.82, 0);
-  const armR = at(rbox(0.22, 0.78, 0.24, style.shirt, 0.06, true), 0.5, 0.82, 0);
-  for (const arm of [armL, armR]) arm.add(at(rbox(0.2, 0.2, 0.2, skin, 0.06), 0, -0.85, 0));
+  // arms: skin below the sleeve, a round hand (shoulder pivot)
+  const mkArm = (x: number) => {
+    const arm = at(rbox(0.17, 0.62, 0.17, skin, 0.08, true), x, 0.74, 0);
+    arm.add(at(rbox(0.2, 0.22, 0.2, style.shirt, 0.09), 0, -0.06, 0));   // sleeve hangs over the top of the arm
+    arm.add(at(sphere(0.1, skin, 12), 0, -0.66, 0));
+    return arm;
+  };
+  const armL = mkArm(-0.42), armR = mkArm(0.42);
   body.add(armL, armR);
 
-  // head
+  // head: a round face, hair on top and behind, dot eyes with a highlight, brows, a small nose, a smile
   const head = new THREE.Group();
   head.position.y = 1.02;
   body.add(head);
-  head.add(at(rbox(0.6, 0.62, 0.58, skin, 0.14), 0, 0.3, 0));
-  head.add(at(plain(0.1, 0.12, 0.08, skin), -0.33, 0.3, 0));   // ears
-  head.add(at(plain(0.1, 0.12, 0.08, skin), 0.33, 0.3, 0));
-  head.add(at(rbox(0.64, 0.24, 0.62, hairC, 0.1), 0, 0.55, -0.02));  // hair cap
+  const face = sphere(0.34, skin, 22); face.scale.set(1, 1.08, 0.96); head.add(at(face, 0, 0.3, -0.02));
+  for (const sx of [-1, 1]) head.add(at(sphere(0.065, skin, 10), sx * 0.32, 0.28, -0.02));   // ears
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.36, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), mat(hairC)); dome.castShadow = true; head.add(at(dome, 0, 0.43, -0.04));   // hairline above the brows
+  head.add(at(rbox(0.56, 0.42, 0.22, hairC, 0.1), 0, 0.3, -0.24));        // back of the head
   if (style.female) {
-    head.add(at(rbox(0.66, 0.5, 0.2, hairC, 0.08), 0, 0.28, -0.26));   // long hair down the back
-    for (const s of [-1, 1]) head.add(at(rbox(0.1, 0.42, 0.34, hairC, 0.04), s * 0.32, 0.3, -0.06)); // sides
-    const tail = at(rbox(0.16, 0.6, 0.16, hairC, 0.06), 0, 0.0, -0.4); tail.rotation.x = 0.25; head.add(tail); // ponytail
-    head.add(at(plain(0.2, 0.06, 0.2, 0xd94a3d), 0, 0.68, 0.1));      // hair clip
-    head.add(at(plain(0.06, 0.06, 0.02, 0xd92b2b), 0, 0.42, 0.3));    // bindi
+    head.add(at(rbox(0.6, 0.66, 0.26, hairC, 0.12), 0, 0.04, -0.2));       // long hair down the back
+    for (const sx of [-1, 1]) head.add(at(rbox(0.13, 0.5, 0.32, hairC, 0.06), sx * 0.31, 0.14, -0.02));   // over the ears
+    head.add(at(rbox(0.46, 0.1, 0.12, hairC, 0.04), 0, 0.5, 0.26));       // fringe
+    head.add(at(sphere(0.05, 0xd94a3d, 8), 0.26, 0.66, 0.16));             // a flower clip
+    head.add(at(sphere(0.028, 0xd92b2b, 8), 0, 0.43, 0.32));               // bindi
+    for (const sx of [-1, 1]) head.add(at(sphere(0.045, 0xf0a0a0, 8), sx * 0.19, 0.2, 0.26));   // cheeks
   } else {
-    head.add(at(plain(0.62, 0.3, 0.14, hairC), 0, 0.38, -0.25));      // hair at the back
+    head.add(at(rbox(0.5, 0.09, 0.12, hairC, 0.04), 0, 0.5, 0.26));        // fringe
   }
-  for (const s of [-1, 1]) {
-    head.add(at(plain(0.14, 0.12, 0.02, 0xffffff), s * 0.14, 0.34, 0.29));
-    head.add(at(plain(0.07, 0.08, 0.02, 0x1a1a1a), s * 0.13, 0.33, 0.3));
-    head.add(at(plain(0.16, 0.035, 0.02, hairC), s * 0.14, 0.45, 0.29));
+  for (const sx of [-1, 1]) {
+    head.add(at(sphere(0.048, 0x1a1a1a, 10), sx * 0.12, 0.34, 0.3));
+    head.add(at(sphere(0.016, 0xffffff, 6), sx * 0.12 + 0.015, 0.355, 0.34));
+    head.add(at(rbox(0.13, 0.03, 0.03, hairC, 0.01), sx * 0.12, 0.44, 0.31));
   }
-  head.add(at(plain(0.07, 0.1, 0.07, skin), 0, 0.24, 0.3));            // nose
-  head.add(at(plain(0.18, 0.035, 0.02, 0xa8503f), 0, 0.12, 0.29));     // smile
+  head.add(at(sphere(0.04, skin, 8), 0, 0.26, 0.33));                                              // nose
+  { const smile = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.016, 6, 14, Math.PI), mat(0x8a3a2a)); smile.rotation.z = Math.PI; head.add(at(smile, 0, 0.19, 0.31)); }
 
   if (style.hat === 'explorer') {
-    head.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.5, 0.05, 14), mat(0xc9b07a)), 0, 0.6, 0));
-    head.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.33, 0.26, 14), mat(0xc9b07a)), 0, 0.74, 0));
-    head.add(at(plain(0.66, 0.06, 0.66, 0x6b4520), 0, 0.64, 0));
+    head.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.52, 0.05, 16), mat(0xc9b07a)), 0, 0.72, 0));
+    head.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.35, 0.28, 16), mat(0xc9b07a)), 0, 0.86, 0));
+    head.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.06, 16), mat(0x6b4520)), 0, 0.76, 0));
   } else if (style.hat === 'cap') {
-    head.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(style.shirt)), 0, 0.5, 0));
-    head.add(at(plain(0.36, 0.04, 0.3, style.shirt), 0, 0.5, 0.4));
+    head.add(at(new THREE.Mesh(new THREE.SphereGeometry(0.39, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat(style.shirt)), 0, 0.45, -0.03));
+    head.add(at(rbox(0.36, 0.05, 0.3, style.shirt, 0.02), 0, 0.47, 0.44));
   }
 
-  // merge the static bits (head features, torso, hat…) so each explorer is ~6 draw calls instead of ~30
+  // merge the static bits (head features, torso, hat…) so each explorer is ~6 draw calls instead of ~40
   g.updateMatrixWorld(true);
   bakeInto(head, head.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh), { flat: false });
   bakeInto(body, body.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh && c !== armL && c !== armR), { flat: false });

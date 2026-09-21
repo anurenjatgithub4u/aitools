@@ -110,10 +110,10 @@ const put = (m: THREE.Mesh, x: number, y: number, z: number, rx = 0, ry = 0, rz 
 function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) {
   const body = av.body, skin = av.group.userData.skin as number;
   if (head) {
-    for (const sx of [-1, 1]) head.add(put(zmesh(new THREE.BoxGeometry(0.15, 0.14, 0.02), 0x1a1210), sx * 0.13, 0.33, 0.295));   // sunken sockets
+    for (const sx of [-1, 1]) head.add(put(zmesh(new THREE.BoxGeometry(0.15, 0.14, 0.02), 0x1a1210), sx * 0.13, 0.33, 0.325));   // sunken sockets
     head.add(put(zmesh(new THREE.BoxGeometry(0.34, 0.12, 0.28), skin), 0, 0.06, 0.06, 0.55));                                      // jaw hanging open
-    head.add(put(zmesh(new THREE.BoxGeometry(0.2, 0.05, 0.02), 0x5a0d0d), 0.04, 0.13, 0.31));                                       // blood at the mouth
-    if (Math.random() < 0.5) head.add(put(zmesh(new THREE.BoxGeometry(0.16, 0.12, 0.03), 0xe8e0c8), rand(-0.2, 0.2), rand(0.35, 0.55), 0.29));   // skull showing
+    head.add(put(zmesh(new THREE.BoxGeometry(0.2, 0.05, 0.02), 0x5a0d0d), 0.04, 0.13, 0.335));                                      // blood at the mouth
+    if (Math.random() < 0.5) head.add(put(zmesh(new THREE.BoxGeometry(0.16, 0.12, 0.03), 0xe8e0c8), rand(-0.2, 0.2), rand(0.35, 0.55), 0.33));   // skull showing
   }
   // torn hem and wounds
   for (let k = 0; k < 3; k++) body.add(put(zmesh(new THREE.BoxGeometry(0.1, rand(0.2, 0.4), 0.02), dirty(look.style.shirt)), rand(-0.3, 0.3), -0.1, 0.23 + k * 0.005, 0, 0, rand(-0.3, 0.3)));

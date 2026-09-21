@@ -186,8 +186,8 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 
 /* ---------- mini-game arena ---------- */
 .arena { position: absolute; inset: 0; z-index: 20; background: rgba(8, 18, 14, .9); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; padding: 12px; pointer-events: auto; color: #fff; }
-.acard { position: relative; width: min(940px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 10px; background: linear-gradient(180deg, #1c3b30, #11251d); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 14px 16px 12px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
-.ahead { display: flex; align-items: center; gap: 16px; }
+.acard { position: relative; width: min(940px, 100%); height: 100%; max-height: min(860px, 100%); display: flex; flex-direction: column; gap: 10px; background: linear-gradient(180deg, #1c3b30, #11251d); border: 1px solid rgba(255,255,255,.12); border-radius: 22px; padding: 14px 16px 12px; box-shadow: 0 30px 80px rgba(0,0,0,.6); box-sizing: border-box; }
+.ahead { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
 .atitle { display: flex; align-items: center; gap: 8px; font-family: 'Playfair Display', Georgia, serif; font-size: 20px; }
 .atitle span { font-size: 24px; }
 .aplayers { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -197,10 +197,10 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 .ap small { font-size: 10px; color: rgba(255,255,255,.7); letter-spacing: .06em; text-transform: uppercase; }
 .ap.on { border-color: var(--gold); background: rgba(232, 196, 106, .15); box-shadow: 0 0 0 4px rgba(232, 196, 106, .12); }
 .avs { font-size: 11px; letter-spacing: .2em; color: rgba(255,255,255,.5); }
-.aquit { margin-left: 8px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 16px; cursor: pointer; }
-.aboard { display: flex; justify-content: center; min-height: 0; }
-.aboard canvas { max-width: 100%; height: auto; border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,.45); touch-action: none; }
-.astatus { text-align: center; font-size: 13px; color: rgba(255,255,255,.8); min-height: 18px; }
+.aquit { margin-left: 8px; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgba(255,255,255,.12); color: #fff; font-size: 16px; cursor: pointer; flex-shrink: 0; }
+.aboard { display: flex; justify-content: center; align-items: center; min-height: 0; flex: 1; overflow: hidden; }
+.aboard canvas { max-width: 100%; max-height: 100%; width: auto; height: auto; border-radius: 14px; box-shadow: 0 16px 40px rgba(0,0,0,.45); touch-action: none; object-fit: contain; }
+.astatus { text-align: center; font-size: 13px; color: rgba(255,255,255,.8); min-height: 18px; flex-shrink: 0; }
 .aend { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: rgba(8, 18, 14, .78); border-radius: 22px; text-align: center; }
 .aemoji { font-size: 56px; }
 .aend h3 { font-size: 30px; }
@@ -241,7 +241,7 @@ h1, h2, h3 { font-family: var(--font-playfair), 'Playfair Display', Georgia, ser
 @keyframes dieroll { from { transform: rotate(-12deg) translateY(-3px); } to { transform: rotate(12deg) translateY(2px); } }
 .ludo button { font: inherit; font-weight: 700; font-size: 15px; background: var(--gold); color: var(--ink); border: 0; border-radius: 999px; padding: 12px 26px; cursor: pointer; }
 .ludo button:disabled { opacity: .4; cursor: default; }
-.carrom { width: min(520px, 100%, calc(100dvh - 210px)); }
+.carrom { width: min(520px, 100%, calc(100dvh - 210px)); aspect-ratio: 1; display: block; }
 .racetrack { width: min(900px, 100%); max-height: calc(100dvh - 190px); object-fit: contain; }
 .pooltable { width: min(900px, 100%); }
 .chead { display: flex; align-items: center; gap: 8px; }
@@ -345,10 +345,16 @@ body { overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
   .sign.metro { font-size: 10px; padding: 3px 8px; }
   .hud .bottom-left { display: none; }
   .meet button { width: 54px; height: 50px; font-size: 18px; }
-  .acard { padding: 10px; border-radius: 16px; }
+  .acard { padding: 8px 10px 10px; border-radius: 16px; gap: 6px; max-height: calc(100dvh - 24px); }
   .ap b { display: none; }
   .ap { padding: 4px; }
-  .atitle { font-size: 16px; }
+  .atitle { font-size: 15px; }
+  .aquit { width: 30px; height: 30px; font-size: 13px; }
+  .carrom { width: min(480px, 100%, calc(100dvh - 140px)); aspect-ratio: 1; display: block; }
+  .astatus { font-size: 11px; min-height: 14px; }
+  .aemoji { font-size: 40px; }
+  .aend h3 { font-size: 22px; }
+  .abtns button { padding: 8px 14px; font-size: 13px; }
   .hud .chatbox { left: 10px; right: 10px; width: auto; bottom: calc(10px + env(safe-area-inset-bottom)); }
   .clog { max-height: 120px; }
   .hud .bubble { left: 10px; bottom: calc(96px + env(safe-area-inset-bottom)); max-width: 60%; font-size: 12px; }
@@ -673,3 +679,4 @@ body.tablemode .stick { display: none !important; }   /* no joystick ghost behin
 
 .landing .cta.big { font-size: 18px; padding: 14px 28px; }
 .profile .qbtn.hot { border-color: var(--gold); background: rgba(232,196,106,.22); }
+@media (max-width: 720px) { .meet .ice { display: none !important; } }   /* phones: no icebreaker row on the card — it ate the screen */

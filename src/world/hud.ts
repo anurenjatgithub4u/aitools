@@ -2,7 +2,7 @@ import { type Collectible, type Destination } from './destinations';
 import type { QuestState } from './quests';
 import type { MeetAction } from './world';
 import { store } from './store';
-import { adsEnabled } from './ads';
+import { adsReady } from './ads';
 import { randomIcebreakers } from './chat';
 
 export const hex = (n: number) => '#' + n.toString(16).padStart(6, '0');
@@ -273,7 +273,6 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const qSide = (id: string, s: { name: string; score: string; sub?: string; on?: boolean }) => { const el = root.querySelector<HTMLElement>(id)!; el.classList.toggle('on', !!s.on); el.querySelector('small')!.textContent = s.name; el.querySelector('b')!.textContent = s.score; el.querySelector('span')!.textContent = s.sub ?? ''; };
   qBtn.addEventListener('click', actions.task);
   const zombieBtn = root.querySelector<HTMLElement>('#zombiebtn')!, hurtEl = root.querySelector<HTMLElement>('#hurt')!;
-  if (adsEnabled()) root.querySelector<HTMLElement>('.adgift')!.hidden = false;   // a diamond gift for watching a short ad
   // bowling picker
   const bowlEl = root.querySelector<HTMLElement>('#bowlctl')!, segPace = root.querySelector<HTMLElement>('#segpace')!, segLine = root.querySelector<HTMLElement>('#segline')!;
   const segSel = (seg: HTMLElement, i: number) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === i));
@@ -368,6 +367,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     friends(n) { friendsChip.textContent = `🤝 ${n} friends`; },
     meet(m) {
+      root.querySelector<HTMLElement>('.adgift')!.hidden = !adsReady();   // rewarded 💎 only once the ad SDK is live
       meetEl.classList.toggle('real', !!m?.real);
       if (!m) dismissed = '';
       meetEl.hidden = !m || dismissed === m.name;

@@ -33,9 +33,10 @@ export interface WorldEvents {
   onFriends(n: number): void;
   onRank(rank: number, of: number): void;
   onHurt(): void;
+  onBanner(title: string, sub: string, tone: 'good' | 'bad' | 'neutral'): void;
   onHearts(): void;
   onPick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
-  onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean } | null): void;
+  onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean; stick?: boolean } | null): void;
   onTable(power: number, pos: number | null): void;
   onBowl(s: { pace: number; line: number } | null): void;   // pre-ball picker while you bowl
   onZombieClock(seconds: number | null, on: boolean): void;   // countdown to the next zombie night
@@ -1992,6 +1993,7 @@ export class World {
         const own = m.lastKick && m.lastKick.team !== scorer;
         const who = m.lastKick ? (m.lastKick.bot ? m.lastKick.bot.name : 'You') : '';
         this.ev.onCollect({ name: scorer === 0 ? `GOAL! ${own ? `${who} (own goal)` : who} · You ${m.score[0]} - ${m.score[1]}` : `${who} scores${own ? ' (own goal)' : ''} · ${m.score[0]} - ${m.score[1]}`, points: scorer === 0 ? 50 : 0, color: scorer === 0 ? 0x2fa66a : 0xd94a3d, shape: 'gem' });
+        this.ev.onBanner('GOAL!', `${who}${own ? ' (own goal)' : ''} · ${m.score[0]} - ${m.score[1]}`, scorer === 0 ? 'good' : 'bad');
         if (scorer === 0) { this.points += 50; this.ev.onPoints(this.points); }
         const talker = m.side.find((f) => f.bot && f.team === scorer && !f.gk)?.bot; if (talker) this.botSays(talker, scorer === 0 ? 'What a strike! ⚽🔥' : 'Get in! 😎', 0.6);
         setTimeout(() => { if (this.match === m && !m.over) this.resetKickoff(); }, 2400);
@@ -2079,6 +2081,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (left <= 0 || m.score[0] >= 5 || m.score[1] >= 5) {
       m.over = true; m.endAt = t + 3;
       const win = m.score[0] === m.score[1] ? null : m.score[0] > m.score[1];
+      this.ev.onBanner(win === null ? 'FULL TIME · DRAW' : win ? 'YOU WIN!' : 'FULL TIME', `${m.score[0]} - ${m.score[1]}${win ? ' · +300' : ''}`, win === false ? 'bad' : 'good');
       this.ev.onQuest({ status: win === false ? 'failed' : 'done', title: `Full time · ${m.score[0]} - ${m.score[1]}`, desc: win === null ? 'A draw — rematch?' : win ? 'You win the match!' : `${m.opp}'s team take it`, progress: '', remaining: 0, total: MATCH_SECONDS, reward: 300, hint: null });
       this.gameResult('football', win, m.opp);
     }
@@ -2185,7 +2188,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
-    this.ev.onMode({ icon: '🏏', label: 'Bat', arrows: true, run: true });
+    this.ev.onMode({ icon: '🏏', label: 'Bat', arrows: true, run: true, stick: false });
     this.ev.onCollect({ name: `You bat first · ${balls / 6} over${balls > 6 ? 's' : ''}, ${this.cricket.maxWkts} wickets · then ${rival.name} chases`, points: 0, color: 0x2fa66a, shape: 'gem' });
     this.botSays(rival, 'Watch the ball, not me 😏', 1.5);
   }
@@ -2275,6 +2278,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private wicket() {
     const c = this.cricket!;
     c.wkts++; c.phase = 'result'; c.t0 = this.elapsed; c.last = 'OUT';
+    this.ev.onBanner(c.note.startsWith('Run out') ? 'RUN OUT!' : c.note.startsWith('Caught') ? 'CAUGHT!' : c.note.startsWith('Bowled') ? 'BOWLED!' : 'OUT!', c.innings === 1 ? `${c.note} · ${c.wkts} down` : `${c.opp.name} · ${c.runs}/${c.wkts}`, c.innings === 1 ? 'bad' : 'good');
     if (c.stumps && c.note.startsWith('Bowled')) c.stumps.rotation.z = -1.3;
     if (c.innings === 1) { this.sfx.questFail(); this.botSays(c.opp, ['Gotcha! 🎯', 'Next! 😎', 'Timber! 🏏'][c.wkts % 3], 0.5); }
     else { this.sfx.questDone(); this.points += 25; this.ev.onPoints(this.points); this.botSays(c.opp, ['Argh! 😤', 'Lucky ball…', 'Fine, fine 🙄'][c.wkts % 3], 0.5); }
@@ -2356,6 +2360,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       if (dist >= o.r) {   // over the rope
         const six = !c.bounced;
         c.runs += six ? 6 : 4; c.last = six ? 'SIX!' : 'FOUR!'; c.phase = 'result'; c.t0 = t;
+        this.ev.onBanner(six ? 'SIX!' : 'FOUR!', batting ? (six ? 'Over the rope on the full' : 'Along the carpet') : `${c.opp.name} · ${c.runs}/${c.wkts}`, batting ? 'good' : 'bad');
         if (batting) { this.points += six ? 30 : 20; this.ev.onPoints(this.points); this.sfx.questDone(); }
         else this.botSays(c.opp, six ? 'Into the crowd! 💥' : 'Too easy 😎', 0.3);
         this.ev.onCollect({ name: six ? (batting ? 'SIX! Over the rope on the full' : `${c.opp.name} launches it for SIX`) : batting ? 'FOUR! Along the carpet' : `${c.opp.name} finds the rope · FOUR`, points: batting ? (six ? 30 : 20) : 0, color: batting ? 0x2fa66a : 0xd94a3d, shape: 'gem' });
@@ -2405,13 +2410,15 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           c.first = c.runs; c.target = c.runs + 1; c.innings = 2; c.runs = 0; c.wkts = 0; c.balls = 0; c.last = ''; c.note = '';
           this.setCreases();
           c.phase = 'ready'; c.t0 = t + 3;
-          this.ev.onMode({ icon: '🏏', label: 'Bowl', arrows: true });
+          this.ev.onMode({ icon: '🏏', label: 'Bowl', arrows: true, stick: false });
+          this.ev.onBanner('Innings over', `You made ${c.first} · ${c.opp.name} needs ${c.first + 1} to win`, 'neutral');
           this.ev.onCollect({ name: `Innings over · you made ${c.first}. Now bowl: pick speed and line, tap Bowl to run in, Bowl again at the top`, points: 0, color: 0x3fb7d9, shape: 'gem' });
           this.botSays(c.opp, `${c.first}? Easy 😏`, 1);
           this.sfx.questStart();
         } else {
           c.phase = 'over'; c.t0 = t;
           const win = c.runs < c.target;
+          this.ev.onBanner(win ? 'YOU WIN!' : `${c.opp.name.toUpperCase()} WINS`, win ? `by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'} · +200` : 'They chased it down', win ? 'good' : 'bad');
           this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}!` : `${c.opp.name} chased it down`, board: { icon: win ? '🏆' : '🏏', a: { name: 'You', score: `${c.first}`, on: win }, b: { name: c.opp.name, score: `${c.runs}/${c.wkts}`, on: !win }, line: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}! +200` : `${c.opp.name} chased it down` }, desc: `You ${c.first} · ${c.opp.name} ${c.runs}/${c.wkts}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
           this.gameResult('cricket', win, c.opp.name);
         }
@@ -3301,6 +3308,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           const place = c.done;
           this.gameResult('race', place === 1, r.opp);
           this.ev.onCollect({ name: place === 1 ? 'Chequered flag - you won the race!' : `Finished ${['', '1st', '2nd', '3rd', '4th'][place]} of 4`, points: 0, color: 0xe8c46a, shape: 'gem' });
+          this.ev.onBanner(place === 1 ? '🏁 YOU WIN!' : `🏁 ${['', '1ST', '2ND', '3RD', '4TH'][place]} PLACE`, place === 1 ? 'Chequered flag · +250' : 'of 4', place === 1 ? 'good' : 'neutral');
           if (place === 1) this.sfx.questDone(); else this.sfx.questFail();
         } else if (c.bot) this.botSays(c.bot, c.done === 1 ? 'Winner!' : 'Good race!', 0.3);
       }

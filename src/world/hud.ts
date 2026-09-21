@@ -22,9 +22,10 @@ export interface Hud {
   friends(n: number): void;
   rank(r: number, of: number): void;
   hurt(): void;
+  banner(title: string, sub: string, tone: 'good' | 'bad' | 'neutral'): void;
   hearts(): void;
   pick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
-  mode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean } | null): void;
+  mode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean; stick?: boolean } | null): void;
   table(power: number, pos: number | null): void;
   bowl(s: { pace: number; line: number } | null): void;
   zombieClock(seconds: number | null, on: boolean): void;
@@ -154,6 +155,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     </div>
     <div id="toasts"></div>
     <div id="hurt" class="hurtflash"></div>
+    <div id="banner" class="banner" hidden><b id="btitle"></b><small id="bsub"></small></div>
     <div class="pick" id="pick" hidden><b id="picktitle"></b><small id="picksub"></small><div class="popts" id="pickopts"></div><button class="pcancel" id="pickcancel">Not now</button></div>
     <div class="help" id="helpbox" hidden>
       <h3>How to play</h3>
@@ -274,6 +276,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const qSide = (id: string, s: { name: string; score: string; sub?: string; on?: boolean }) => { const el = root.querySelector<HTMLElement>(id)!; el.classList.toggle('on', !!s.on); el.querySelector('small')!.textContent = s.name; el.querySelector('b')!.textContent = s.score; el.querySelector('span')!.textContent = s.sub ?? ''; };
   qBtn.addEventListener('click', actions.task);
   const zombieBtn = root.querySelector<HTMLElement>('#zombiebtn')!, hurtEl = root.querySelector<HTMLElement>('#hurt')!;
+  let bannerT = 0;
   // bowling picker
   const bowlEl = root.querySelector<HTMLElement>('#bowlctl')!, segPace = root.querySelector<HTMLElement>('#segpace')!, segLine = root.querySelector<HTMLElement>('#segline')!;
   const segSel = (seg: HTMLElement, i: number) => seg.querySelectorAll('button').forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === i));
@@ -406,7 +409,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       batL.hidden = batR.hidden = !a?.arrows || !!tbl; paceBtn.hidden = !a?.pace;
       exitBtn.hidden = !a || !!tbl; jumpBtn.hidden = !!a; runBtn.hidden = !!a && !a.run;
       tableEl.hidden = !tbl; posRow.hidden = tbl !== 'carrom';
-      document.body.classList.toggle('inmode', !!a); document.body.classList.toggle('tablemode', !!tbl);
+      document.body.classList.toggle('inmode', !!a); document.body.classList.toggle('tablemode', !!tbl); document.body.classList.toggle('nostick', !!a && a.stick === false);
       driveBtn.hidden = promptEl.hidden || !!a;   // e.g. Get out again once a race is over and you are still in the car
     },
     bowl(s) { bowlEl.hidden = !s; if (s) { segSel(segPace, s.pace); segSel(segLine, s.line); } },
@@ -423,6 +426,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       root.querySelector<HTMLElement>('#pickcancel')!.onclick = () => { el.hidden = true; };
     },
     hearts() { const h = document.createElement('div'); h.className = 'hearts'; for (let i = 0; i < 9; i++) { const e = document.createElement('i'); e.textContent = ['💖', '💗', '💕', '✨'][i % 4]; e.style.setProperty('--dx', `${(i - 4) * 28}px`); e.style.animationDelay = `${i * 60}ms`; h.appendChild(e); } root.appendChild(h); setTimeout(() => h.remove(), 1900); },
+    banner(title, sub, tone) { const el = root.querySelector<HTMLElement>('#banner')!; el.className = `banner ${tone}`; el.querySelector('#btitle')!.textContent = title; el.querySelector('#bsub')!.textContent = sub; el.hidden = false; clearTimeout(bannerT); bannerT = window.setTimeout(() => { el.hidden = true; }, 1900); },
     hurt() { hurtEl.classList.add('on'); clearTimeout(hurtT); hurtT = window.setTimeout(() => hurtEl.classList.remove('on'), 180); },
     minimap: root.querySelector<HTMLCanvasElement>('#minimap')!,
     bigmap: root.querySelector<HTMLCanvasElement>('#bigmapcv')!,

@@ -696,3 +696,19 @@ body.tablemode .hud .quest { display: none !important; }
 }
 
 .chip.big .coins { margin-left: 10px; padding-left: 10px; border-left: 1px solid rgba(255,255,255,.25); color: #ffe08a; font-weight: 700; }
+
+/* ---- big centre banner: WICKET, SIX, GOAL, innings over, results ---- */
+.hud .banner { position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 14px 34px; border-radius: 22px; background: rgba(12, 12, 22, .78); border: 2px solid rgba(255,255,255,.18); color: #fff; text-align: center; pointer-events: none; z-index: 12; animation: bannerin 1.9s cubic-bezier(.2,.8,.2,1) both; box-shadow: 0 18px 50px rgba(0,0,0,.45); max-width: 92vw; }
+.hud .banner b { font-size: clamp(30px, 6vw, 52px); letter-spacing: .06em; line-height: 1.05; }
+.hud .banner small { font-size: 14px; color: rgba(255,255,255,.85); background: none; padding: 0; border: 0; box-shadow: none; letter-spacing: 0; text-transform: none; }
+.hud .banner.good { border-color: #6fd36f; } .hud .banner.good b { color: #a6ff7a; }
+.hud .banner.bad { border-color: #e74c3c; } .hud .banner.bad b { color: #ff8a7a; }
+.hud .banner.neutral { border-color: var(--gold); } .hud .banner.neutral b { color: #ffe08a; }
+@keyframes bannerin { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.6); } 12% { opacity: 1; transform: translate(-50%, -50%) scale(1.06); } 20% { transform: translate(-50%, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -60%) scale(.96); } }
+body.nostick .stick { display: none !important; }
+/* the bowling picker sits mid-screen on phones, clear of the Bowl button and the joystick */
+@media (max-width: 720px) {
+  .hud .bowlctl { top: 44%; bottom: auto; transform: translate(-50%, -50%); width: min(300px, 86vw); padding: 8px 10px; gap: 6px; }
+  .bowlctl .brow > span { width: 40px; font-size: 10px; }
+  .bowlctl .seg button { font-size: 11px; padding: 7px 2px; }
+}

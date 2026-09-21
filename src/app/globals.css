@@ -680,3 +680,17 @@ body.tablemode .stick { display: none !important; }   /* no joystick ghost behin
 .landing .cta.big { font-size: 18px; padding: 14px 28px; }
 .profile .qbtn.hot { border-color: var(--gold); background: rgba(232,196,106,.22); }
 @media (max-width: 720px) { .meet .ice { display: none !important; } }   /* phones: no icebreaker row on the card — it ate the screen */
+
+/* ---- table games: no task card, a tighter control panel on phones ---- */
+body.tablemode .hud .quest { display: none !important; }
+@media (max-width: 720px) {
+  .hud .tablectl { width: min(330px, 92vw); padding: 6px 10px 8px; gap: 4px; border-radius: 14px; }
+  .tablectl .trow { gap: 8px; }
+  .tablectl .trow > span { width: 46px; font-size: 10px; }
+  .tbtn { width: 44px; height: 34px; font-size: 15px; border-radius: 10px; }
+  .tablectl input[type=range] { height: 24px; }
+  .tablectl b { font-size: 12px; width: 36px; }
+  .tablectl .btns { gap: 14px; padding-top: 2px; }
+  .tablectl .act { width: 50px; height: 50px; font-size: 18px; }
+  .tablectl .act small { font-size: 7px; }
+}

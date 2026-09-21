@@ -2801,7 +2801,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     // you at the near long side, they at the far one
     this.player.group.position.set(table.x, this.terrain.h(table.x, table.z), table.z + 1.9); this.player.group.rotation.y = Math.PI;
     opp.av.group.position.set(table.x, this.terrain.h(table.x, table.z), table.z - 1.9); opp.av.group.rotation.y = 0;
-    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = 1.1; this.dist = 5; this.camDist = 5;   // high over your shoulder: the whole table in view
+    this.airY = 0; this.vy = 0; this.yaw = 0; this.pitch = this.mobile ? 1.35 : 1.1; this.dist = this.mobile ? 5.6 : 5; this.camDist = this.dist;   // high over your shoulder (near top-down on phones): the whole table in view
+    this.player.group.visible = false; this.sun.castShadow = false;   // your own hat is not the view
     const meshes: THREE.Mesh[] = [];
     const game = createPool(opp.name, {
       status: (text) => { if (this.pool) this.pool.status = text; },
@@ -2839,7 +2840,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   private tickPool(dt: number, t: number) {
     const ps = this.pool!, g = ps.game, tb = ps.table;
-    this.yaw = 0; this.pitch = 1.1; this.dist = 5;   // fixed high camera while the game is on
+    this.yaw = 0; this.pitch = this.mobile ? 1.35 : 1.1; this.dist = this.mobile ? 5.6 : 5;   // fixed high camera while the game is on
     if (ps.over && t > ps.endAt) { this.endPool(); return; }
     g.step();
     // aim with ◀ ▶ (or A/D); power meter bounces while charging
@@ -2875,6 +2876,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private endPool() {
     const ps = this.pool; if (!ps) return;
     this.pool = null;
+    this.player.group.visible = true; this.sun.castShadow = true;
     ps.game.dispose();
     for (const m of ps.meshes) if (m) this.scene.remove(m);
     this.scene.remove(ps.cueStick); this.scene.remove(ps.aimLine);
@@ -3659,7 +3661,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (this.wantQuest) { this.wantQuest = false; if (!this.quest || this.quest.status !== 'active') this.startQuest(); }
     const q = this.quest;
     if (!q || q.status !== 'active') {
-      this.questCooldown -= dt;
+      if (!this.inMode() && !this.date && !this.ride && !this.dancing) this.questCooldown -= dt;   // no new tasks mid-game, on a date or on a ride
       if (this.questCooldown <= 0) this.startQuest();
       return;
     }

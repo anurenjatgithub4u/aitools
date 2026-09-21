@@ -315,7 +315,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       promptEl.hidden = !text;
       promptEl.textContent = text ?? '';
       promptEl.classList.toggle('driving', driving);
-      driveBtn.hidden = !text || document.body.classList.contains('inmode');   // Drive doubles as E; useless mid-game
+      driveBtn.hidden = (!text && !driving) || document.body.classList.contains('inmode');   // Drive doubles as E; always there while driving (Get out), useless mid-game
       driveBtn.innerHTML = driving ? '🚶<small>Get out</small>' : '🚗<small>Drive</small>';
       jumpBtn.hidden = driving || modeOn;                 // mid-game the mode() rules win
       runBtn.hidden = driving || (modeOn && !modeRun);
@@ -410,7 +410,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       exitBtn.hidden = !a || !!tbl; jumpBtn.hidden = !!a; runBtn.hidden = !!a && !a.run;
       tableEl.hidden = !tbl; posRow.hidden = tbl !== 'carrom';
       document.body.classList.toggle('inmode', !!a); document.body.classList.toggle('tablemode', !!tbl); document.body.classList.toggle('nostick', !!a && a.stick === false);
-      driveBtn.hidden = promptEl.hidden || !!a;   // e.g. Get out again once a race is over and you are still in the car
+      driveBtn.hidden = (promptEl.hidden && !promptEl.classList.contains('driving')) || !!a;   // e.g. Get out again once a race is over and you are still in the car
     },
     bowl(s) { bowlEl.hidden = !s; if (s) { segSel(segPace, s.pace); segSel(segLine, s.line); } },
     zombieClock(seconds, on) { zombieBtn.classList.toggle('on', on); zombieBtn.textContent = on ? '🧟 Zombie night!' : seconds === null ? '🧟 Zombies' : `🧟 Zombies in ${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`; },

@@ -93,6 +93,7 @@ export function WorldView({ id }: { id: string }) {
           onPick: (p, choose) => hud.pick(p, choose),
           onMode: (a) => hud.mode(a),
           onTable: (p, pos) => hud.table(p, pos),
+          onTableStatus: (s) => hud.tableStatus(s),
           onBowl: (s) => hud.bowl(s),
           onZombieClock: (s, on) => hud.zombieClock(s, on),
           onMeet: (m) => hud.meet(m),

@@ -27,6 +27,7 @@ export interface Hud {
   pick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
   mode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean; stick?: boolean } | null): void;
   table(power: number, pos: number | null): void;
+  tableStatus(text: string): void;
   bowl(s: { pace: number; line: number } | null): void;
   zombieClock(seconds: number | null, on: boolean): void;
   meet(m: { name: string; friend: boolean; real: boolean } | null): void;
@@ -134,6 +135,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <small>Tap <b>Bowl</b> to run in · Bowl again at the top of your action</small>
     </div>
     <div class="tablectl" id="tablectl" hidden>
+      <div class="tstatus" id="tstatus"></div>
       <div class="trow"><span>Aim</span><button type="button" class="tbtn" id="aiml" title="Aim left (A)">◀</button><button type="button" class="tbtn" id="aimr" title="Aim right (D)">▶</button><small>hold · Shift = fine</small></div>
       <label class="trow" id="posrow"><span>Striker</span><input type="range" id="posrng" min="0" max="100" value="50"></label>
       <label class="trow"><span>Power</span><input type="range" id="pwrrng" min="5" max="100" value="60"><b id="pwrval">60%</b></label>
@@ -414,6 +416,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     bowl(s) { bowlEl.hidden = !s; if (s) { segSel(segPace, s.pace); segSel(segLine, s.line); } },
     zombieClock(seconds, on) { zombieBtn.classList.toggle('on', on); zombieBtn.textContent = on ? '🧟 Zombie night!' : seconds === null ? '🧟 Zombies' : `🧟 Zombies in ${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`; },
+    tableStatus(text) { const el = root.querySelector<HTMLElement>('#tstatus')!; if (el.textContent !== text) el.textContent = text; },
     table(power, pos) { if (sliding) return; pwrRng.value = String(Math.round(power * 100)); pwrVal.textContent = `${pwrRng.value}%`; if (pos !== null) posRng.value = String(Math.round(pos * 100)); },
     pick(p, choose) {
       const el = root.querySelector<HTMLElement>('#pick')!, opts = root.querySelector<HTMLElement>('#pickopts')!;

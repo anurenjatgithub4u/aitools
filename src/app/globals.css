@@ -712,3 +712,6 @@ body.nostick .stick { display: none !important; }
   .bowlctl .brow > span { width: 40px; font-size: 10px; }
   .bowlctl .seg button { font-size: 11px; padding: 7px 2px; }
 }
+
+.tablectl .tstatus { font-size: 12px; font-weight: 600; color: #ffe08a; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 16px; }
+@media (max-width: 720px) { .tablectl .tstatus { font-size: 11px; } }

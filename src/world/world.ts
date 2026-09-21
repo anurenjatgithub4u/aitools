@@ -38,6 +38,7 @@ export interface WorldEvents {
   onPick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
   onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean; stick?: boolean } | null): void;
   onTable(power: number, pos: number | null): void;
+  onTableStatus(text: string): void;
   onBowl(s: { pace: number; line: number } | null): void;   // pre-ball picker while you bowl
   onZombieClock(seconds: number | null, on: boolean): void;   // countdown to the next zombie night
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
@@ -71,7 +72,7 @@ interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean; nitroUntil: number; nitroAt: number }
 // Football at City Stadium: you + a team-mate against two rivals, one ball, two goals, 90 seconds.
 interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; slot: [number, number]; gk: boolean; kicked: number; bib: THREE.Mesh }
-interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mates: string; rivals: string; started: number; lastKick: Footballer | null }
+interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mates: string; rivals: string; started: number; lastKick: Footballer | null; cheer: { team: 0 | 1; until: number } | null }
 // formation slots relative to the centre spot for the side attacking +x (mirrored for the other side): captain, keeper, two backs, a winger
 const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
 const MATCH_SECONDS = 90;
@@ -81,7 +82,8 @@ interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel:
   go: boolean; pickShown?: boolean;                                       // bowler: speed and line chosen, run in
   nonStriker: Avatar; bat2: THREE.Group;                                  // the batter at the other end
   run: { u: number; done: number; more: boolean; plan: number; moving: boolean } | null;   // batters running between the wickets
-  throw: { from: THREE.Vector3; t0: number; dur: number } | null }        // the fielder's return to the stumps
+  throw: { from: THREE.Vector3; t0: number; dur: number } | null;        // the fielder's return to the stumps
+  overLog: string[]; cheerUntil: number }                                // this over's balls; fielders celebrate a wicket until
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
@@ -1658,7 +1660,7 @@ export class World {
     if (this.sunsetK > 0 && !(this.zombies && !this.zombies.ending)) this.applySunset(this.sunsetK);
     if (this.match) this.tickFootball(dt, t);
     if (this.cricket) this.tickCricket(dt, t);
-    if (this.zombies) this.tickZombies(dt, t);
+    if (this.zombies) { this.tickZombies(dt, t); this.tickBats(dt, t); }
     this.tickZombieClock(t);
 
     // --- world labels + metro train
@@ -1919,9 +1921,10 @@ export class World {
     const side: Footballer[] = [mk(null, 0, 0), ...mates.map((b, i) => mk(b, 0, i + 1)), ...rivals.map((b, i) => mk(b, 1, i))];
     for (const f of side) if (f.bot) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; f.bot.label.visible = true; }
     if (this.hangout) this.endHangout();
-    this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rivals[0].name, mates: mates.map((b) => b.name).join(', '), rivals: rivals.map((b) => b.name).join(', '), started: this.elapsed, lastKick: null };
+    this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rivals[0].name, mates: mates.map((b) => b.name).join(', '), rivals: rivals.map((b) => b.name).join(', '), started: this.elapsed, lastKick: null, cheer: null };
     this.resetKickoff();
     this.ev.onMode({ icon: '⚽', label: 'Kick', run: true });
+    this.ev.onBanner('KICK-OFF', 'Five-a-side · 90 seconds · first to five', 'neutral');
     this.yaw = -Math.PI / 2;   // look down the pitch toward the goal you attack (+x)
     this.pitch = 0.55; this.dist = 20; this.camDist = 20;   // zoomed out so most of the pitch and both goals are in view
     this.clearQuest();
@@ -1988,7 +1991,7 @@ export class World {
       if (inGoal && live) {
         const scorer: 0 | 1 = ball.x > pt.x ? 0 : 1;   // the +x goal belongs to the rivals
         m.score[scorer]++;
-        m.pause = 2.8;
+        m.pause = 2.8; m.cheer = { team: scorer, until: t + 2.4 };
         this.sfx.questDone();
         const own = m.lastKick && m.lastKick.team !== scorer;
         const who = m.lastKick ? (m.lastKick.bot ? m.lastKick.bot.name : 'You') : '';
@@ -2047,7 +2050,10 @@ export class World {
         // spread out: never stand inside a team-mate
         for (const o of fs) { if (o === f) continue; const op = o.bot!.av.group.position, ox = bp.x - op.x, oz = bp.z - op.z, od = Math.hypot(ox, oz); if (od < 1.6 && od > 0) { bp.x += (ox / od) * (1.6 - od) * 0.5; bp.z += (oz / od) * (1.6 - od) * 0.5; } }
         bp.y = this.groundAt(bp.x, bp.z, bp.y);
-        animateWalk(b.av, t * 2.2, b.walking);
+        if (m.cheer && t < m.cheer.until) {   // a goal: the scoring team jump with their arms up, the others hang their heads
+          if (f.team === m.cheer.team) { bp.y += Math.abs(Math.sin((t + f.slot[0]) * 8)) * 0.3; b.av.armL.rotation.x = b.av.armR.rotation.x = -2.9; b.av.legL.rotation.x = b.av.legR.rotation.x = 0; }
+          else { b.av.body.rotation.x = 0.35; b.av.armL.rotation.x = b.av.armR.rotation.x = 0.2; b.av.legL.rotation.x = b.av.legR.rotation.x = 0; }
+        } else { b.av.body.rotation.x = 0; animateWalk(b.av, t * 2.2, b.walking); }
         b.label.visible = false;   // bibs tell the teams apart; no name tags on the pitch
         if (!live) continue;
         block(b.av.group, f);
@@ -2182,7 +2188,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
     const nonStriker = makeAvatar({ ...OUTFITS[3 % OUTFITS.length], skin: SKINS[2 % SKINS.length] }); this.scene.add(nonStriker.group);
     const bat2 = this.makeBat(); nonStriker.armR.add(bat2); nonStriker.armR.rotation.x = -0.6;
-    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, go: false, nonStriker, bat2, run: null, throw: null };
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
     for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
     this.setCreases();
     this.clearQuest();
@@ -2277,7 +2283,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   private wicket() {
     const c = this.cricket!;
-    c.wkts++; c.phase = 'result'; c.t0 = this.elapsed; c.last = 'OUT';
+    c.wkts++; c.phase = 'result'; c.t0 = this.elapsed; c.last = 'OUT'; c.cheerUntil = this.elapsed + 2.2;
     this.ev.onBanner(c.note.startsWith('Run out') ? 'RUN OUT!' : c.note.startsWith('Caught') ? 'CAUGHT!' : c.note.startsWith('Bowled') ? 'BOWLED!' : 'OUT!', c.innings === 1 ? `${c.note} · ${c.wkts} down` : `${c.opp.name} · ${c.runs}/${c.wkts}`, c.innings === 1 ? 'bad' : 'good');
     if (c.stumps && c.note.startsWith('Bowled')) c.stumps.rotation.z = -1.3;
     if (c.innings === 1) { this.sfx.questFail(); this.botSays(c.opp, ['Gotcha! 🎯', 'Next! 😎', 'Timber! 🏏'][c.wkts % 3], 0.5); }
@@ -2291,6 +2297,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.yaw += wrapAngle((batting ? -Math.PI / 2 : Math.PI / 2) - this.yaw) * Math.min(1, dt * 3);
     if (!c.run) this.batPose(batter, c, t, batting);
     this.tickRunning(c, dt, t, batting, batter);
+    this.tickFielders(c, dt, t);
     const bp = bowler.group.position;
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
     if (batting) { const bz = this.player.group.position; bz.z = Math.max(o.z - 1.6, Math.min(o.z + 2.4, bz.z + held * 2.6 * dt)); }   // shuffle across to reach a wide one
@@ -2371,6 +2378,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       const fp = c.chaser.av.group.position, fdx = ball.x - fp.x, fdz = ball.z - fp.z, fd = Math.hypot(fdx, fdz);
       if (c.throw) {   // the return throw: the ball flies from the fielder to the striker's stumps
         const u = Math.min(1, (t - c.throw.t0) / c.throw.dur), sx = c.throw.from, tx = batX - 0.6;
+        if (c.chaser) { const a = c.chaser.av, k = Math.min(1, (t - c.throw.t0) / 0.35); a.armR.rotation.x = -2.9 + k * 3.4; a.armL.rotation.x = -0.6 + k * 0.4; a.body.rotation.x = -0.15 + k * 0.45; }
         ball.set(sx.x + (tx - sx.x) * u, this.terrain.h(sx.x, sx.z) + 1 + Math.sin(u * Math.PI) * 2.5, sx.z + (o.z - sx.z) * u);
         if (u >= 1) {
           const r = c.run, safe = !r || !r.moving || r.u > 0.82 || r.u < 0.12;
@@ -2403,11 +2411,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     }
     if (c.phase === 'result' && t > c.t0 + 2.4) {
       c.balls++;
-      for (const f of c.fielders) { const g = f.bot.av.group; g.position.lerp(f.home, 0.5); g.position.y = this.terrain.h(g.position.x, g.position.z); }
+      c.overLog.push(c.last === 'OUT' ? 'W' : c.last === 'SIX!' ? '6' : c.last === 'FOUR!' ? '4' : /^(\d)/.test(c.last) ? c.last[0] : '·'); if (c.balls % 6 === 0) c.overLog = [];
       const chased = !batting && c.runs >= c.target;
       if (c.balls >= c.total || c.wkts >= c.maxWkts || chased) {
         if (batting) {   // innings break: swap ends, they chase your total
-          c.first = c.runs; c.target = c.runs + 1; c.innings = 2; c.runs = 0; c.wkts = 0; c.balls = 0; c.last = ''; c.note = '';
+          c.first = c.runs; c.target = c.runs + 1; c.innings = 2; c.runs = 0; c.wkts = 0; c.balls = 0; c.last = ''; c.note = ''; c.overLog = [];
           this.setCreases();
           c.phase = 'ready'; c.t0 = t + 3;
           this.ev.onMode({ icon: '🏏', label: 'Bowl', arrows: true, stick: false });
@@ -2436,7 +2444,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           icon: '🏏',
           a: batting ? { name: 'You', score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true } : { name: 'You', score: `${c.first}/${c.maxWkts}`, sub: `${overs(c.total)} ov · all out / done` },
           b: batting ? { name: c.opp.name, score: '—', sub: 'to bat' } : { name: c.opp.name, score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true },
-          line: batting ? `1st innings · ${c.total - c.balls} ball${c.total - c.balls === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${c.opp.name} needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`,
+          line: (batting ? `${c.total - c.balls} ball${c.total - c.balls === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${c.opp.name} needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`) + (c.overLog.length ? `  ·  this over ${c.overLog.join(' ')}` : ''),
         },
         desc: batting ? `${c.opp.name} bowling · ◀ ▶ shuffle, Bat / Space as the ball arrives, then Run / W to take runs — be home before the throw.` : `Pick speed and line, tap Bowl to run in, Bowl again at the top of your action. Wickets +25, dots +5.`,
         progress: c.run && batting ? `Running… ${c.run.done} so far${c.throw ? ' · THROW COMING' : ' · Run again for another'}` : c.phase === 'hit' && batting && !c.throw ? 'Run / W to take a run' : c.phase === 'ready' && !batting && !c.go ? 'Pick speed & line, then Bowl' : runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last}${!batting ? ` · ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]}` : ''}` : 'First ball coming up',
@@ -2444,6 +2452,47 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         fill: runupU !== null ? runupU : c.balls / c.total, timeText: `${c.balls}/${c.total}`,
       });
     }
+  }
+
+  /** Fielders live: crouched and ready as the bowler runs in, walking in with him, turning to track the ball,
+   *  the nearest few jogging toward it, a proper throwing action, a celebration on a wicket, and a jog back home. */
+  private tickFielders(c: CricketState, dt: number, t: number) {
+    const o = this.oval!, ball = c.ball.position, batX = o.x - 10;
+    const cheer = t < c.cheerUntil;
+    c.fielders.forEach((f, i) => {
+      const a = f.bot.av, g = a.group, p = g.position;
+      if (f.bot === c.chaser && c.phase === 'hit') return;   // the chase and the throw are animated in the hit phase
+      const faceX = c.phase === 'hit' ? ball.x : batX, faceZ = c.phase === 'hit' ? ball.z : o.z;
+      g.rotation.y += wrapAngle(Math.atan2(faceX - p.x, faceZ - p.z) - g.rotation.y) * Math.min(1, dt * 6);
+      if (cheer) {   // wicket! arms up, a little hop
+        const hop = Math.abs(Math.sin((t + i * 0.3) * 7)) * 0.25;
+        p.y = this.terrain.h(p.x, p.z) + hop;
+        a.armL.rotation.x = a.armR.rotation.x = -2.9; a.armL.rotation.z = 0.5; a.armR.rotation.z = -0.5; a.legL.rotation.x = a.legR.rotation.x = 0; a.body.rotation.x = -0.1;
+        return;
+      }
+      a.armL.rotation.z = 0; a.armR.rotation.z = 0;
+      // where they should be: home, walked in a couple of metres during the run-up, a few steps toward a hit ball
+      let tx = f.home.x, tz = f.home.z;
+      const toBatX = batX - f.home.x, toBatZ = o.z - f.home.z, toBat = Math.hypot(toBatX, toBatZ) || 1;
+      if (c.phase === 'runup') { const u = Math.min(1, (t - c.t0) / 1.8); tx += (toBatX / toBat) * 2.2 * u; tz += (toBatZ / toBat) * 2.2 * u; }
+      else if (c.phase === 'flight') { tx += (toBatX / toBat) * 2.2; tz += (toBatZ / toBat) * 2.2; }
+      else if (c.phase === 'hit') { const bx = ball.x - f.home.x, bz = ball.z - f.home.z, bd = Math.hypot(bx, bz) || 1; const step = Math.min(6, bd * 0.35); tx += (bx / bd) * step; tz += (bz / bd) * step; }
+      const dx = tx - p.x, dz = tz - p.z, d = Math.hypot(dx, dz);
+      if (d > 0.25) {   // jog there
+        const sp = Math.min(d, (c.phase === 'result' || c.phase === 'ready' ? 4.5 : 3.2) * dt);
+        p.x += (dx / d) * sp; p.z += (dz / d) * sp; p.y = this.terrain.h(p.x, p.z);
+        g.rotation.y += wrapAngle(Math.atan2(dx, dz) - g.rotation.y) * Math.min(1, dt * 8);
+        animateWalk(a, t * 2 + i, Math.min(1, d)); a.body.rotation.x = 0.1;
+      } else if (c.phase === 'ready' || c.phase === 'runup' || c.phase === 'flight') {   // set: crouched, hands on knees, a slow rock
+        p.y = this.terrain.h(p.x, p.z);
+        const rock = Math.sin(t * 1.6 + i) * 0.04;
+        a.legL.rotation.x = -0.35 + rock; a.legR.rotation.x = -0.35 - rock; a.legL.rotation.z = 0.12; a.legR.rotation.z = -0.12;
+        a.body.rotation.x = 0.42; a.body.position.y = 0.72; a.armL.rotation.x = a.armR.rotation.x = -0.9 + rock * 2; a.armL.rotation.z = 0.15; a.armR.rotation.z = -0.15;
+      } else {   // watching the ball, upright
+        p.y = this.terrain.h(p.x, p.z);
+        a.legL.rotation.x = a.legR.rotation.x = 0; a.legL.rotation.z = a.legR.rotation.z = 0; a.body.rotation.x = 0; a.body.position.y = 0.85; a.armL.rotation.x = a.armR.rotation.x = -0.2;
+      }
+    });
   }
 
   /** Both batters run the 20 m between the creases; each completed run counts once the ball is dead. */
@@ -2478,7 +2527,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.scene.remove(c.ball); c.bat.removeFromParent();
     if (c.stumps) c.stumps.rotation.z = 0;
     for (const av of [this.player, c.opp.av]) { av.armR.rotation.z = 0; av.armL.rotation.z = 0; av.body.rotation.set(0, 0, 0); av.body.position.y = 0.85; av.legL.rotation.z = 0; av.legR.rotation.z = 0; av.legL.rotation.x = 0; av.legR.rotation.x = 0; }
-    for (const b of [c.opp, ...c.fielders.map((f) => f.bot)]) { b.playing = false; b.av.armR.rotation.z = 0; b.av.armL.rotation.z = 0; b.wait = rand(1, 3); b.target = this.wanderFrom(b.av.group.position); b.speed = rand(1.8, 3.4); }
+    for (const b of [c.opp, ...c.fielders.map((f) => f.bot)]) { b.playing = false; b.av.armR.rotation.z = 0; b.av.armL.rotation.z = 0; b.av.body.rotation.set(0, 0, 0); b.av.body.position.y = 0.85; b.av.legL.rotation.set(0, 0, 0); b.av.legR.rotation.set(0, 0, 0); b.av.armL.rotation.x = b.av.armR.rotation.x = 0; b.wait = rand(1, 3); b.target = this.wanderFrom(b.av.group.position); b.speed = rand(1.8, 3.4); }
     this.ev.onMode(null);
     this.ev.onQuest(null);
     this.questCooldown = 10;
@@ -2501,6 +2550,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (this.zombies) { this.applyNight(0); this.zombies = null; }   // still dawning: skip straight to day and start over
     if (this.race || this.match) return;
     this.zombies = { list: [], wave: 0, hp: 100, kills: 0, breather: 3, punchAt: -1, fade: 0, ending: false, blasts: [], nextSpawn: 0, revived: false };
+    this.spawnHalloween();
+    this.ev.onBanner('🧟 ZOMBIE NIGHT', 'They are coming — find a car', 'bad');
     this.clearQuest();
     this.questCooldown = 30;
     this.sfx.siren();
@@ -2510,17 +2561,72 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   /** Blend the sky, fog and lights between day (0) and zombie night (1). */
   private applyNight(f: number) {
-    const dl = this.daylight, night = { sky: 0x151c22, fog: 0x1a2320, sun: 0x9fb8a0 };
+    const dl = this.daylight, night = { sky: 0x120e1c, fog: 0x1a1226, sun: 0xa89ac0 };
     (this.scene.background as THREE.Color).setHex(dl.sky).lerp(new THREE.Color(night.sky), f);
-    const fog = this.scene.fog as THREE.Fog; fog.color.setHex(dl.fog).lerp(new THREE.Color(night.fog), f); fog.near = dl.near + (40 - dl.near) * f; fog.far = dl.far + (170 - dl.far) * f;
+    const fog = this.scene.fog as THREE.Fog; fog.color.setHex(dl.fog).lerp(new THREE.Color(night.fog), f); fog.near = dl.near + (40 - dl.near) * f; fog.far = dl.far + (210 - dl.far) * f;
+    if (this.spooky) { this.spooky.visible = f > 0.05; for (const o of this.spooky.children) { const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined; if (m?.emissive && o.name === 'lantern') m.emissiveIntensity = 0.2 + f * 0.9; } }
     this.sun.color.setHex(dl.sun).lerp(new THREE.Color(night.sun), f); this.sun.intensity = dl.sunI + (0.45 - dl.sunI) * f;
     this.hemi.intensity = dl.hemiI + (0.35 - dl.hemiI) * f;
+  }
+
+  // ---------- Halloween: the city dresses up for zombie night ----------
+  private spooky: THREE.Group | null = null;
+  private bats: { m: THREE.Group; a: number; r: number; h: number; sp: number; wl: THREE.Mesh; wr: THREE.Mesh }[] = [];
+  private spawnHalloween() {
+    if (this.spooky) return;
+    const g = new THREE.Group(); g.visible = false; this.spooky = g;
+    const orange = new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff4d00, emissiveIntensity: 0.3, roughness: 0.6 });
+    const black = new THREE.MeshStandardMaterial({ color: 0x0b0704, emissive: 0xffb347, emissiveIntensity: 0.9 });
+    const stone = new THREE.MeshStandardMaterial({ color: 0x8a8f96, roughness: 0.95 });
+    const stem = new THREE.MeshStandardMaterial({ color: 0x3b6a2a });
+    // jack-o'-lanterns along the streets and squares
+    for (let i = 0; i < 44; i++) {
+      const at = this.randomLandPoint(6, 210), s = rand(0.32, 0.5);
+      const p = new THREE.Mesh(new THREE.SphereGeometry(s, 12, 9), orange); p.scale.y = 0.82; p.position.set(at.x, at.y + s * 0.8, at.z); p.rotation.y = rand(0, Math.PI * 2); p.name = 'lantern'; p.castShadow = true; g.add(p);
+      const face = new THREE.Group(); face.position.copy(p.position); face.rotation.y = p.rotation.y; g.add(face);
+      for (const sx of [-1, 1]) { const eye = new THREE.Mesh(new THREE.ConeGeometry(s * 0.16, s * 0.28, 3), black); eye.position.set(sx * s * 0.32, s * 0.18, s * 0.86); eye.rotation.x = Math.PI / 2; face.add(eye); }
+      const mouth = new THREE.Mesh(new THREE.BoxGeometry(s * 0.7, s * 0.14, 0.05), black); mouth.position.set(0, -s * 0.22, s * 0.86); face.add(mouth);
+      for (const [dx, w] of [[-s * 0.2, s * 0.14], [s * 0.15, s * 0.12]] as const) { const tooth = new THREE.Mesh(new THREE.BoxGeometry(w, s * 0.12, 0.05), orange); tooth.position.set(dx, -s * 0.16, s * 0.9); face.add(tooth); }
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(s * 0.1, s * 0.14, s * 0.35, 6), stem); st.position.set(at.x, at.y + s * 1.55, at.z); st.rotation.z = 0.3; g.add(st);
+    }
+    // a graveyard in Central Park
+    for (let i = 0; i < 16; i++) {
+      const a = Math.random() * Math.PI * 2, d = 6 + Math.random() * 22, x = -175 + Math.cos(a) * d, z = 40 + Math.sin(a) * d;
+      if (!this.terrain.onLand(x, z) || !this.walkable(x, z)) continue;
+      const y = this.terrain.h(x, z), tall = rand(0.9, 1.3);
+      const stoneM = new THREE.Mesh(new THREE.BoxGeometry(0.7, tall, 0.16), stone); stoneM.position.set(x, y + tall / 2 - 0.05, z); stoneM.rotation.set(rand(-0.08, 0.08), rand(0, Math.PI * 2), rand(-0.15, 0.15)); stoneM.castShadow = true; g.add(stoneM);
+      const top = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.16, 12, 1, false, 0, Math.PI), stone); top.rotation.set(Math.PI / 2, 0, 0); top.position.set(x, y + tall - 0.05, z); top.rotation.y = stoneM.rotation.y; g.add(top);
+      if (i % 3 === 0) { const cross = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.08, 0.06), black); cross.position.set(x, y + tall * 0.7, z); cross.rotation.y = stoneM.rotation.y; g.add(cross); }
+    }
+    // a big low moon
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(9, 20, 14), new THREE.MeshBasicMaterial({ color: 0xfff1c8 })); moon.position.set(120, 62, -150); moon.name = 'moon'; g.add(moon);
+    // bats that circle wherever you are
+    this.bats = [];
+    for (let i = 0; i < 12; i++) {
+      const m = new THREE.Group(); const body = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 5), new THREE.MeshStandardMaterial({ color: 0x0a0a0a })); m.add(body);
+      const wl = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.22), new THREE.MeshStandardMaterial({ color: 0x111111, side: THREE.DoubleSide })); wl.position.x = -0.3; m.add(wl);
+      const wr = wl.clone(); wr.position.x = 0.3; m.add(wr);
+      g.add(m); this.bats.push({ m, a: Math.random() * Math.PI * 2, r: rand(6, 16), h: rand(3.5, 7), sp: rand(0.6, 1.3), wl, wr });
+    }
+    this.scene.add(g);
+  }
+  private clearHalloween() { if (this.spooky) { this.scene.remove(this.spooky); this.spooky = null; this.bats = []; } }
+  private tickBats(dt: number, t: number) {
+    if (!this.bats.length) return;
+    const pp = this.driving ? this.driving.group.position : this.player.group.position;
+    for (const b of this.bats) {
+      b.a += dt * b.sp;
+      const x = pp.x + Math.cos(b.a) * b.r, z = pp.z + Math.sin(b.a) * b.r;
+      b.m.position.set(x, pp.y + b.h + Math.sin(t * 2 + b.r) * 0.6, z); b.m.rotation.y = -b.a - Math.PI / 2;
+      const flap = Math.sin(t * 14 + b.r) * 0.7; b.wl.rotation.z = flap; b.wr.rotation.z = -flap;
+    }
   }
 
   private spawnWave() {
     const z = this.zombies!;
     z.wave++;
     const n = Math.min(this.mobile ? 30 : 48, 6 + z.wave * 4);
+    this.ev.onBanner(`WAVE ${z.wave}`, `${n} of them`, 'bad');
     const pp = this.driving ? this.driving.group.position : this.player.group.position;
     const dirs = [0, 1, 2].map(() => Math.random() * Math.PI * 2);   // they come in packs from a few directions
     let headless = 0;
@@ -2707,6 +2813,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       this.points += 100; this.ev.onPoints(this.points);
       this.sfx.questDone();
       this.ev.onCollect({ name: `Wave ${z.wave} cleared! Next one is bigger`, points: 100, color: 0x2fa66a, shape: 'gem' });
+      this.ev.onBanner('WAVE CLEARED', '+100 · +25 ❤ · next one is bigger', 'good');
     }
     if (t - this.lastZombieHud > 0.2) {
       this.lastZombieHud = t;
@@ -2717,6 +2824,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private endZombies(died: boolean) {
     const z = this.zombies!;
     z.ending = true;
+    this.clearHalloween();
     this.ev.onMode(null);
     for (const zb of z.list) this.scene.remove(zb.av.group);
     z.list = [];
@@ -2732,6 +2840,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       });
       return;
     }
+    if (died) this.ev.onBanner('YOU DIED', `wave ${z.wave} · ${z.kills} kills`, 'bad'); else this.ev.onBanner('DAWN', `You survived ${z.wave} wave${z.wave === 1 ? '' : 's'} · ${z.kills} kills`, 'good');
     if (died) {
       this.sfx.questFail();
       this.ev.onCollect({ name: `You died on wave ${z.wave} · ${z.kills} kills`, points: 0, color: 0xd94a3d, shape: 'box' });
@@ -2917,6 +3026,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (t - ps.lastHud > 0.15) {
       ps.lastHud = t;
       const you = g.groups.you ? `${g.groupName('you')} · ${g.remaining('you')} left` : 'open table', them = g.groups.you ? `${g.groupName('bot')} · ${g.remaining('bot')} left` : 'open table';
+      this.ev.onTableStatus(ps.over ? ps.status : g.turn === 'you' ? (g.moving ? 'Balls rolling…' : g.ballInHand ? 'Ball in hand · Shoot places the cue ball' : `Your shot · you: ${you} · ${ps.opp.name}: ${them}`) : `${ps.opp.name}'s shot · ${ps.status}`);
       this.ev.onQuest({ status: ps.over ? (ps.status.startsWith('You sank the 8-ball to win') || (ps.status.includes(ps.opp.name) && ps.status.includes('too early')) ? 'done' : 'failed') : 'active', title: `🎱 You (${you}) vs ${ps.opp.name} (${them})`, desc: ps.over ? ps.status : g.turn === 'you' ? (g.moving ? 'Balls rolling…' : g.ballInHand ? 'Ball in hand · Shoot places the cue ball' : `${this.mobile ? '◀ ▶' : '◀ ▶ / A D'} to aim${this.mobile ? '' : ' (Shift = fine) · W S power'} · Shoot to strike`) : ps.status, progress: g.turn === 'you' ? `Power ${Math.round(ps.power * 100)}%` : `${ps.opp.name}'s shot`, remaining: 1, total: 1, reward: 250, hint: null, fill: g.turn === 'you' ? ps.power : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
     }
   }
@@ -3014,6 +3124,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       cs.lastHud = t;
       const you = `${g.potted.you} / 9 white${g.queen === 'you' ? ' + queen' : ''}`, them = `${g.potted.bot} / 9 black${g.queen === 'bot' ? ' + queen' : ''}`;
       const step = this.mobile ? 'Striker slider · ◀ ▶ aim · Power slider · Flick' : 'Q E striker · ◀ ▶ / A D aim (Shift = fine) · W S power · Flick';
+      this.ev.onTableStatus(cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : `Your turn · ⚪ ${9 - g.potted.you} left · ⚫ ${9 - g.potted.bot} left${g.queen ? ` · 👑 ${g.queen === 'you' ? 'yours' : 'theirs'}` : ''}`) : `${cs.opp.name}'s turn · ${cs.status}`);
       this.ev.onQuest({ status: cs.over ? (cs.status.startsWith('All nine') ? 'done' : 'failed') : 'active', title: `🎯 You ${you} · ${cs.opp.name} ${them}`, desc: cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : step) : cs.status, progress: g.turn === 'you' ? `Power ${Math.round(cs.power * 100)}%` : `${cs.opp.name}'s turn`, remaining: 1, total: 1, reward: 200, hint: null, fill: g.turn === 'you' ? cs.power : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
     }
   }
@@ -3335,7 +3446,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       const segF = (((me.idx + 6) % N) / N) * 28;
       const sector = [...SECTORS].reverse().find(([s]) => segF >= s)?.[1] ?? 'Pit straight';
       const title = r.countdown > 1.2 ? `On the grid... ${cd}` : r.countdown > 0 ? 'GO! GO! GO!' : r.over ? `Race over - P${me.done}` : r.wrongWay > 0.8 ? '⚠️ WRONG WAY - turn around' : `Lap ${Math.max(1, Math.min(r.laps, me.lap))} / ${r.laps} - P${place} - ${sector}`;
-      this.ev.onQuest({ status: r.over ? (me.done === 1 ? 'done' : 'failed') : 'active', title, desc: order.map((c, k) => `${k + 1}. ${c.name}`).join('   '), progress: `${r.laps} laps - green pads = boost - Shift nitro`, remaining: r.t0 ? t - r.t0 : 0, total: 600, reward: 250, hint: null });
+      const secs = r.t0 ? Math.max(0, t - r.t0) : 0, clock = `${Math.floor(secs / 60)}:${Math.floor(secs % 60).toString().padStart(2, '0')}`;
+      const leader = order[0] === me ? order[1] : order[0];
+      this.ev.onQuest({ status: r.over ? (me.done === 1 ? 'done' : 'failed') : 'active', title,
+        board: { icon: '🏁', a: { name: 'You', score: `P${me.done || place}`, sub: `Lap ${Math.max(1, Math.min(r.laps, me.lap))} / ${r.laps}`, on: place === 1 }, b: { name: leader ? leader.name : '—', score: leader ? `P${leader.done || order.indexOf(leader) + 1}` : '', sub: leader ? (leader.done ? 'finished' : `Lap ${Math.max(1, Math.min(r.laps, leader.lap))}`) : '', on: place !== 1 }, line: r.countdown > 1.2 ? `On the grid… ${cd}` : r.countdown > 0 ? 'GO! GO! GO!' : r.over ? `Race over · P${me.done}` : r.wrongWay > 0.8 ? '⚠️ WRONG WAY — turn around' : `${sector} · ${order.map((c, k) => `${k + 1}.${c.you ? 'You' : c.name.split(' ')[0]}`).join(' ')}` },
+        desc: order.map((c, k) => `${k + 1}. ${c.name}`).join('   '), progress: this.mobile ? 'Green pads boost · Boost button = nitro' : 'Green pads boost · Shift = nitro', remaining: secs, total: 600, reward: 250, hint: null, timeText: clock });
     }
   }
 

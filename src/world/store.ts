@@ -2,16 +2,16 @@
 const KEY = 'wander.v1';
 
 export interface Gift { from: string; gift: string; at: number }
-interface State { name: string; points: number; visited: string[]; friends: string[]; id: string; gender: 'm' | 'f' | null; gifts: Gift[]; sent: number; dates: string[] }
+interface State { name: string; points: number; visited: string[]; friends: string[]; id: string; gender: 'm' | 'f' | null; gifts: Gift[]; sent: number; dates: string[]; coins: number }
 
 const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 12);
 
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) { const st: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: '', gender: null, gifts: [], sent: 0, dates: [], ...JSON.parse(raw) }; if (!st.id) { st.id = newId(); save(st); } return st; }
+    if (raw) { const st: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: '', gender: null, gifts: [], sent: 0, dates: [], coins: 0, ...JSON.parse(raw) }; if (!st.id) { st.id = newId(); save(st); } return st; }
   } catch { /* ignore */ }
-  const fresh: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: newId(), gender: null, gifts: [], sent: 0, dates: [] };
+  const fresh: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: newId(), gender: null, gifts: [], sent: 0, dates: [], coins: 0 };
   save(fresh);
   return fresh;
 }
@@ -30,6 +30,8 @@ export const store = {
   name: () => st().name,
   setName(n: string) { st().name = n.trim() || 'Explorer'; save(st()); },
   points: () => st().points,
+  coins: () => st().coins,
+  addCoins(n: number) { st().coins = Math.max(0, st().coins + n); save(st()); return st().coins; },
   setPoints(p: number) { st().points = p; save(st()); },
   visited: () => new Set(st().visited),
   visit(id: string) { if (!st().visited.includes(id)) { st().visited.push(id); save(st()); } },

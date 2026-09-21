@@ -75,6 +75,7 @@ export function WorldView({ id }: { id: string }) {
         dest,
         {
           onPoints: (n) => { store.setPoints(n); hud.points(n); },
+          onCoins: (n) => hud.coins(n),
           onCollect: (item) => hud.collect(item),
           onOnline: (n) => hud.online(n),
           onNearest: (name, d) => hud.nearest(name, d),

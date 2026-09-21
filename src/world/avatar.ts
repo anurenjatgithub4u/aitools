@@ -61,7 +61,7 @@ export function makeAvatar(style: AvatarStyle): Avatar {
   body.add(at(rbox(0.54, 0.24, 0.34, style.pants, 0.1), 0, 0.02, 0));
   body.add(at(rbox(0.6, 0.72, 0.38, style.shirt, 0.14), 0, 0.42, 0));
   for (const sx of [-1, 1]) body.add(at(rbox(0.24, 0.26, 0.3, style.shirt, 0.11), sx * 0.36, 0.68, 0));
-  body.add(at(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.16, 12), mat(skin)), 0, 0.84, 0));
+  { const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.115, 0.26, 14), mat(skin)); neck.castShadow = true; body.add(at(neck, 0, 0.88, 0)); }   // a visible neck between collar and chin
   if (style.female) {
     const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.44, 0.46, 14), mat(style.pants)); skirt.castShadow = true; body.add(at(skirt, 0, -0.16, 0));   // skirt from the hips
     body.add(at(rbox(0.62, 0.07, 0.4, 0xf2c31b, 0.03), 0, 0.06, 0));                    // waist band
@@ -87,17 +87,22 @@ export function makeAvatar(style: AvatarStyle): Avatar {
   body.add(head);
   const face = sphere(0.34, skin, 22); face.scale.set(1, 1.08, 0.96); head.add(at(face, 0, 0.3, -0.02));
   for (const sx of [-1, 1]) head.add(at(sphere(0.065, skin, 10), sx * 0.32, 0.28, -0.02));   // ears
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.36, 22, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), mat(hairC)); dome.castShadow = true; head.add(at(dome, 0, 0.43, -0.04));   // hairline above the brows
-  head.add(at(rbox(0.56, 0.42, 0.22, hairC, 0.1), 0, 0.3, -0.24));        // back of the head
+  // hair: a sphere a little bigger than the head, open at the front so the face shows (phi = π/2 is +z, the face)
+  const hairShell = (r: number, gap: number, theta: number) => { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 24, 14, Math.PI / 2 + gap / 2, Math.PI * 2 - gap, 0, theta), mat(hairC)); m.castShadow = true; return m; };
   if (style.female) {
-    head.add(at(rbox(0.6, 0.66, 0.26, hairC, 0.12), 0, 0.04, -0.2));       // long hair down the back
-    for (const sx of [-1, 1]) head.add(at(rbox(0.13, 0.5, 0.32, hairC, 0.06), sx * 0.31, 0.14, -0.02));   // over the ears
-    head.add(at(rbox(0.46, 0.1, 0.12, hairC, 0.04), 0, 0.5, 0.26));       // fringe
-    head.add(at(sphere(0.05, 0xd94a3d, 8), 0.26, 0.66, 0.16));             // a flower clip
+    head.add(at(hairShell(0.385, 1.15, Math.PI * 0.62), 0, 0.34, -0.05));          // a bob down to the jaw, open over the face
+    head.add(at(rbox(0.5, 0.11, 0.16, hairC, 0.05), 0, 0.53, 0.25));               // fringe
+    for (const sx of [-1, 1]) { const lock = at(rbox(0.12, 0.44, 0.2, hairC, 0.06), sx * 0.33, 0.1, 0.06); lock.rotation.z = sx * 0.06; head.add(lock); }   // locks in front of the ears
+    head.add(at(rbox(0.5, 0.62, 0.22, hairC, 0.11), 0, -0.02, -0.24));            // long hair down the back
+    { const tail = at(rbox(0.16, 0.5, 0.16, hairC, 0.07), 0, -0.34, -0.26); tail.rotation.x = 0.15; head.add(tail); head.add(at(new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.03, 6, 12), mat(0xd94a3d)), 0, -0.1, -0.27)); }   // gathered with a red tie
+    { const band = new THREE.Mesh(new THREE.TorusGeometry(0.37, 0.03, 6, 24, Math.PI), mat(0xf2c31b)); band.rotation.x = -Math.PI / 2 + 0.35; head.add(at(band, 0, 0.48, 0.0)); }   // a hair band over the top
+    head.add(at(sphere(0.05, 0xd94a3d, 8), 0.3, 0.6, 0.14));               // a flower clip
     head.add(at(sphere(0.028, 0xd92b2b, 8), 0, 0.43, 0.32));               // bindi
     for (const sx of [-1, 1]) head.add(at(sphere(0.045, 0xf0a0a0, 8), sx * 0.19, 0.2, 0.26));   // cheeks
   } else {
-    head.add(at(rbox(0.5, 0.09, 0.12, hairC, 0.04), 0, 0.5, 0.26));        // fringe
+    head.add(at(hairShell(0.37, 1.3, Math.PI * 0.5), 0, 0.4, -0.04));            // short crop over the top and back
+    head.add(at(rbox(0.5, 0.09, 0.12, hairC, 0.04), 0, 0.5, 0.26));              // fringe
+    head.add(at(rbox(0.5, 0.34, 0.18, hairC, 0.09), 0, 0.28, -0.26));           // nape
   }
   for (const sx of [-1, 1]) {
     head.add(at(sphere(0.048, 0x1a1a1a, 10), sx * 0.12, 0.34, 0.3));

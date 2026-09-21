@@ -20,6 +20,7 @@ import { createTransport, type Transport, type NetMsg, type Gender } from './net
 
 export interface WorldEvents {
   onPoints(total: number): void;
+  onCoins(total: number): void;
   onCollect(item: Collectible): void;
   onOnline(n: number): void;
   onNearest(name: string | null, dist: number): void;
@@ -157,6 +158,8 @@ const NET_RATE = 1 / 8;
 // A pedestrian that has been hit: flies with `vel`, then lies on the ground for a moment before getting up.
 interface Knock { vel: THREE.Vector3; airborne: boolean; down: number; spin: number }
 interface Pickup { mesh: THREE.Mesh; label: CSS2DObject; item: Collectible; active: boolean; respawnAt: number; baseY: number; phase: number }
+interface Coin { mesh: THREE.Group; active: boolean; respawnAt: number; baseY: number; phase: number }
+const RIDE_PRICE = 5;   // coins per fairground ride
 
 const WORLD_RADIUS = 560;
 const VEHICLE_OFFSETS: [number, number][] = [[-7, 3], [7, 8], [-12, -6], [13, -2], [-4, -10], [4, -11]];
@@ -313,7 +316,7 @@ export class World {
     const steps: [string, () => void][] = [
       ['Laying out the streets…', () => this.buildEnvironment()],
       ['Waking up the explorers…', () => { this.player = this.spawnPlayer(this.playerName); this.spawnBots(); this.spawnDancers(); }],
-      ['Hiding the treats…', () => { this.spawnPickups(); this.spawnVehicles(); }],
+      ['Hiding the treats…', () => { this.spawnPickups(); this.spawnCoins(); this.spawnVehicles(); }],
       ['Letting the dogs out…', () => { this.spawnLife(); this.bindInput(); }],
       ['Connecting to the city…', () => this.connect()],
     ];
@@ -827,6 +830,43 @@ export class World {
       const p: Pickup = { mesh, label, item, active: true, respawnAt: 0, baseY: 0, phase: Math.random() * 6 };
       this.placePickup(p);
       this.pickups.push(p);
+    }
+  }
+
+  // ---------- coins: gold pieces all over the city, spent on the fairground rides ----------
+  private coins: Coin[] = [];
+  private spawnCoins() {
+    const geo = new THREE.CylinderGeometry(0.3, 0.3, 0.07, 18), rim = new THREE.TorusGeometry(0.3, 0.035, 8, 20);
+    const gold = new THREE.MeshStandardMaterial({ color: 0xf2c31b, emissive: 0xa87400, emissiveIntensity: 0.35, roughness: 0.3, metalness: 0.6 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0xc99a12, roughness: 0.4, metalness: 0.5 });
+    for (let i = 0; i < 40; i++) {
+      const g = new THREE.Group();
+      const disc = new THREE.Mesh(geo, gold); disc.rotation.x = Math.PI / 2; disc.castShadow = true; g.add(disc);
+      const ring = new THREE.Mesh(rim, dark); g.add(ring);
+      const star = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.09), dark); star.rotation.z = Math.PI / 4; g.add(star);
+      this.scene.add(g);
+      const c: Coin = { mesh: g, active: true, respawnAt: 0, baseY: 0, phase: Math.random() * 6 };
+      this.placeCoin(c);
+      this.coins.push(c);
+    }
+  }
+  private placeCoin(c: Coin) {
+    const at = this.randomLandPoint(6, 230);
+    c.mesh.position.set(at.x, at.y + 0.9, at.z); c.baseY = at.y + 0.9;
+    c.mesh.visible = true; c.active = true;
+  }
+  private tickCoins(dt: number, t: number, focus: THREE.Vector3, radius: number) {
+    for (const c of this.coins) {
+      if (!c.active) { if (t > c.respawnAt) this.placeCoin(c); continue; }
+      const d2 = c.mesh.position.distanceToSquared(focus);
+      if (d2 > 90 * 90) continue;                                       // far away: no need to animate
+      c.mesh.position.y = c.baseY + Math.sin(t * 2.4 + c.phase) * 0.12;
+      c.mesh.rotation.y += dt * 2.6;
+      if (d2 < (radius + 0.3) * (radius + 0.3) && this.airY < 1.6) {
+        c.active = false; c.mesh.visible = false; c.respawnAt = t + 40;
+        this.ev.onCoins(store.addCoins(1));
+        this.sfx.collect(1);
+      }
     }
   }
 
@@ -1452,7 +1492,7 @@ export class World {
       const rd = this.date || this.dancing || this.pool || this.carrom || this.ride ? null : this.nearestRide();
       if (this.pool || this.carrom) this.prompt(null, false);
       else if (this.ride) this.prompt(`${this.ride.r.def.icon} ${Math.max(0, Math.ceil(RIDE_SECONDS - (t - this.ride.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early`, false);
-      else if (rd && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${rd.def.label}${pt ? ` with ${pt.name}` : ''}`, false); }
+      else if (rd && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${rd.def.label}${pt ? ` with ${pt.name}` : ''} · ${RIDE_PRICE} 🪙${store.coins() < RIDE_PRICE ? ` (you have ${store.coins()})` : ''}`, false); }
       else if (cboard && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Play carrom${pt ? ` with ${pt.name}` : ''}`, false); }
       else if (this.dancing) this.prompt(`${this.mobile ? 'Tap Jump' : 'Press E or Space'} to stop dancing`, false);
       else if (ptab && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Rack up 8-ball${pt ? ` with ${pt.name}` : ''}`, false); }
@@ -1552,6 +1592,7 @@ export class World {
       this.lastNearest = t;
       this.ev.onNearest(nearest ? nearest.item.name : null, nd);
     }
+    this.tickCoins(dt, t, focus, focusRadius);
     this.boardLabel.visible = this.boardLabel.parent!.position.distanceToSquared(focus) < 30 * 30;
 
     // --- strays wander, birds circle, traffic runs its routes
@@ -3090,6 +3131,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       seat = g?.getObjectByName('seat0') ?? null; pseat = g?.getObjectByName('seat1') ?? null;
     } else { seat = r.grp.getObjectByName('seat0') ?? null; pseat = r.grp.getObjectByName('seat1') ?? null; }
     if (!seat) return;
+    if (store.coins() < RIDE_PRICE) { this.ev.onCollect({ name: `${r.def.label} costs ${RIDE_PRICE} 🪙 · you have ${store.coins()}. Coins are lying all over the city — pick them up`, points: 0, color: 0xf2c31b, shape: 'gem' }); this.sfx.bump(); return; }
+    this.ev.onCoins(store.addCoins(-RIDE_PRICE));
     const partner = this.datePartner();
     if (partner) { partner.playing = true; partner.wait = 0; partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 90; }
     this.ride = { r, seat, pseat: partner ? pseat : null, partner, t0: t, from: this.player.group.position.clone(), pfrom: partner ? partner.av.group.position.clone() : null };
@@ -3566,7 +3609,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       const total = q.reward + bonus;   // finishing fast pays up to double
       this.points += total;
       this.ev.onPoints(this.points);
-      this.ev.onCollect({ name: `${q.title} complete!`, points: total, color: 0xf2c31b, shape: 'gem' });
+      this.ev.onCollect({ name: `${q.title} complete! +5 🪙`, points: total, color: 0xf2c31b, shape: 'gem' });
+      this.ev.onCoins(store.addCoins(5));
       this.sfx.questDone();
     } else {
       this.ev.onCollect({ name: `Time's up · ${q.title}`, points: 0, color: 0xd94a3d, shape: 'box' });

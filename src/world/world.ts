@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import type { Collectible, Destination } from './destinations';
 import { makeTerrain, type Terrain } from './terrain';
-import { makeAvatar, animateWalk, poseJump, poseSit, poseRide, OUTFITS, FEMALE_OUTFITS, SKINS, type Avatar, type AvatarStyle } from './avatar';
+import { makeAvatar, animateWalk, poseJump, poseSit, poseRide, OUTFITS, FEMALE_OUTFITS, SKINS, HAIR_COLORS, type Avatar, type AvatarStyle } from './avatar';
 import { store } from './store';
 import { buildLandmark, scatterDecor, makePickup } from './landmarks';
 import { makeVehicle, VEHICLE_COLORS, FUEL_RANGE, BOOST_MULT, type Vehicle, type VehicleKind } from './vehicles';
@@ -409,7 +409,7 @@ export class World {
     let b = this.bots.find((x) => x.remote?.id === m.id);
     if (!b) {
       const hash = [...m.id].reduce((a, c) => a + c.charCodeAt(0), 0);
-      const av = makeAvatar({ ...(m.g === 'f' ? FEMALE_OUTFITS[hash % FEMALE_OUTFITS.length] : OUTFITS[hash % OUTFITS.length]), skin: SKINS[hash % SKINS.length] });
+      const av = makeAvatar({ ...(m.g === 'f' ? FEMALE_OUTFITS[hash % FEMALE_OUTFITS.length] : OUTFITS[hash % OUTFITS.length]), skin: SKINS[hash % SKINS.length], hair: HAIR_COLORS[hash % HAIR_COLORS.length] });
       av.group.position.set(m.x, this.groundAt(m.x, m.z, 0), m.z);
       const friend = store.friends().includes(m.n);
       const el = document.createElement('div');
@@ -804,7 +804,7 @@ export class World {
       const short = name.split(' (')[0];
       const female = FEMALE.has(short);
       const outfit = female ? FEMALE_OUTFITS[fi++ % FEMALE_OUTFITS.length] : OUTFITS[++mi % OUTFITS.length];
-      const av = makeAvatar({ ...outfit, skin: SKINS[i % SKINS.length] });
+      const av = makeAvatar({ ...outfit, skin: SKINS[i % SKINS.length], hair: HAIR_COLORS[(i * 3) % HAIR_COLORS.length] });
       const p = this.randomLandPoint(10, 90);
       av.group.position.copy(p);
       const el = document.createElement('div');
@@ -2863,7 +2863,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const c = this.casino; if (!c) return;
     for (let i = 0; i < 8; i++) {
       const female = i % 2 === 1, style = female ? FEMALE_OUTFITS[i % FEMALE_OUTFITS.length] : OUTFITS[(i * 3) % OUTFITS.length];
-      const av = makeAvatar({ ...style, skin: SKINS[i % SKINS.length] });
+      const av = makeAvatar({ ...style, skin: SKINS[i % SKINS.length], hair: HAIR_COLORS[(i * 5) % HAIR_COLORS.length] });
       av.group.position.set(c.floor.x + (i % 4 - 1.5) * 2.4 + (i >= 4 ? 1.2 : 0), this.terrain.h(c.floor.x, c.floor.z) + 0.1, c.floor.z + (i >= 4 ? 2.6 : -2.2));
       av.group.rotation.y = Math.random() * Math.PI * 2;
       this.scene.add(av.group);

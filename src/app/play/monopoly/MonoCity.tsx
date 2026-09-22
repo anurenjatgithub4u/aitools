@@ -58,15 +58,22 @@ export default function MonoCity({ owned, houses, active }: { owned: number; hou
     for (let i = 0; i < 26; i++) {
       const a = (i / 26) * Math.PI * 2 + r() * 0.2, d = 8.6 + r() * 1.0, s = 0.6 + r() * 0.5;
       const t = new THREE.Group(); t.position.set(Math.cos(a) * d, 0.5, Math.sin(a) * d);
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.5 * s, 6), mat(0x6b4a2a)); trunk.position.y = 0.25 * s; t.add(trunk);
-      const crown = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 8, 6), mat(0x4f9a3e)); crown.position.y = 0.7 * s; crown.castShadow = true; t.add(crown);
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.09, 0.5 * s, 6), mat(0x6b4a2a));
+      trunk.position.y = 0.25 * s; t.add(trunk);
+      const crown = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 8, 6), mat(0x4f9a3e));
+      crown.position.y = 0.7 * s; crown.castShadow = true; t.add(crown);
       scene.add(t);
     }
     // a landmark: the wheel
     const wheel = new THREE.Group(); wheel.position.set(0, 2.3, 0);
     wheel.add(new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.06, 8, 30), mat(0xe8c46a)));
     for (let k = 0; k < 8; k++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.05, 3, 0.05), mat(0xffffff)); sp.rotation.z = (k * Math.PI) / 8; wheel.add(sp); }
-    for (const sd of [-1, 1]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.4, 0.12), mat(0xd94a3d)); leg.position.set(sd * 0.5, -1.1, 0.25); leg.rotation.x = sd * 0.0; leg.rotation.z = sd * 0.25; scene.add(leg); leg.position.y = 1.2; }
+    for (const sd of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.4, 0.12), mat(0xd94a3d));
+      leg.position.set(sd * 0.5, 1.2, 0.25);
+      leg.rotation.z = sd * 0.25;
+      scene.add(leg);
+    }
     scene.add(wheel);
 
     let t = 0, raf = 0, running = true;

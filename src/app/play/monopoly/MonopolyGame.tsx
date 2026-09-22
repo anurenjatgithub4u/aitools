@@ -15,17 +15,17 @@ const COLOR_CSS: Record<string, string> = {
 };
 
 // ─── Board square positions (pixel coords as %) ───────────────────────────────
-// The board is 11x11. Corner squares are bigger (index 0 in CSS grid = bottom-right = square 0)
+// The board is an 11x11 grid with big corners; square 0 (GO) sits bottom-right.
 // We map each square ID (0–39) to { col, row } in the CSS grid (1-indexed)
 function squareToGrid(id: number): { col: number; row: number } {
   // Bottom row: 0–10 (right to left)
-  if (id <= 10) return { col: 12 - id, row: 12 };
+  if (id <= 10) return { col: 11 - id, row: 11 };
   // Left col: 11–19 (bottom to top)
-  if (id <= 19) return { col: 1, row: 12 - (id - 10) };
+  if (id <= 19) return { col: 1, row: 11 - (id - 10) };
   // Top row: 20–30 (left to right)
   if (id <= 30) return { col: 1 + (id - 20), row: 1 };
   // Right col: 31–39 (top to bottom)
-  return { col: 12, row: 2 + (id - 31) };
+  return { col: 11, row: 2 + (id - 31) };
 }
 
 // ─── Confetti ─────────────────────────────────────────────────────────────────
@@ -94,7 +94,7 @@ function PropPanel({ state, playerId, onBuild, onSell, onMortgage, onUnmortgage 
         return (
           <div key={prop.squareId} className="mono-prop-item">
             <span className="mono-prop-item-name" style={{ borderLeft: `3px solid ${COLOR_CSS[sq.color ?? 'railroad']}`, paddingLeft: 5 }}>
-              {prop.mortgaged ? '🔒 ' : ''}{sq.name.split(' ').slice(-1)[0]}
+              {prop.mortgaged ? '🔒 ' : ''}{sq.flag ? <img className="mono-prop-flag" src={`/flags/${sq.flag}.png`} alt="" /> : sq.icon ? `${sq.icon} ` : ''}{sq.name.replace(' Airport', '')}
               {prop.houses > 0 && prop.houses < 5 && ` ${prop.houses}🏠`}
               {prop.houses === 5 && ' 🏨'}
             </span>
@@ -121,7 +121,7 @@ function PlayerCard({ player, isActive, state, onBuild, onSell, onMortgage, onUn
   return (
     <div className={`mono-player-card${isActive ? ' active' : ''}${player.isBankrupt ? ' bankrupt' : ''}`}>
       <div className="mono-player-header">
-        <span className="mono-player-token">{player.token}</span>
+        <span className="mono-player-token" style={{ background: player.color }}>{player.token}</span>
         <div>
           <div className="mono-player-name" style={{ color: player.color }}>{player.name}</div>
           <div className="mono-player-status">
@@ -146,7 +146,7 @@ function BoardSquare({ sq, state }: { sq: Square; state: GameState }) {
   const prop = state.properties.find(p => p.squareId === sq.id);
   const owner = prop?.ownerId ? state.players.find(p => p.id === prop.ownerId) : null;
 
-  const corners: Record<number, string> = { 0: '🟢\nGO', 10: '⛓️\nJAIL', 20: '🅿️\nFREE', 30: '➡️⛓️\nGO TO\nJAIL' };
+  const corners: Record<number, string> = { 0: '🚀\nGO', 10: '🚔\nJAIL', 20: '🅿️\nFREE\nPARKING', 30: '👮\nGO TO\nJAIL' };
 
   if ([0, 10, 20, 30].includes(sq.id)) {
     return (
@@ -172,10 +172,11 @@ function BoardSquare({ sq, state }: { sq: Square; state: GameState }) {
   if (isRightCol) rotate = 270;
 
   return (
-    <div className={`mono-sq${prop?.mortgaged ? ' mortgaged' : ''}`}
-      style={{ transform: `rotate(${rotate}deg)` }}>
+    <div className={`mono-sq${prop?.mortgaged ? ' mortgaged' : ''}${isLeftCol ? ' side left' : isRightCol ? ' side right' : ''}`}
+      style={isTopRow ? { transform: 'rotate(180deg)' } : undefined}>
       {isBottomRow && colorBand}
-      <div className="mono-sq-name">{sq.name.replace(' Railroad', ' RR').replace(' Avenue', ' Ave')}</div>
+      {sq.flag ? <img className="mono-sq-flag" src={`/flags/${sq.flag}.png`} alt="" draggable={false} /> : sq.icon && <div className="mono-sq-icon">{sq.icon}</div>}
+      <div className="mono-sq-name">{sq.name.replace(' Airport', '')}</div>
       {sq.price && <div className="mono-sq-price">${sq.price}</div>}
       {!isBottomRow && colorBand}
       {prop && prop.houses > 0 && (
@@ -192,7 +193,7 @@ function BoardSquare({ sq, state }: { sq: Square; state: GameState }) {
 }
 
 // ─── Card Modal ───────────────────────────────────────────────────────────────
-function CardModal({ state, onDismiss }: { state: GameState; onDismiss: () => void }) {
+function CardModal({ state, onDismiss, who }: { state: GameState; onDismiss: () => void; who?: string }) {
   const card = state.lastCard;
   if (!card || state.phase !== 'card') return null;
 
@@ -207,7 +208,7 @@ function CardModal({ state, onDismiss }: { state: GameState; onDismiss: () => vo
     <div className="mono-modal-bg" onClick={onDismiss}>
       <div className="mono-modal" onClick={e => e.stopPropagation()}>
         <div className="mono-modal-icon">{card.deck === 'chance' ? '🃏' : '📦'}</div>
-        <div className="mono-modal-deck">{card.deck === 'chance' ? 'Chance' : 'Community Chest'}</div>
+        <div className="mono-modal-deck">{who && who !== 'You' ? `${who} draws · ` : ''}{card.deck === 'chance' ? 'Chance' : 'Community Chest'}</div>
         <div className="mono-modal-text">{card.text}</div>
         {amount !== 0 && (
           <div className={`mono-modal-amount ${isEarn ? 'earn' : 'pay'}`}>
@@ -230,15 +231,15 @@ function BuyModal({ state, onBuy, onDecline }: { state: GameState; onBuy: () => 
   return (
     <div className="mono-modal-bg">
       <div className="mono-modal mono-buy-modal">
-        <div className="mono-modal-icon">🏙️</div>
+        <div className="mono-modal-icon">{sq.flag ? <img className="mono-modal-flag" src={`/flags/${sq.flag}.png`} alt="" /> : (sq.icon ?? '🏙️')}</div>
         {sq.color && <div className="mono-buy-color-band" style={{ background: COLOR_CSS[sq.color] }} />}
-        <div className="mono-modal-deck">{sq.type === 'railroad' ? '🚂 Railroad' : sq.type === 'utility' ? '⚡ Utility' : '🏘️ Property'}</div>
+        <div className="mono-modal-deck">{sq.type === 'railroad' ? '✈️ Airport' : sq.type === 'utility' ? '⚙️ Utility' : '🌍 Country'}</div>
         <div className="mono-modal-text" style={{ fontWeight: 700, fontSize: '1.2rem' }}>{sq.name}</div>
         <div className="mono-buy-detail">
           <div className="mono-buy-row"><span>Price</span><span>${sq.price}</span></div>
           {sq.rent && <div className="mono-buy-row"><span>Base rent</span><span>${sq.rent[0]}</span></div>}
           {sq.rent && <div className="mono-buy-row"><span>With hotel</span><span>${sq.rent[5]}</span></div>}
-          {sq.railroadRent && <div className="mono-buy-row"><span>Rent (1 RR)</span><span>${sq.railroadRent[0]}</span></div>}
+          {sq.railroadRent && <div className="mono-buy-row"><span>Rent (1 airport)</span><span>${sq.railroadRent[0]}</span></div>}
           <div className="mono-buy-row"><span>Your money</span><span>${cur.money}</span></div>
           {!canAfford && <div style={{ color: 'var(--red)', fontSize: '.8rem', textAlign: 'center' }}>⚠️ Not enough money!</div>}
         </div>
@@ -293,15 +294,15 @@ function TokenLayer({ state, shown, hopping }: { state: GameState; shown: Record
     const pos = shown[playerId] ?? player.position;
     const { col, row } = squareToGrid(pos);
     // Convert grid col/row (1-11) to pixel position within the board
-    const getX = (c: number) => c === 1 ? 0 : c === 12 ? BOARD_SIZE - CORNER : CORNER + (c - 2) * CELL;
-    const getY = (r: number) => r === 1 ? 0 : r === 12 ? BOARD_SIZE - CORNER : CORNER + (r - 2) * CELL;
+    const getX = (c: number) => c === 1 ? 0 : c === 11 ? BOARD_SIZE - CORNER : CORNER + (c - 2) * CELL;
+    const getY = (r: number) => r === 1 ? 0 : r === 11 ? BOARD_SIZE - CORNER : CORNER + (r - 2) * CELL;
     const x = getX(col);
     const y = getY(row);
     return { top: (y / BOARD_SIZE) * 100, left: (x / BOARD_SIZE) * 100 };
   }
 
   // Offset tokens that share the same square
-  const offsets = [{ dx: 8, dy: 6 }, { dx: 30, dy: 6 }, { dx: 8, dy: 30 }, { dx: 30, dy: 30 }];
+  const offsets = [{ dx: 12, dy: 12 }, { dx: 30, dy: 12 }, { dx: 12, dy: 30 }, { dx: 30, dy: 30 }];
 
   return (
     <div className="mono-tokens-layer" style={{ position: 'absolute', inset: 0 }}>
@@ -317,7 +318,7 @@ function TokenLayer({ state, shown, hopping }: { state: GameState; shown: Record
             }}
             title={`${player.name} — Square ${player.position}: ${BOARD[player.position].name}`}
           >
-            <span className="mono-token-glyph">{player.token}</span><span className="mono-token-shadow" />
+            <span className="mono-token-glyph" style={{ background: player.color, boxShadow: `0 0 0 2px #fff, 0 4px 8px rgba(0,0,0,.35)` }}>{player.token}</span><span className="mono-token-shadow" />
           </div>
         );
       })}
@@ -337,33 +338,31 @@ function GameLog({ log }: { log: string[] }) {
 }
 
 // ─── Setup Screen ─────────────────────────────────────────────────────────────
+const SEATS: [string, string, string][] = [['🎩', 'You', '#d94a3d'], ['🚗', 'Mia', '#3f8fd6'], ['🐶', 'Arjun', '#2fa66a'], ['🚢', 'Zara', '#e8b43a']];
 function SetupScreen({ onStart }: { onStart: (n: number) => void }) {
-  const [num, setNum] = useState(2);
   return (
     <div className="mono-setup">
       <div className="mono-setup-card">
-        <div className="mono-setup-title">🎩 MONOPOLY</div>
-        <div className="mono-setup-sub">Classic Board Game · 2–4 Players · Hot Seat</div>
-        <div className="mono-player-btns">
-          {[2, 3, 4].map(n => (
-            <button key={n} className={`mono-pcount-btn${num === n ? ' active' : ''}`} onClick={() => setNum(n)}>
-              {n}
-            </button>
+        <div className="mono-setup-title">🎩 Monopoly</div>
+        <div className="mono-setup-sub">World tour · you vs three explorers</div>
+        <div className="mono-seats">
+          {SEATS.map(([tok, name, color]) => (
+            <div key={name} className="mono-seat" style={{ borderColor: color }}>
+              <span className="mono-seat-token" style={{ background: color }}>{tok}</span>
+              <b>{name}</b>
+              <small>{name === 'You' ? 'that is you' : 'city explorer'}</small>
+            </div>
           ))}
         </div>
         <div style={{ color: 'var(--text-muted)', fontSize: '.85rem', marginBottom: 20, lineHeight: 1.6 }}>
-          {num === 2 ? '👥 2 players — quick game (~45 min)' :
-           num === 3 ? '👥 3 players — medium game (~90 min)' :
-                       '👥 4 players — full experience (~2 hrs)'}
-          <br />
-          {['🎩', '🚗', '🐶', '🚢'].slice(0, num).join('  ')} playing
+          Buy countries, build houses and hotels, collect rent from anyone who lands there. The explorers take their turns on their own.
         </div>
-        <button className="mono-start-btn" onClick={() => onStart(num)}>
-          🎲 Start Game
+        <button className="mono-start-btn" onClick={() => onStart(4)}>
+          🎲 Start the tour
         </button>
       </div>
       <div style={{ color: 'var(--text-muted)', fontSize: '.78rem', textAlign: 'center', maxWidth: 360 }}>
-        All classic Monopoly rules: buy properties, collect rent, build houses & hotels, avoid jail, outlast the others.
+        Classic rules: dice, rent, Chance and Community Chest, jail, taxes, bankruptcy. Last one standing wins.
       </div>
     </div>
   );
@@ -392,7 +391,7 @@ export default function MonopolyGame() {
   const [diceRolling, setDiceRolling] = useState(false);
   const [showFloats, setShowFloats] = useState(false);
 
-  const { state, rollDice, landResolved, buyProperty, declineProperty, payJail, useJailCard, buildHouse, sellHouse, mortgage, unmortgage, endTurn, dismissCard } = useGameState(numPlayers || 2);
+  const { state, rollDice, landResolved, buyProperty, declineProperty, payJail, useJailCard, buildHouse, sellHouse, mortgage, unmortgage, endTurn, dismissCard, restart } = useGameState(4);
 
   const handleRoll = useCallback(() => {
     setDiceRolling(true);
@@ -413,6 +412,33 @@ export default function MonopolyGame() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase, arrived]);
+  // the three explorers take their own turns: roll, buy what they can afford, build when they own a set, end
+  const rolledThisTurn = useRef(false);
+  useEffect(() => { rolledThisTurn.current = false; }, [state.currentPlayerIndex]);
+  useEffect(() => {
+    const cur = state.players[state.currentPlayerIndex];
+    if (!cur || cur.id === 'p0' || state.phase === 'won') return;
+    const think = (fn: () => void, ms: number) => { const t = setTimeout(fn, ms); return () => clearTimeout(t); };
+    if (cur.isBankrupt) return think(endTurn, 600);
+    if (state.phase === 'bankrupt') return think(endTurn, 1600);
+    if (state.phase === 'card') return think(dismissCard, 1600);
+    if (state.phase === 'buying') {
+      const sq = BOARD[cur.position]; const price = sq.price ?? 0;
+      return think(() => (cur.money - price >= 120 ? buyProperty() : declineProperty()), 1100);
+    }
+    if (state.phase === 'rolling') {
+      if (cur.inJail && !rolledThisTurn.current) return think(() => { rolledThisTurn.current = true; if (cur.money >= 200) payJail(); else handleRoll(); }, 900);
+      if (!rolledThisTurn.current || state.doubles > 0) return think(() => { rolledThisTurn.current = true; handleRoll(); }, 900);
+      // done rolling: build one house on a complete set if flush, then end the turn
+      return think(() => {
+        const mine = state.properties.filter(p => p.ownerId === cur.id && !p.mortgaged && p.houses < 5);
+        const set = mine.find(p => { const sq = BOARD[p.squareId]; if (!sq.color || !sq.housePrice) return false; const n = state.properties.filter(q => q.ownerId === cur.id && BOARD[q.squareId].color === sq.color).length; return n === COLOR_GROUP_SIZES[sq.color] && cur.money > sq.housePrice + 250; });
+        if (set) buildHouse(set.squareId);
+        endTurn();
+      }, 900);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.phase, state.currentPlayerIndex, state.doubles, state.players[state.currentPlayerIndex]?.inJail, state.players[state.currentPlayerIndex]?.isBankrupt]);
   const ownedCount = state.properties.filter(p => p.ownerId).length;
   const houseCount = state.properties.reduce((n, p) => n + p.houses, 0);
 
@@ -424,7 +450,7 @@ export default function MonopolyGame() {
     }
   }, [state.floatingMsgs]);
 
-  if (!numPlayers) return <div className="mono-root"><SetupScreen onStart={n => setNumPlayers(n)} /></div>;
+  if (!numPlayers) return <div className="mono-root"><SetupScreen onStart={n => { restart(n); setNumPlayers(n); }} /></div>;
 
   const cur = state.players[state.currentPlayerIndex];
 
@@ -439,9 +465,9 @@ export default function MonopolyGame() {
   return (
     <div className="mono-root" key={gameKey}>
       {/* Card Modal */}
-      {state.lastCard && state.phase === 'card' && <CardModal state={state} onDismiss={dismissCard} />}
+      {state.lastCard && state.phase === 'card' && <CardModal state={state} onDismiss={dismissCard} who={state.players[state.currentPlayerIndex]?.name} />}
       {/* Buy Modal */}
-      {state.phase === 'buying' && <BuyModal state={state} onBuy={buyProperty} onDecline={declineProperty} />}
+      {state.phase === 'buying' && state.players[state.currentPlayerIndex]?.id === 'p0' && <BuyModal state={state} onBuy={buyProperty} onDecline={declineProperty} />}
 
       {/* Floating messages */}
       <div className="mono-floats">
@@ -460,7 +486,7 @@ export default function MonopolyGame() {
           {!cur.isBankrupt && (
             <div className="mono-turn-badge">
               <div className="mono-turn-dot" style={{ background: cur.color }} />
-              <span className="mono-turn-name">{cur.name}'s turn</span>
+              <span className="mono-turn-name">{cur.id === 'p0' ? 'Your turn' : `${cur.name} is playing…`}</span>
               {cur.inJail && <span style={{ fontSize: '.7rem', color: 'var(--text-muted)' }}>(In Jail)</span>}
             </div>
           )}
@@ -542,7 +568,8 @@ export default function MonopolyGame() {
           </div>
 
           {/* Jail actions */}
-          {cur.inJail && state.phase === 'rolling' && (
+          {cur.id !== 'p0' && state.phase !== 'bankrupt' && <span className="mono-action-label">🤖 {cur.name} is taking their turn…</span>}
+          {cur.id === 'p0' && cur.inJail && state.phase === 'rolling' && (
             <>
               <button className="mono-btn primary" onClick={handleRoll}>🎲 Roll for Doubles</button>
               <button className="mono-btn" disabled={cur.money < 50} onClick={payJail}>💰 Pay $50</button>
@@ -551,7 +578,7 @@ export default function MonopolyGame() {
           )}
 
           {/* Normal roll */}
-          {!cur.inJail && state.phase === 'rolling' && (
+          {cur.id === 'p0' && !cur.inJail && state.phase === 'rolling' && (
             <button className="mono-btn primary" onClick={handleRoll}>🎲 Roll Dice</button>
           )}
 
@@ -571,7 +598,7 @@ export default function MonopolyGame() {
           </div>
 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
-            {state.phase === 'rolling' && state.doubles === 0 && !cur.inJail && (
+            {cur.id === 'p0' && state.phase === 'rolling' && state.doubles === 0 && !cur.inJail && (
               <button className="mono-btn" onClick={endTurn}>⏭ End Turn</button>
             )}
           </div>

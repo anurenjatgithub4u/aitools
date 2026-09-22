@@ -22,6 +22,7 @@
   --radius: 16px;
   --board-size: min(92vw, 600px);
   --corner: calc(var(--board-size) * 0.143);
+  --cell: calc((var(--board-size) - 12px - 2 * var(--corner)) / 9);   /* one street square along an edge */
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
   min-height: 100vh;
   background: radial-gradient(120% 80% at 50% 0%, #fbf8f1 0%, var(--bg) 60%, #ece7da 100%);
@@ -52,8 +53,8 @@
 .mono-restart-btn:hover { border-color: var(--red); color: var(--red); }
 
 /* ── Board in 3D ──────────────────────────────────────────── */
-.mono-board-wrap { grid-column: 2; grid-row: 2; display: flex; align-items: flex-start; justify-content: center; position: relative; perspective: 1600px; perspective-origin: 50% 40%; padding: 0 0 30px; }
-.mono-stage { transform-style: preserve-3d; transform: rotateX(24deg); transform-origin: 50% 40%; transition: transform .6s ease; }
+.mono-board-wrap { grid-column: 2; grid-row: 2; display: flex; align-items: flex-start; justify-content: center; position: relative; padding: 0 0 12px; }
+.mono-stage { position: relative; }
 .mono-board {
   width: var(--board-size); height: var(--board-size);
   display: grid;
@@ -61,10 +62,9 @@
   grid-template-rows: var(--corner) repeat(9, 1fr) var(--corner);
   border: 6px solid var(--board-edge); border-radius: 6px;
   background: var(--board);
-  box-shadow: 0 40px 60px -20px rgba(23,51,43,.45), 0 0 0 1px rgba(255,255,255,.4) inset;
-  position: relative; transform-style: preserve-3d;
+  box-shadow: 0 30px 50px -20px rgba(23,51,43,.4), 0 0 0 1px rgba(255,255,255,.4) inset;
+  position: relative;
 }
-.mono-board::after { content: ''; position: absolute; left: 2%; right: 2%; bottom: -26px; height: 26px; background: linear-gradient(180deg, #163b2d, #0f2a20); border-radius: 0 0 10px 10px; transform: rotateX(-90deg); transform-origin: top; }   /* the table-top edge */
 .mono-board-center { grid-column: 2 / 11; grid-row: 2 / 11; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 6%; background: radial-gradient(60% 60% at 50% 45%, #dceed3, var(--board) 70%); overflow: hidden; }
 .mono-city { position: absolute; inset: 0; transform: translateZ(1px); }
 .mono-board-center-title { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: clamp(1rem, 3vw, 1.7rem); letter-spacing: .28em; color: var(--green); position: relative; text-shadow: 0 1px 0 #fff; transform: translateZ(6px); }
@@ -73,7 +73,11 @@
 
 /* ── Squares ──────────────────────────────────────────────── */
 .mono-sq { border: 1px solid rgba(23,51,43,.18); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 2px; font-size: clamp(5px, .85vw, 9px); position: relative; overflow: hidden; cursor: default; background: #f7f3e6; width: 100%; height: 100%; transition: background .15s; }
-.mono-board > div { min-width: 0; min-height: 0; }
+.mono-board > div { min-width: 0; min-height: 0; position: relative; }
+/* side squares are laid out as if on the bottom row, then turned to face the centre */
+.mono-sq.side { position: absolute; left: 50%; top: 50%; width: var(--cell); height: var(--corner); }
+.mono-sq.side.left  { transform: translate(-50%, -50%) rotate(90deg); }
+.mono-sq.side.right { transform: translate(-50%, -50%) rotate(-90deg); }
 .mono-sq:hover { background: #fffdf5; }
 .mono-sq-color { width: 100%; height: 24%; flex-shrink: 0; border-bottom: 1px solid rgba(0,0,0,.15); }
 .mono-sq-name { text-align: center; line-height: 1.1; color: var(--text); font-weight: 600; padding: 1px 2px; }
@@ -93,12 +97,12 @@
 /* ── Tokens: stand up on the tilted board, hop square by square ── */
 .mono-tokens-layer { position: absolute; inset: 0; pointer-events: none; transform-style: preserve-3d; }
 .mono-token { position: absolute; width: 0; height: 0; transition: top .15s ease-out, left .15s ease-out; z-index: 10; transform-style: preserve-3d; }
-.mono-token-glyph { position: absolute; left: -14px; bottom: 0; font-size: clamp(16px, 2.6vw, 26px); transform: rotateX(-24deg); transform-origin: bottom; filter: drop-shadow(0 4px 3px rgba(0,0,0,.35)); transition: transform .15s; }
-.mono-token-shadow { position: absolute; left: -10px; top: 6px; width: 20px; height: 8px; border-radius: 50%; background: rgba(0,0,0,.28); filter: blur(1px); }
+.mono-token-glyph { position: absolute; left: -13px; top: -13px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 15px; color: #fff; transform-origin: center; transition: transform .15s; }
+.mono-token-shadow { display: none; }
 .mono-token.hop .mono-token-glyph { animation: hop .15s ease-out; }
-@keyframes hop { 0% { transform: rotateX(-24deg) translateY(0); } 50% { transform: rotateX(-24deg) translateY(-14px) scale(1.08); } 100% { transform: rotateX(-24deg) translateY(0); } }
+@keyframes hop { 0% { transform: translateY(0); } 50% { transform: translateY(-12px) scale(1.15); } 100% { transform: translateY(0); } }
 .mono-token.current .mono-token-glyph { animation: idle 1.6s ease-in-out infinite; }
-@keyframes idle { 0%, 100% { transform: rotateX(-24deg) translateY(0); } 50% { transform: rotateX(-24deg) translateY(-3px); } }
+@keyframes idle { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-3px) scale(1.06); } }
 .mono-token.in-jail { opacity: .7; }
 
 /* ── Dice: real cubes ─────────────────────────────────────── */
@@ -202,9 +206,7 @@
   .mono-header { grid-column: 1; grid-row: 1; padding: 8px 12px; }
   .mono-logo span { display: none; }
   .mono-left { grid-column: 1; grid-row: 3; flex-direction: row; flex-wrap: wrap; }
-  .mono-board-wrap { grid-column: 1; grid-row: 2; padding: 0 0 20px; perspective: 1100px; }
-  .mono-stage { transform: rotateX(18deg); }
-  .mono-token-glyph, .mono-token.current .mono-token-glyph { transform: rotateX(-18deg); }
+  .mono-board-wrap { grid-column: 1; grid-row: 2; padding: 0 0 12px; }
   .mono-right { grid-column: 1; grid-row: 4; flex-direction: row; flex-wrap: wrap; }
   .mono-controls { grid-column: 1; grid-row: 5; padding: 10px 12px; gap: 8px; }
   .mono-player-card { flex: 1; min-width: 140px; padding: 10px; }
@@ -212,3 +214,20 @@
   .mono-root { --board-size: min(90vw, 520px); }
   .mono-btn { padding: 9px 14px; font-size: .85rem; }
 }
+
+/* ── World tour: flags on the squares, coloured seats ─────── */
+.mono-sq-icon { font-size: 2.2em; line-height: 1; margin: 2px 0 1px; }
+.mono-sq-corner { font-size: clamp(8px, 1.6vw, 12px); letter-spacing: .06em; }
+.mono-sq-name { font-size: 1.05em; }
+.mono-seats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+.mono-seat { border: 2px solid; border-radius: 14px; padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 4px; background: var(--surface2); }
+.mono-seat-token { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; color: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.2); }
+.mono-seat b { font-size: .9rem; }
+.mono-seat small { font-size: .65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; }
+.mono-player-token { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 17px; }
+.mono-player-name { color: var(--text) !important; }
+@media (max-width: 720px) { .mono-seats { grid-template-columns: repeat(2, 1fr); } .mono-sq-icon { font-size: 1.7em; } .mono-token-glyph { width: 24px; height: 24px; font-size: 13px; left: -12px; top: -12px; } }
+
+.mono-sq-flag { width: 58%; max-width: 44px; aspect-ratio: 4/3; object-fit: cover; border-radius: 3px; box-shadow: 0 1px 3px rgba(0,0,0,.3); margin: 3px 0 2px; }
+.mono-modal-flag { width: 84px; aspect-ratio: 4/3; object-fit: cover; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.25); }
+.mono-prop-flag { width: 18px; height: 13px; object-fit: cover; border-radius: 2px; vertical-align: -2px; margin-right: 4px; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }

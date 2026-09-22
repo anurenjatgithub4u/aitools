@@ -198,7 +198,8 @@ type Action =
   | { type: 'UNMORTGAGE'; squareId: number }
   | { type: 'END_TURN' }
   | { type: 'CLEAR_FLOATS' }
-  | { type: 'DISMISS_CARD' };
+  | { type: 'DISMISS_CARD' }
+  | { type: 'RESET'; numPlayers: number };
 
 function reducer(state: GameState, action: Action): GameState {
   const cur = state.players[state.currentPlayerIndex];
@@ -388,6 +389,8 @@ function reducer(state: GameState, action: Action): GameState {
       return { ...state, floatingMsgs: [] };
     }
 
+    case 'RESET': return buildInitialState(action.numPlayers);
+
     case 'DISMISS_CARD': {
       return { ...state, lastCard: null };
     }
@@ -399,8 +402,8 @@ function reducer(state: GameState, action: Action): GameState {
 
 // ─── initial state ────────────────────────────────────────────────────────────
 const TOKENS = ['🎩', '🚗', '🐶', '🚢'];
-const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12'];
-const NAMES  = ['Player 1', 'Player 2', 'Player 3', 'Player 4'];
+const COLORS = ['#d94a3d', '#3f8fd6', '#2fa66a', '#e8b43a'];   // red, blue, green, yellow
+const NAMES  = ['You', 'Mia', 'Arjun', 'Zara'];
 
 export function buildInitialState(numPlayers: number): GameState {
   chanceDeck = shuffle(CHANCE);
@@ -417,7 +420,7 @@ export function buildInitialState(numPlayers: number): GameState {
     dice: [1, 1],
     doubles: 0,
     lastCard: null,
-    log: ['Game started! Player 1 goes first.'],
+    log: ['Game started! You go first — Mia, Arjun and Zara are waiting.'],
     winner: null,
     floatingMsgs: [],
     auctionSquareId: null,
@@ -442,6 +445,6 @@ export function useGameState(numPlayers: number) {
     endTurn:        () => dispatch({ type: 'END_TURN' }),
     clearFloats:    () => dispatch({ type: 'CLEAR_FLOATS' }),
     dismissCard:    () => dispatch({ type: 'DISMISS_CARD' }),
-    restart:        (n: number) => { /* reset via key */ },
+    restart:        (n: number) => dispatch({ type: 'RESET', numPlayers: n }),
   };
 }

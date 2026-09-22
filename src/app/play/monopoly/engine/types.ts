@@ -12,6 +12,8 @@ export type ColorGroup =
 export interface Square {
   id: number;
   name: string;
+  icon?: string;   // symbol shown on the square (emoji)
+  flag?: string;   // ISO country code → /flags/<code>.png (flag emoji don't render on Windows)
   type: SquareType;
   color?: ColorGroup;
   price?: number;

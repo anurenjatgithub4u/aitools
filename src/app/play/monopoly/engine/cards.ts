@@ -1,7 +1,7 @@
 ﻿import type { Card } from './types';
 
 export const COMMUNITY_CHEST: Card[] = [
-  { id:'cc1',  deck:'community', text:'Advance to Go. Collect $200.',                         action:{type:'advance_go'} },
+  { id:'cc1',  deck:'community', text:'Advance to GO 🚀. Collect $200.',                         action:{type:'advance_go'} },
   { id:'cc2',  deck:'community', text:'Bank error in your favor. Collect $200.',              action:{type:'collect',amount:200} },
   { id:'cc3',  deck:'community', text:'Doctor fee. Pay $50.',                                 action:{type:'pay',amount:50} },
   { id:'cc4',  deck:'community', text:'From sale of stock you get $50.',                      action:{type:'collect',amount:50} },
@@ -20,21 +20,21 @@ export const COMMUNITY_CHEST: Card[] = [
 ];
 
 export const CHANCE: Card[] = [
-  { id:'ch1',  deck:'chance', text:'Advance to Boardwalk.',                                   action:{type:'move',to:39} },
-  { id:'ch2',  deck:'chance', text:'Advance to Go. Collect $200.',                            action:{type:'advance_go'} },
-  { id:'ch3',  deck:'chance', text:'Advance to Illinois Ave.',                                action:{type:'move',to:24} },
-  { id:'ch4',  deck:'chance', text:'Advance to St. Charles Place.',                           action:{type:'move',to:11} },
-  { id:'ch5',  deck:'chance', text:'Advance to nearest railroad.',                            action:{type:'move_to_nearest',squareType:'railroad'} },
-  { id:'ch6',  deck:'chance', text:'Advance to nearest railroad (pay double rent).',          action:{type:'move_to_nearest',squareType:'railroad'} },
-  { id:'ch7',  deck:'chance', text:'Advance token to nearest utility.',                       action:{type:'move_to_nearest',squareType:'utility'} },
+  { id:'ch1',  deck:'chance', text:'Fly to India 🇮🇳.',                                   action:{type:'move',to:39} },
+  { id:'ch2',  deck:'chance', text:'Advance to GO 🚀. Collect $200.',                            action:{type:'advance_go'} },
+  { id:'ch3',  deck:'chance', text:'Advance to France 🇫🇷.',                                action:{type:'move',to:24} },
+  { id:'ch4',  deck:'chance', text:'Advance to Egypt 🇪🇬.',                           action:{type:'move',to:11} },
+  { id:'ch5',  deck:'chance', text:'Advance to the nearest airport ✈️.',                            action:{type:'move_to_nearest',squareType:'railroad'} },
+  { id:'ch6',  deck:'chance', text:'Advance to the nearest airport ✈️ (pay double).',          action:{type:'move_to_nearest',squareType:'railroad'} },
+  { id:'ch7',  deck:'chance', text:'Advance to the nearest utility ⚡💧.',                       action:{type:'move_to_nearest',squareType:'utility'} },
   { id:'ch8',  deck:'chance', text:'Bank pays you dividend of $50.',                          action:{type:'collect',amount:50} },
   { id:'ch9',  deck:'chance', text:'Get Out of Jail Free.',                                   action:{type:'get_out_of_jail'} },
   { id:'ch10', deck:'chance', text:'Go back 3 spaces.',                                       action:{type:'go_back',spaces:3} },
   { id:'ch11', deck:'chance', text:'Go to Jail.',                                             action:{type:'go_to_jail'} },
   { id:'ch12', deck:'chance', text:'Make general repairs: $25 per house, $100 per hotel.',    action:{type:'pay_per_house',perHouse:25,perHotel:100} },
   { id:'ch13', deck:'chance', text:'Pay poor tax of $15.',                                    action:{type:'pay',amount:15} },
-  { id:'ch14', deck:'chance', text:'Take a trip to Reading Railroad.',                        action:{type:'move',to:5} },
-  { id:'ch15', deck:'chance', text:'Take a walk on the Boardwalk. Advance to Boardwalk.',     action:{type:'move',to:39} },
+  { id:'ch14', deck:'chance', text:'Take a trip to Kochi Airport ✈️.',                        action:{type:'move',to:5} },
+  { id:'ch15', deck:'chance', text:'Grand tour! Fly to India 🇮🇳.',     action:{type:'move',to:39} },
   { id:'ch16', deck:'chance', text:'You have been elected Chairman of the Board. Pay each player $50.', action:{type:'pay_to_players',amount:50} },
 ];
 

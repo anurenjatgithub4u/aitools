@@ -1,23 +1,98 @@
 // Shared SEO strings: keep the title, description, keywords and site URL in one place.
 export const SITE = "https://www.findurai.com";
 export const SITE_NAME = "FindurAI";
-export const TAGLINE = "FindurAI · Free 3D city game in your browser — hang out, date, race, cricket, football, zombies";
+export const TAGLINE = "FindurAI · Free 3D city game — Cricket, Football, Ludo, Carrom & more in your browser";
 export const DESCRIPTION =
   "FindurAI is a free multiplayer 3D city (a browser metaverse) — no download, works on phone and desktop. Meet real friends and virtual dates at the plaza, bar-hop on Neon Lane, chill at Sunset Beach, drive jeeps, tuk-tuks and bikes across the Harbour Bridge, race a 960 m speedway with boost pads, play 5-a-side football, bat and bowl cricket, survive zombie night, hunt hidden cash and play chess, Ludo, carrom and 8-ball pool together. If you loved Little Kerala (kerala.dhilber.com), this is your next city.";
 
 export const KEYWORDS = [
+  // brand
+  "FindurAI", "findurai game", "findurai city",
+
   // what it is
-  "FindurAI", "findurai game", "free browser game", "3D open world game online", "no download game", "metaverse in browser", "browser metaverse game",
+  "free browser game", "3D open world game online", "no download game", "metaverse in browser", "browser metaverse game",
   "virtual city game", "virtual world to hang out with friends", "online hangout game", "virtual dating game", "meet friends online 3D",
   "multiplayer city game", "social game online free", "low poly city game", "play in browser mobile game", "3D game for phone browser",
+
+  // ── CRICKET ─────────────────────────────────────────────────────────────
+  "cricket game online free",
+  "play cricket online without download",
+  "cricket game in browser",
+  "online cricket game for mobile",
+  "cricket batting game online",
+  "cricket bowling game online",
+  "free cricket game no download",
+  "3d cricket game browser",
+  "cricket game for android browser",
+  "bat and bowl cricket game online",
+  "cricket game no sign up",
+  "best free cricket game online",
+  "cricket game to play with friends",
+  "multiplayer cricket game online free",
+  "india cricket game online free",
+
+  // ── FOOTBALL ────────────────────────────────────────────────────────────
+  "football game online free",
+  "5 a side football game online",
+  "play football game in browser",
+  "football game no download",
+  "online football game for mobile",
+  "soccer game online free browser",
+  "free football game to play now",
+  "free soccer game no install",
+  "football game for android browser",
+  "multiplayer football game online free",
+  "best free football game browser",
+  "football game to play with friends online",
+  "3d football game online free",
+  "football game no sign up",
+
+  // ── LUDO ────────────────────────────────────────────────────────────────
+  "ludo online free",
+  "play ludo online without download",
+  "ludo game in browser",
+  "ludo no login",
+  "ludo game online for mobile browser",
+  "free ludo board game online",
+  "ludo online multiplayer free",
+  "ludo game online without app",
+  "ludo game for android browser",
+  "best ludo game online free",
+  "ludo dice game online free",
+  "play ludo with friends online free",
+  "ludo online no sign up",
+  "ludo king alternative free browser",
+  "classic ludo game online",
+  "indian board game ludo online",
+
+  // ── CARROM ──────────────────────────────────────────────────────────────
+  "carrom game online free",
+  "play carrom online",
+  "carrom board game online browser",
+  "carrom game no download",
+  "online carrom for mobile",
+  "carrom game with friends online",
+  "kerala carrom game",
+  "carrom disc pool online free",
+  "carrom game no sign up",
+  "carrom board online multiplayer",
+  "free carrom game for android browser",
+  "best carrom game online free",
+  "carrom striker game online",
+  "3d carrom game browser",
+  "indian carrom game online free",
+
+  // other games
+  "zombie game online free", "car racing game online free",
+  "8 ball pool online free", "chess online free no account",
+  "games to play with friends online free", "virtual dating game online free",
+  "online games for couples", "games to play with girlfriend online long distance",
+
   // kerala / dhilber searches
   "kerala dilber", "kerala dhilber", "dilber kerala game", "little kerala", "little kerala game", "little kerala online", "kerala game",
   "kerala 3d game online", "kerala metaverse", "kerala virtual city", "kerala.dhilber.com alternative", "games like little kerala",
   "malayalam game online", "kerala online game free",
-  // games inside the city (each has its own landing page under /play/ that owns the long tail)
-  "cricket game online free", "football game online free", "zombie game online free", "car racing game online free",
-  "8 ball pool online free", "carrom game online free", "ludo online free", "chess online free no account",
-  "games to play with friends online free", "virtual dating game online free", "online games for couples", "games to play with girlfriend online long distance",
+
   // places
   "virtual beach hangout", "virtual bar pub club online", "virtual stadium football", "virtual cricket ground",
 ];

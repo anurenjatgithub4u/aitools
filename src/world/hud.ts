@@ -99,6 +99,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
           <button data-a="pool">🎱<small>8-ball</small></button>
           <button data-a="carrom">🎯<small>Carrom</small></button>
           <button data-a="chess">♟️<small>Chess</small></button>
+          <a class="gamelink" href="/play/monopoly/" target="_blank" rel="noopener">🎩<small>Monopoly</small></a>
           <button data-a="ludo">🎲<small>Ludo</small></button>
           <button data-a="casino" class="go">🎰<small>Go to casino</small></button>
           <button data-a="back">←<small>Back</small></button>

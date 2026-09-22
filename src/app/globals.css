@@ -666,7 +666,7 @@ body.inmode .labels .tag.me { display: none !important; }
 
 /* ---- profile screen: where to? ---- */
 .profile .qhead { margin: 4px 0 10px; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: rgba(255,255,255,.7); }
-.profile .quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; max-width: 620px; margin: 0 auto 12px; }
+.profile .quick { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; max-width: 640px; margin: 0 auto 12px; }
 .profile .qbtn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 9px; border-radius: 14px; border: 2px solid rgba(255,255,255,.14); background: rgba(255,255,255,.07); color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: transform .15s, background .15s, border-color .15s; }
 .profile .qbtn span { font-size: 24px; line-height: 1; }
 .profile .qbtn:hover:not(:disabled) { transform: translateY(-2px); background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.4); }
@@ -715,3 +715,5 @@ body.nostick .stick { display: none !important; }
 
 .tablectl .tstatus { font-size: 12px; font-weight: 600; color: #ffe08a; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 16px; }
 @media (max-width: 720px) { .tablectl .tstatus { font-size: 11px; } }
+
+.meet .mrow.games a.gamelink { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }

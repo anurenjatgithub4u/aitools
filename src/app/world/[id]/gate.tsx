@@ -11,10 +11,10 @@ type Phase = "splash" | "profile" | "building" | "leaving";
 const SPLASH_MIN_MS = 700;
 
 // `ready` flips true once the world has rendered its first frame; only then does the gate fade out.
-export type QuickStart = 'explore' | 'cricket' | 'football' | 'race' | 'zombies' | 'ludo' | 'chess' | 'pool' | 'carrom';
+export type QuickStart = 'explore' | 'cricket' | 'football' | 'race' | 'zombies' | 'ludo' | 'chess' | 'pool' | 'carrom' | 'monopoly';
 const QUICK: [QuickStart, string, string][] = [
   ['explore', '🌆', 'Explore the city'], ['cricket', '🏏', 'Cricket'], ['football', '⚽', 'Football'], ['race', '🏁', 'Race'],
-  ['zombies', '🧟', 'Zombie night'], ['ludo', '🎲', 'Ludo'], ['chess', '♟️', 'Chess'], ['pool', '🎱', '8-ball'], ['carrom', '🎯', 'Carrom'],
+  ['zombies', '🧟', 'Zombie night'], ['ludo', '🎲', 'Ludo'], ['chess', '♟️', 'Chess'], ['pool', '🎱', '8-ball'], ['carrom', '🎯', 'Carrom'], ['monopoly', '🎩', 'Monopoly'],
 ];
 
 export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promise<unknown>; ready: boolean; build: { f: number; label: string } | null; fatal: string | null; onEnter: (start: QuickStart) => void }) {
@@ -70,6 +70,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
     if (!gender) return;
     store.setGender(gender);
     store.setName(name.trim() || 'Explorer');
+    if (start === 'monopoly') { location.href = '/play/monopoly/'; return; }   // the board game has its own page
     enter(start);
   };
 

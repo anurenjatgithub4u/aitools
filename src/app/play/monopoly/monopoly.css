@@ -1,0 +1,214 @@
+/* ══════════════════════════════════════════════════════════
+   MONOPOLY — FindurAI light theme: paper, park green, gold.
+   The board is tilted in 3D with a low-poly city in the middle.
+   ══════════════════════════════════════════════════════════ */
+
+.mono-root {
+  --bg: var(--paper, #f4f1ea);
+  --surface: #ffffff;
+  --surface2: #f6f3ec;
+  --border: rgba(23, 51, 43, .12);
+  --gold: #e8c46a;
+  --gold-deep: #c99a12;
+  --text: var(--ink, #17332b);
+  --text-muted: var(--ink-2, #4a6b60);
+  --green: #1e4d3a;
+  --red: #d94a3d;
+  --blue: #3f8fd6;
+  --board: #cfe3c4;
+  --board-edge: #1e4d3a;
+  --shadow-lg: 0 24px 60px rgba(23, 51, 43, .18);
+  --shadow-md: 0 8px 24px rgba(23, 51, 43, .12);
+  --radius: 16px;
+  --board-size: min(92vw, 600px);
+  --corner: calc(var(--board-size) * 0.143);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+  min-height: 100vh;
+  background: radial-gradient(120% 80% at 50% 0%, #fbf8f1 0%, var(--bg) 60%, #ece7da 100%);
+  color: var(--text);
+}
+.mono-root h1, .mono-root h2, .mono-root h3, .mono-serif { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-weight: 500; }
+
+/* ── Setup ────────────────────────────────────────────────── */
+.mono-setup { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; padding: 40px 20px; }
+.mono-setup-card { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 38px 44px; text-align: center; box-shadow: var(--shadow-lg); max-width: 440px; width: 100%; }
+.mono-setup-title { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: 2.5rem; color: var(--green); letter-spacing: .02em; margin-bottom: 4px; }
+.mono-setup-sub { color: var(--text-muted); font-size: .9rem; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 28px; }
+.mono-player-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+.mono-pcount-btn { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--border); background: var(--surface2); color: var(--text); font-size: 1.4rem; font-weight: 700; cursor: pointer; transition: all .2s; }
+.mono-pcount-btn:hover, .mono-pcount-btn.active { border-color: var(--gold); background: rgba(232,196,106,.25); transform: scale(1.08); box-shadow: 0 6px 16px rgba(232,196,106,.35); }
+.mono-start-btn { width: 100%; padding: 14px; border-radius: 999px; background: var(--green); color: #fff; font-size: 1.05rem; font-weight: 700; border: none; cursor: pointer; letter-spacing: .04em; transition: transform .15s, box-shadow .15s; box-shadow: var(--shadow-md); }
+.mono-start-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(30,77,58,.3); }
+
+/* ── Layout ───────────────────────────────────────────────── */
+.mono-game { display: grid; grid-template-columns: 230px 1fr 230px; grid-template-rows: auto 1fr auto; gap: 16px; padding: 16px; min-height: 100vh; max-width: 1340px; margin: 0 auto; }
+.mono-header { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 18px; box-shadow: var(--shadow-md); }
+.mono-logo { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: 1.15rem; color: var(--green); text-decoration: none; }
+.mono-logo span { letter-spacing: .18em; font-family: var(--font-inter), Inter, sans-serif; font-weight: 800; font-size: .8rem; }
+.mono-turn-badge { display: flex; align-items: center; gap: 10px; background: var(--surface2); border-radius: 999px; padding: 8px 16px; border: 1px solid var(--border); }
+.mono-turn-dot { width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 3px rgba(0,0,0,.06); }
+.mono-turn-name { font-weight: 600; font-size: .95rem; }
+.mono-restart-btn { background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); padding: 8px 16px; border-radius: 999px; font-size: .85rem; cursor: pointer; transition: all .15s; }
+.mono-restart-btn:hover { border-color: var(--red); color: var(--red); }
+
+/* ── Board in 3D ──────────────────────────────────────────── */
+.mono-board-wrap { grid-column: 2; grid-row: 2; display: flex; align-items: flex-start; justify-content: center; position: relative; perspective: 1600px; perspective-origin: 50% 40%; padding: 0 0 30px; }
+.mono-stage { transform-style: preserve-3d; transform: rotateX(24deg); transform-origin: 50% 40%; transition: transform .6s ease; }
+.mono-board {
+  width: var(--board-size); height: var(--board-size);
+  display: grid;
+  grid-template-columns: var(--corner) repeat(9, 1fr) var(--corner);
+  grid-template-rows: var(--corner) repeat(9, 1fr) var(--corner);
+  border: 6px solid var(--board-edge); border-radius: 6px;
+  background: var(--board);
+  box-shadow: 0 40px 60px -20px rgba(23,51,43,.45), 0 0 0 1px rgba(255,255,255,.4) inset;
+  position: relative; transform-style: preserve-3d;
+}
+.mono-board::after { content: ''; position: absolute; left: 2%; right: 2%; bottom: -26px; height: 26px; background: linear-gradient(180deg, #163b2d, #0f2a20); border-radius: 0 0 10px 10px; transform: rotateX(-90deg); transform-origin: top; }   /* the table-top edge */
+.mono-board-center { grid-column: 2 / 11; grid-row: 2 / 11; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 6%; background: radial-gradient(60% 60% at 50% 45%, #dceed3, var(--board) 70%); overflow: hidden; }
+.mono-city { position: absolute; inset: 0; transform: translateZ(1px); }
+.mono-board-center-title { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: clamp(1rem, 3vw, 1.7rem); letter-spacing: .28em; color: var(--green); position: relative; text-shadow: 0 1px 0 #fff; transform: translateZ(6px); }
+.mono-board-center-dice { margin-top: 8px; position: relative; transform: translateZ(10px); }
+.mono-pot { margin-top: 6px; color: var(--green); font-weight: 700; font-size: .85rem; background: rgba(255,255,255,.7); padding: 3px 10px; border-radius: 999px; position: relative; }
+
+/* ── Squares ──────────────────────────────────────────────── */
+.mono-sq { border: 1px solid rgba(23,51,43,.18); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 2px; font-size: clamp(5px, .85vw, 9px); position: relative; overflow: hidden; cursor: default; background: #f7f3e6; width: 100%; height: 100%; transition: background .15s; }
+.mono-board > div { min-width: 0; min-height: 0; }
+.mono-sq:hover { background: #fffdf5; }
+.mono-sq-color { width: 100%; height: 24%; flex-shrink: 0; border-bottom: 1px solid rgba(0,0,0,.15); }
+.mono-sq-name { text-align: center; line-height: 1.1; color: var(--text); font-weight: 600; padding: 1px 2px; }
+.mono-sq-price { color: var(--text-muted); font-size: .8em; font-weight: 600; }
+.mono-sq-corner { font-size: clamp(9px, 1.9vw, 15px); font-weight: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; background: #efe9d6; }
+.mono-sq.mortgaged { opacity: .5; background: repeating-linear-gradient(45deg, #eee, #eee 4px, #ddd 4px, #ddd 8px); }
+
+/* 3D houses and hotels standing on the square */
+.mono-sq-houses { display: flex; gap: 2px; flex-wrap: wrap; position: absolute; bottom: 3px; left: 2px; right: 2px; justify-content: center; transform-style: preserve-3d; }
+.mono-house, .mono-hotel { position: relative; width: 8px; height: 7px; background: #2fa66a; border-radius: 1px; transform: translateZ(4px); box-shadow: 0 3px 2px -1px rgba(0,0,0,.35); animation: houseIn .35s cubic-bezier(.2,.8,.2,1); }
+.mono-house i, .mono-hotel i { position: absolute; left: -1px; right: -1px; top: -4px; height: 4px; background: #1e6e45; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.mono-hotel { width: 13px; height: 9px; background: #d94a3d; }
+.mono-hotel i { background: #8a2a20; }
+@keyframes houseIn { from { transform: translateZ(4px) scale(0); opacity: 0; } to { transform: translateZ(4px) scale(1); opacity: 1; } }
+.mono-sq-owner { position: absolute; top: 2px; right: 2px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+
+/* ── Tokens: stand up on the tilted board, hop square by square ── */
+.mono-tokens-layer { position: absolute; inset: 0; pointer-events: none; transform-style: preserve-3d; }
+.mono-token { position: absolute; width: 0; height: 0; transition: top .15s ease-out, left .15s ease-out; z-index: 10; transform-style: preserve-3d; }
+.mono-token-glyph { position: absolute; left: -14px; bottom: 0; font-size: clamp(16px, 2.6vw, 26px); transform: rotateX(-24deg); transform-origin: bottom; filter: drop-shadow(0 4px 3px rgba(0,0,0,.35)); transition: transform .15s; }
+.mono-token-shadow { position: absolute; left: -10px; top: 6px; width: 20px; height: 8px; border-radius: 50%; background: rgba(0,0,0,.28); filter: blur(1px); }
+.mono-token.hop .mono-token-glyph { animation: hop .15s ease-out; }
+@keyframes hop { 0% { transform: rotateX(-24deg) translateY(0); } 50% { transform: rotateX(-24deg) translateY(-14px) scale(1.08); } 100% { transform: rotateX(-24deg) translateY(0); } }
+.mono-token.current .mono-token-glyph { animation: idle 1.6s ease-in-out infinite; }
+@keyframes idle { 0%, 100% { transform: rotateX(-24deg) translateY(0); } 50% { transform: rotateX(-24deg) translateY(-3px); } }
+.mono-token.in-jail { opacity: .7; }
+
+/* ── Dice: real cubes ─────────────────────────────────────── */
+.mono-dice-wrap { display: flex; gap: 22px; justify-content: center; perspective: 500px; padding: 8px; }
+.mono-die3d { width: 40px; height: 40px; position: relative; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.2,.8,.2,1); }
+.mono-cube { position: absolute; inset: 0; transform-style: preserve-3d; }
+.mono-die3d.rolling .mono-cube { animation: tumble .55s linear infinite; }
+@keyframes tumble { from { transform: rotateX(0) rotateY(0) rotateZ(0); } to { transform: rotateX(360deg) rotateY(720deg) rotateZ(180deg); } }
+.mono-face { position: absolute; inset: 0; background: #fffdf7; border: 1px solid #d9d2bf; border-radius: 7px; box-shadow: inset 0 0 6px rgba(0,0,0,.08); }
+.mono-face i { position: absolute; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: #17332b; }
+.mono-face.f1 { transform: translateZ(20px); }
+.mono-face.f6 { transform: rotateY(180deg) translateZ(20px); }
+.mono-face.f2 { transform: rotateX(90deg) translateZ(20px); }
+.mono-face.f5 { transform: rotateX(-90deg) translateZ(20px); }
+.mono-face.f3 { transform: rotateY(90deg) translateZ(20px); }
+.mono-face.f4 { transform: rotateY(-90deg) translateZ(20px); }
+.mono-die3d.doubles .mono-face { border-color: var(--gold-deep); box-shadow: inset 0 0 8px rgba(232,196,106,.6); }
+
+/* ── Side panels ──────────────────────────────────────────── */
+.mono-left  { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; gap: 12px; }
+.mono-right { grid-column: 3; grid-row: 2; display: flex; flex-direction: column; gap: 12px; }
+.mono-player-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; transition: border-color .2s, box-shadow .2s, transform .2s; box-shadow: var(--shadow-md); }
+.mono-player-card.active { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(232,196,106,.35), var(--shadow-md); transform: translateY(-2px); }
+.mono-player-card.bankrupt { opacity: .45; filter: grayscale(1); }
+.mono-player-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.mono-player-token { font-size: 1.5rem; }
+.mono-player-name { font-weight: 700; font-size: .95rem; }
+.mono-player-status { font-size: .7rem; color: var(--text-muted); letter-spacing: .06em; text-transform: uppercase; }
+.mono-player-money { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: 1.45rem; color: var(--green); margin-bottom: 4px; }
+
+/* ── Controls ─────────────────────────────────────────────── */
+.mono-controls { grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; box-shadow: var(--shadow-md); position: sticky; bottom: 10px; z-index: 5; }
+.mono-btn { padding: 10px 20px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface2); color: var(--text); font-size: .9rem; font-weight: 600; cursor: pointer; transition: all .15s; white-space: nowrap; }
+.mono-btn:hover:not(:disabled) { border-color: var(--green); transform: translateY(-1px); }
+.mono-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.mono-btn.primary { background: var(--green); color: #fff; border-color: transparent; box-shadow: 0 6px 16px rgba(30,77,58,.25); }
+.mono-btn.primary:hover:not(:disabled) { box-shadow: 0 10px 24px rgba(30,77,58,.35); }
+.mono-btn.danger { border-color: var(--red); color: var(--red); }
+.mono-btn.danger:hover:not(:disabled) { background: rgba(217,74,61,.08); }
+.mono-btn.success { border-color: #2fa66a; color: #1e7a4c; }
+.mono-action-label { font-size: .85rem; color: var(--text-muted); flex: 1; }
+.mono-phase-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 999px; padding: 4px 12px; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+
+/* ── Log ──────────────────────────────────────────────────── */
+.mono-log { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; max-height: 170px; overflow-y: auto; flex-shrink: 0; box-shadow: var(--shadow-md); }
+.mono-log-title { font-size: .68rem; letter-spacing: .16em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.mono-log-entry { font-size: .78rem; color: var(--text-muted); line-height: 1.4; padding: 3px 0; border-bottom: 1px solid rgba(23,51,43,.06); }
+.mono-log-entry:first-child { color: var(--text); font-weight: 600; }
+
+/* ── Modals ───────────────────────────────────────────────── */
+.mono-modal-bg { position: fixed; inset: 0; background: rgba(23,51,43,.45); display: flex; align-items: center; justify-content: center; z-index: 100; backdrop-filter: blur(6px); animation: fadeIn .2s ease; padding: 16px; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.mono-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 22px; padding: 32px 36px; max-width: 420px; width: 100%; text-align: center; animation: slideUp .35s cubic-bezier(.2,.8,.2,1); box-shadow: var(--shadow-lg); }
+@keyframes slideUp { from { transform: translateY(40px) scale(.95); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+.mono-modal-icon { font-size: 3rem; margin-bottom: 12px; }
+.mono-modal-deck { font-size: .7rem; letter-spacing: .22em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
+.mono-modal-text { font-size: 1.05rem; line-height: 1.5; color: var(--text); margin-bottom: 20px; font-weight: 500; }
+.mono-modal-amount { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: 1.7rem; margin-bottom: 18px; }
+.mono-modal-amount.earn { color: #1e7a4c; }
+.mono-modal-amount.pay { color: var(--red); }
+.mono-buy-modal .mono-modal-icon { font-size: 2rem; }
+.mono-buy-color-band { height: 14px; border-radius: 7px; margin: 0 auto 16px; width: 90px; }
+.mono-buy-detail { display: flex; flex-direction: column; gap: 6px; margin: 12px 0 22px; text-align: left; }
+.mono-buy-row { display: flex; justify-content: space-between; font-size: .9rem; }
+.mono-buy-row span:last-child { color: var(--green); font-weight: 700; }
+.mono-buy-btns { display: flex; gap: 12px; }
+.mono-buy-btns .mono-btn { flex: 1; }
+
+/* ── Floating money ───────────────────────────────────────── */
+.mono-floats { position: fixed; top: 46%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 200; }
+.mono-float { position: absolute; font-size: 1.4rem; font-weight: 700; font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; animation: floatUp 1.8s ease forwards; white-space: nowrap; text-shadow: 0 2px 8px rgba(255,255,255,.9); }
+.mono-float.earn { color: #1e7a4c; }
+.mono-float.pay { color: var(--red); }
+.mono-float.info { color: var(--text); }
+@keyframes floatUp { 0% { opacity: 0; transform: translate(0, 0) scale(.8); } 20% { opacity: 1; transform: translate(0, -10px) scale(1); } 80% { opacity: 1; transform: translate(0, -50px); } 100% { opacity: 0; transform: translate(0, -80px) scale(.8); } }
+
+/* ── Win ──────────────────────────────────────────────────── */
+.mono-win { position: fixed; inset: 0; background: rgba(244,241,234,.94); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; z-index: 300; animation: fadeIn .5s ease; }
+.mono-win-trophy { font-size: 5rem; animation: bounce 1s infinite; }
+@keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-16px); } }
+.mono-win-title { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: 2.6rem; color: var(--green); text-align: center; }
+.mono-win-sub { color: var(--text-muted); font-size: 1rem; }
+.mono-confetti-wrap { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.mono-confetti { position: absolute; width: 10px; height: 10px; border-radius: 2px; animation: confettiFall linear forwards; }
+@keyframes confettiFall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(110vh) rotate(720deg); opacity: 0; } }
+
+/* ── Property panel ───────────────────────────────────────── */
+.mono-prop-panel { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; font-size: .82rem; }
+.mono-prop-panel h4 { margin: 0 0 8px; font-size: .85rem; color: var(--text); }
+.mono-prop-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(23,51,43,.06); gap: 8px; }
+.mono-prop-item:last-child { border-bottom: none; }
+.mono-prop-item-name { color: var(--text); flex: 1; }
+.mono-prop-item-btns { display: flex; gap: 4px; }
+.mono-prop-mini-btn { padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: var(--text-muted); font-size: .75rem; cursor: pointer; transition: all .15s; }
+.mono-prop-mini-btn:hover { border-color: var(--green); color: var(--green); }
+.mono-prop-mini-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .mono-game { grid-template-columns: 1fr; grid-template-rows: auto auto auto auto auto; gap: 12px; padding: 10px; }
+  .mono-header { grid-column: 1; grid-row: 1; padding: 8px 12px; }
+  .mono-logo span { display: none; }
+  .mono-left { grid-column: 1; grid-row: 3; flex-direction: row; flex-wrap: wrap; }
+  .mono-board-wrap { grid-column: 1; grid-row: 2; padding: 0 0 20px; perspective: 1100px; }
+  .mono-stage { transform: rotateX(18deg); }
+  .mono-token-glyph, .mono-token.current .mono-token-glyph { transform: rotateX(-18deg); }
+  .mono-right { grid-column: 1; grid-row: 4; flex-direction: row; flex-wrap: wrap; }
+  .mono-controls { grid-column: 1; grid-row: 5; padding: 10px 12px; gap: 8px; }
+  .mono-player-card { flex: 1; min-width: 140px; padding: 10px; }
+  .mono-log { width: 100%; max-height: 110px; }
+  .mono-root { --board-size: min(90vw, 520px); }
+  .mono-btn { padding: 9px 14px; font-size: .85rem; }
+}

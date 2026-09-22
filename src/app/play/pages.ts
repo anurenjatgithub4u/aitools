@@ -21,7 +21,15 @@ export const PLAY_PAGES: PlayPage[] = [
     title: 'Cricket Game Online Free — Play in Browser, No Download (Bat & Bowl)',
     h1: 'Play a free cricket game online — bat and bowl in your browser',
     description: 'Free online cricket game with real batting and bowling: pick overs, time your shots, run between the wickets, choose speed and line when you bowl. No download, works on phone.',
-    keywords: ['cricket game online free', 'play cricket game online without download', 'cricket game in browser', 'online cricket game for mobile', 'cricket batting game online', 'cricket bowling game', 'free cricket game no download', 'kerala cricket game online', '3d cricket game browser'],
+    keywords: [
+      'cricket game online free', 'play cricket online without download', 'cricket game in browser',
+      'online cricket game for mobile', 'cricket batting game online', 'cricket bowling game online',
+      'free cricket game no download', '3d cricket game browser', 'cricket game for android browser',
+      'bat and bowl cricket game online', 'cricket game no sign up', 'best free cricket game online',
+      'cricket game to play with friends', 'multiplayer cricket game online free', 'india cricket game online free',
+      'how to play cricket online free', 'online cricket no app', 'free cricket game for pc browser',
+      'cricket game 1 over 5 over online', 'kerala cricket game online', 'quick cricket game online',
+    ],
     intro: 'FindurAI has a free cricket game online that you play inside a 3D city — walk onto the strip at the FindurAI Cricket Ground, press E, and you are batting. No app to install, no sign-up, and it runs on a phone browser as well as a laptop.',
     sections: [
       ['How the cricket match works', 'Choose 1, 2, 3 or 5 overs a side. You bat first against an AI bowler: shuffle across the crease with ◀ ▶ and press Bat as the ball arrives. Perfect timing sends it for six, early pulls it high where a fielder can catch it, late squeezes it along the ground, and a straight one you miss bowls you. After a shot press Run to take runs with the non-striker — press again for a second, but the fielder throws at your stumps, so a lazy second run gets you run out.'],
@@ -39,7 +47,15 @@ export const PLAY_PAGES: PlayPage[] = [
     title: 'Football Game Online Free — 5-a-Side Match in Your Browser, No Download',
     h1: 'Free online football game — five-a-side at City Stadium',
     description: 'Play a free 5-a-side football game online: dribble, pass, shoot, keepers and passing AI, 90-second matches. In the browser on phone or PC, no download.',
-    keywords: ['football game online free', '5 a side football game online', 'play football game in browser', 'football game no download', 'online football game for mobile', 'soccer game online free browser', 'free football game to play now'],
+    keywords: [
+      'football game online free', '5 a side football game online', 'play football game in browser',
+      'football game no download', 'online football game for mobile', 'soccer game online free browser',
+      'free football game to play now', 'free soccer game no install', 'football game for android browser',
+      'multiplayer football game online free', 'best free football game browser',
+      'football game to play with friends online', '3d football game online free', 'football game no sign up',
+      'how to play football online free', 'online football no app', 'five a side soccer game browser',
+      'football game india free online', 'football kick game online', 'penalty kick game online free',
+    ],
     intro: 'The free football game online in FindurAI is a five-a-side match on a full 56 × 36 m pitch at City Stadium, with goals, keepers, stands and floodlights. Walk onto the pitch and press E, or pick Football from the start screen, and the match kicks off.',
     sections: [
       ['How to play', 'Run into the ball to dribble — it sticks to your feet. Press Kick (Space on a keyboard) to shoot: harder while sprinting, and aimed toward the goal when you face it. Your four blue-bib team-mates pass and defend; the red team has a keeper and counters. Matches are 90 seconds, first to five wins, and the scoreboard sits at the top of the screen.'],
@@ -107,7 +123,15 @@ export const PLAY_PAGES: PlayPage[] = [
     title: 'Carrom Game Online Free — Play Carrom Board in Your Browser, No Download',
     h1: 'Play carrom online free — a real board with striker, queen and pockets',
     description: 'Free online carrom game: slide the striker, aim, set the power and flick. White vs black, red queen worth three, top-down 3D board. In the browser on phone or PC.',
-    keywords: ['carrom game online free', 'play carrom online', 'carrom board game online browser', 'carrom game no download', 'online carrom for mobile', 'carrom game with friends online', 'kerala carrom game'],
+    keywords: [
+      'carrom game online free', 'play carrom online', 'carrom board game online browser',
+      'carrom game no download', 'online carrom for mobile', 'carrom game with friends online',
+      'kerala carrom game', 'carrom disc pool online free', 'carrom game no sign up',
+      'carrom board online multiplayer', 'free carrom game for android browser', 'best carrom game online free',
+      'carrom striker game online', '3d carrom game browser', 'indian carrom game online free',
+      'how to play carrom online', 'carrom board game for pc browser', 'carrom game india free',
+      'carrom coin game online', 'carrom board physics game free',
+    ],
     intro: 'The carrom game online in FindurAI is a proper board — striker, nine white and nine black coins, the red queen and four pockets — seen straight from above, the way you would sit over a real board. Press E at the board by the Neon Palace bar, or pick Carrom on the start screen.',
     sections: [
       ['How to play', 'The Striker slider places your striker along the baseline, ◀ ▶ aims, the Power slider sets the flick and Flick sends it. White coins are yours, black are your rival\'s, the queen counts three and must be covered. Pocket all nine to win.'],
@@ -124,7 +148,15 @@ export const PLAY_PAGES: PlayPage[] = [
     title: 'Ludo Online Free — Play Ludo in Your Browser, No Download or Login',
     h1: 'Play Ludo online free — no app, no login',
     description: 'Free Ludo online in the browser: roll, move, capture, home. Play against an explorer in a 3D city, no download and no sign-up. Works on phones.',
-    keywords: ['ludo online free', 'play ludo online without download', 'ludo game in browser', 'ludo no login', 'ludo game online for mobile browser', 'free ludo board game online'],
+    keywords: [
+      'ludo online free', 'play ludo online without download', 'ludo game in browser',
+      'ludo no login', 'ludo game online for mobile browser', 'free ludo board game online',
+      'ludo online multiplayer free', 'ludo game online without app', 'ludo game for android browser',
+      'best ludo game online free', 'ludo dice game online free', 'play ludo with friends online free',
+      'ludo online no sign up', 'ludo king alternative free browser', 'classic ludo game online',
+      'indian board game ludo online', 'how to play ludo online', 'ludo game for pc browser free',
+      'ludo game india free', '4 player ludo online free', 'ludo game no app needed',
+    ],
     intro: 'Play Ludo online free in FindurAI — a classic four-colour board you open from any explorer\'s card in the 3D city, or straight from the start screen. No app store, no login.',
     sections: [
       ['How it works', 'Roll a six to leave home, move around the board, land on a rival to send them back, bring all four tokens home to win. Your opponent is one of the city\'s explorers; the board opens over the city and closes when you are done.'],
@@ -200,4 +232,29 @@ export const PLAY_PAGES: PlayPage[] = [
       ['Does everyone need the same device?', 'No — phones, tablets and laptops all share the same city.'],
     ],
   },
+  {
+    slug: 'monopoly', start: 'explore', icon: '🎩',
+    title: 'Monopoly Game Online Free — Play in Browser, No Download (2–4 Players)',
+    h1: 'Play Monopoly online free — classic board game in your browser',
+    description: 'Free Monopoly board game in the browser: buy properties, build houses and hotels, collect rent, draw Chance and Community Chest cards. 2–4 players hot-seat, no download, no sign-up.',
+    keywords: [
+      'monopoly game online free', 'play monopoly in browser', 'monopoly no download',
+      'monopoly board game online', 'free monopoly online no sign up', 'monopoly 2 player online free',
+      'monopoly 4 player online free', 'classic board game online free', 'monopoly game for pc browser',
+      'monopoly game for mobile browser', 'online monopoly no app', 'monopoly buy properties online',
+      'best free monopoly game browser', 'monopoly hot seat game', 'monopoly pass and play',
+    ],
+    intro: 'FindurAI now includes a fully playable free Monopoly game in your browser — no download, no sign-up. Choose 2 to 4 players, pick your token (🎩 🚗 🐶 🚢), roll dice, buy properties from Mediterranean Avenue to Boardwalk, build houses and hotels, collect rent and outlast everyone else.',
+    sections: [
+      ['Full classic Monopoly rules', 'All 40 squares are here: 22 properties in 8 colour groups, 4 railroads, 2 utilities, Income Tax, Luxury Tax, Community Chest, Chance, Go, Jail, Free Parking and Go To Jail. Roll doubles and go again — roll three in a row and go straight to jail. Build houses when you own a full colour group; upgrade to a hotel for maximum rent. Mortgage properties when you need cash. Draw from the full 32-card Chance and Community Chest decks. The last player standing wins.'],
+      ['Hot-seat multiplayer', '2 to 4 players share the same device — pass it around after each turn. Each player\'s money, properties and buildings are tracked on screen. Bankrupted players are eliminated; the game ends when one player owns everything.'],
+      ['Premium animated UI', 'A dark-themed board with gold accents, animated 3D CSS dice that spin on every roll, smooth token movement from square to square, floating money toasts (+$200, -$150) and a confetti win screen. All 40 board squares render with correct colour bands, house and hotel icons on properties you own, and owner dots.'],
+    ],
+    faq: [
+      ['Is the Monopoly game free?', 'Yes — completely free, no download, no account needed.'],
+      ['How many players can play?', '2, 3 or 4 players hot-seat (passing the device between turns).'],
+      ['Does it follow real Monopoly rules?', 'Yes — buying properties, rent, houses, hotels, Chance, Community Chest, jail, taxes and bankruptcy all follow classic Monopoly rules.'],
+    ],
+  },
 ];
+

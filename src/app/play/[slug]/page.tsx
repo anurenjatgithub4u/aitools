@@ -8,7 +8,8 @@ import { PLAY_PAGES } from "../pages";
 export const dynamic = "force-static";
 export const dynamicParams = false;
 
-export function generateStaticParams() { return PLAY_PAGES.map((p) => ({ slug: p.slug })); }
+const OWN_PAGE = new Set(['monopoly']);   // games with a page of their own under /play/
+export function generateStaticParams() { return PLAY_PAGES.filter((p) => !OWN_PAGE.has(p.slug)).map((p) => ({ slug: p.slug })); }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;

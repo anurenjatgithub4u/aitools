@@ -717,3 +717,8 @@ body.nostick .stick { display: none !important; }
 @media (max-width: 720px) { .tablectl .tstatus { font-size: 11px; } }
 
 .meet .mrow.games a.gamelink { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+
+/* The list of games on /games/ — one line per game with its own page */
+.gamelist { list-style: none; padding: 0; margin: 18px 0; display: grid; gap: 12px; }
+.gamelist li { background: var(--card); border-radius: 14px; padding: 14px 18px; box-shadow: var(--shadow); font-size: 15px; line-height: 1.5; color: var(--ink-2); }
+.gamelist li a { font-weight: 600; color: var(--ink); }

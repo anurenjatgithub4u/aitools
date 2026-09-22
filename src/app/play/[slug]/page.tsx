@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SITE, SITE_NAME } from "../../seo";
 import { AdScript, AdSlot } from "../../ads";
-import { PLAY_PAGES } from "../pages";
+import { PLAY_PAGES, gameMeta } from "../pages";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -29,10 +29,26 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
   const p = PLAY_PAGES.find((x) => x.slug === slug);
   if (!p) notFound();
   const play = `/?start=${p.start}`;
+  const g = gameMeta(p.slug);
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
-      { "@type": "WebPage", "@id": `${SITE}/play/${p.slug}/#page`, url: `${SITE}/play/${p.slug}/`, name: p.title, description: p.description, isPartOf: { "@id": `${SITE}/#website` }, about: { "@id": `${SITE}/#game` } },
+      { "@type": "WebPage", "@id": `${SITE}/play/${p.slug}/#page`, url: `${SITE}/play/${p.slug}/`, name: p.title, description: p.description, isPartOf: { "@id": `${SITE}/#website` }, about: { "@id": `${SITE}/play/${p.slug}/#game` }, mainEntity: { "@id": `${SITE}/play/${p.slug}/#game` } },
+      {
+        // the game itself: this is what answers "cricket game online", "ludo online" and the rest
+        "@type": "VideoGame", "@id": `${SITE}/play/${p.slug}/#game`, name: g.name, alternateName: p.h1.split(" — ")[0],
+        url: `${SITE}/play/${p.slug}/`, description: p.description,
+        applicationCategory: "GameApplication", operatingSystem: "Any (web browser)",
+        gamePlatform: ["Web browser", "Android", "iOS", "Windows", "macOS"],
+        genre: g.genre, playMode: g.playMode.length === 1 ? g.playMode[0] : g.playMode,
+        numberOfPlayers: { "@type": "QuantitativeValue", minValue: g.players[0], maxValue: g.players[1] },
+        isAccessibleForFree: true, inLanguage: "en",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "INR", availability: "https://schema.org/InStock", url: `${SITE}/play/${p.slug}/` },
+        keywords: p.keywords.slice(0, 12).join(", "),
+        image: `${SITE}/play/${p.slug}/opengraph-image`,
+        author: { "@id": `${SITE}/#org` }, publisher: { "@id": `${SITE}/#org` },
+        isPartOf: { "@id": `${SITE}/#game` },
+      },
       { "@type": "FAQPage", mainEntity: p.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) },
       { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: SITE_NAME, item: SITE }, { "@type": "ListItem", position: 2, name: "Games", item: `${SITE}/games/` }, { "@type": "ListItem", position: 3, name: p.h1, item: `${SITE}/play/${p.slug}/` }] },
     ],

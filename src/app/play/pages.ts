@@ -234,27 +234,49 @@ export const PLAY_PAGES: PlayPage[] = [
   },
   {
     slug: 'monopoly', start: 'explore', icon: '🎩',
-    title: 'Monopoly Game Online Free — Play in Browser, No Download (2–4 Players)',
+    title: 'Monopoly Game Online Free — Play in Browser vs 3 Computer Players, No Download',
     h1: 'Play Monopoly online free — classic board game in your browser',
-    description: 'Free Monopoly board game in the browser: buy properties, build houses and hotels, collect rent, draw Chance and Community Chest cards. 2–4 players hot-seat, no download, no sign-up.',
+    description: 'Free Monopoly board game in the browser: buy countries, build houses and hotels, collect rent, draw Chance and Community Chest cards. Four players — you against three computer rivals. No download, no sign-up.',
     keywords: [
       'monopoly game online free', 'play monopoly in browser', 'monopoly no download',
-      'monopoly board game online', 'free monopoly online no sign up', 'monopoly 2 player online free',
-      'monopoly 4 player online free', 'classic board game online free', 'monopoly game for pc browser',
+      'monopoly board game online', 'free monopoly online no sign up', 'monopoly 4 player online free',
+      'monopoly vs computer online free', 'classic board game online free', 'monopoly game for pc browser',
       'monopoly game for mobile browser', 'online monopoly no app', 'monopoly buy properties online',
-      'best free monopoly game browser', 'monopoly hot seat game', 'monopoly pass and play',
+      'best free monopoly game browser', 'monopoly against computer free', 'monopoly world edition online', 'monopoly with countries online',
     ],
-    intro: 'FindurAI now includes a fully playable free Monopoly game in your browser — no download, no sign-up. Choose 2 to 4 players, pick your token (🎩 🚗 🐶 🚢), roll dice, buy properties from Mediterranean Avenue to Boardwalk, build houses and hotels, collect rent and outlast everyone else.',
+    intro: 'FindurAI has a free Monopoly game you play in the browser — no download, no sign-up. It is a world tour: instead of Atlantic City streets the squares are countries, from Nepal and Sri Lanka up to the USA and India, with airports in place of railroads. You play against three explorers who take their own turns, so there is always a full four-player game waiting.',
     sections: [
-      ['Full classic Monopoly rules', 'All 40 squares are here: 22 properties in 8 colour groups, 4 railroads, 2 utilities, Income Tax, Luxury Tax, Community Chest, Chance, Go, Jail, Free Parking and Go To Jail. Roll doubles and go again — roll three in a row and go straight to jail. Build houses when you own a full colour group; upgrade to a hotel for maximum rent. Mortgage properties when you need cash. Draw from the full 32-card Chance and Community Chest decks. The last player standing wins.'],
-      ['Hot-seat multiplayer', '2 to 4 players share the same device — pass it around after each turn. Each player\'s money, properties and buildings are tracked on screen. Bankrupted players are eliminated; the game ends when one player owns everything.'],
-      ['Premium animated UI', 'A dark-themed board with gold accents, animated 3D CSS dice that spin on every roll, smooth token movement from square to square, floating money toasts (+$200, -$150) and a confetti win screen. All 40 board squares render with correct colour bands, house and hotel icons on properties you own, and owner dots.'],
+      ['Full classic Monopoly rules', 'All 40 squares are here: 22 countries in 8 colour groups, 4 airports, 2 utilities, Income Tax, Luxury Tax, Community Chest, Chance, GO, Jail, Free Parking and Go To Jail. Roll doubles and go again — three in a row and you go straight to jail. Build houses once you own a full colour group and upgrade to a hotel for the big rent. Mortgage when you need cash. Both card decks are complete. The last player standing wins.'],
+      ['Four players, always', 'You are the red token; Mia (blue), Arjun (green) and Zara (yellow) take their own turns — rolling, buying, building and paying you rent — so you never need a second person or a second device to start a game.'],
+      ['A board you can read', 'A flat square board in the light FindurAI theme, with the flag of every country on its square, 3D dice that tumble on each roll, tokens that hop square by square, houses and hotels that appear on the land you own, and a little 3D city in the middle that grows as the board fills up.'],
     ],
     faq: [
       ['Is the Monopoly game free?', 'Yes — completely free, no download, no account needed.'],
-      ['How many players can play?', '2, 3 or 4 players hot-seat (passing the device between turns).'],
+      ['How many players can play?', 'Four — you plus three computer explorers, so a game always starts straight away.'],
       ['Does it follow real Monopoly rules?', 'Yes — buying properties, rent, houses, hotels, Chance, Community Chest, jail, taxes and bankruptcy all follow classic Monopoly rules.'],
     ],
   },
 ];
 
+/**
+ * Per-game facts for the VideoGame structured data on each landing page. This is what tells a
+ * search engine that /play/cricket-game-online/ *is* a cricket game it can offer for "cricket
+ * game online", rather than just another page that mentions cricket.
+ */
+export interface GameMeta { name: string; genre: string[]; playMode: string[]; players: [number, number] }
+export const GAME_META: Record<string, GameMeta> = {
+  'cricket-game-online':              { name: 'FindurAI Cricket',        genre: ['Sports', 'Cricket'],              playMode: ['SinglePlayer', 'MultiPlayer'], players: [1, 2] },
+  'football-game-online':             { name: 'FindurAI Football',       genre: ['Sports', 'Football'],             playMode: ['SinglePlayer', 'MultiPlayer'], players: [1, 10] },
+  'zombie-game-online':               { name: 'FindurAI Zombie Night',   genre: ['Survival horror', 'Action'],      playMode: ['SinglePlayer', 'MultiPlayer'], players: [1, 50] },
+  'car-racing-game-online':           { name: 'FindurAI Speedway',       genre: ['Racing', 'Driving'],              playMode: ['SinglePlayer', 'MultiPlayer'], players: [1, 4] },
+  '8-ball-pool-online':               { name: 'FindurAI 8-Ball Pool',    genre: ['Sports', 'Simulation'],           playMode: ['SinglePlayer', 'MultiPlayer'], players: [1, 2] },
+  'carrom-game-online':               { name: 'FindurAI Carrom',         genre: ['Board game', 'Sports'],           playMode: ['SinglePlayer', 'MultiPlayer'], players: [1, 2] },
+  'ludo-online':                      { name: 'FindurAI Ludo',           genre: ['Board game', 'Family'],           playMode: ['SinglePlayer', 'MultiPlayer'], players: [2, 4] },
+  'chess-online':                     { name: 'FindurAI Chess',          genre: ['Board game', 'Strategy'],         playMode: ['SinglePlayer', 'MultiPlayer'], players: [1, 2] },
+  'monopoly':                         { name: 'FindurAI Monopoly',       genre: ['Board game', 'Strategy'],         playMode: ['SinglePlayer'],                players: [1, 4] },
+  'virtual-dating-game':              { name: 'FindurAI Dating',         genre: ['Social', 'Simulation'],           playMode: ['MultiPlayer'],                 players: [1, 50] },
+  'kerala-3d-game':                   { name: 'FindurAI City',           genre: ['Open world', 'Social'],           playMode: ['MultiPlayer'],                 players: [1, 50] },
+  'games-to-play-with-friends-online': { name: 'FindurAI City',          genre: ['Social', 'Party', 'Open world'],  playMode: ['MultiPlayer'],                 players: [2, 50] },
+};
+export const gameMeta = (slug: string): GameMeta =>
+  GAME_META[slug] ?? { name: 'FindurAI City', genre: ['Open world', 'Social'], playMode: ['MultiPlayer'], players: [1, 50] };

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SITE } from "../seo";
+import { SITE, SITE_NAME } from "../seo";
 import { AdScript, AdSlot } from "../ads";
-import { PLAY_PAGES } from "../play/pages";
+import { PLAY_PAGES, gameMeta } from "../play/pages";
 
 export const metadata: Metadata = {
   title: "Games in FindurAI City — race, football, cricket, zombie night, pool, chess, Ludo, carrom",
@@ -12,10 +12,33 @@ export const metadata: Metadata = {
   openGraph: { title: "Games in FindurAI City", description: "Race, football, cricket, zombies, pool, chess, Ludo, carrom — free in the browser.", url: `${SITE}/games/` },
 };
 
+// A list of every game with its own page, so a search engine can pick the right one for a query
+// ("ludo online" → /play/ludo-online/) instead of only ever showing the home page.
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "CollectionPage", "@id": `${SITE}/games/#page`, url: `${SITE}/games/`, name: "Games in FindurAI City", isPartOf: { "@id": `${SITE}/#website` }, about: { "@id": `${SITE}/#game` } },
+    {
+      "@type": "ItemList", "@id": `${SITE}/games/#list`, name: "Free games in FindurAI City", numberOfItems: PLAY_PAGES.length,
+      itemListElement: PLAY_PAGES.map((p, i) => ({
+        "@type": "ListItem", position: i + 1, url: `${SITE}/play/${p.slug}/`,
+        item: {
+          "@type": "VideoGame", "@id": `${SITE}/play/${p.slug}/#game`, name: gameMeta(p.slug).name, url: `${SITE}/play/${p.slug}/`,
+          description: p.description, genre: gameMeta(p.slug).genre, applicationCategory: "GameApplication",
+          operatingSystem: "Any (web browser)", isAccessibleForFree: true,
+          offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+        },
+      })),
+    },
+    { "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: SITE_NAME, item: SITE }, { "@type": "ListItem", position: 2, name: "Games", item: `${SITE}/games/` }] },
+  ],
+};
+
 export default function Games() {
   return (
     <main className="landing page">
       <AdScript />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <nav className="top"><Link href="/" className="brand"><span className="logo">🌍</span><span><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></span></Link><Link href="/" className="cta">Play now →</Link></nav>
       <section className="hero">
         <p className="eyebrow">Games</p>
@@ -44,7 +67,9 @@ export default function Games() {
         <p>The Neon Palace is the casino and club at the end of Neon Lane: a dance floor with chasing tiles, a DJ, a bar, slot machines, a roulette table and laser lights sweeping inside and over the roof. Press E on the dance floor to dance with whoever is with you. Press E at either pool table for real 8-ball on a 3D table — ◀ ▶ to aim, a power slider (or W/S) sets the strength, Shoot to strike. Real rules: first pot decides solids or stripes, scratch is ball in hand, sink the 8 last. There is a carrom board by the bar too: a striker slider places it along your baseline, ◀ ▶ aims, the power slider sets the flick — white for you, black for your rival, the red queen worth three. An Exit button (or Esc) leaves any game. Away from the Palace, 8-ball, chess, Ludo and carrom are still playable from any explorer's card.</p></section>
 
       <section><h2>Jump straight into a game</h2>
-        <p>{PLAY_PAGES.map((p, i) => (<span key={p.slug}>{i > 0 && ' · '}<Link href={`/play/${p.slug}/`}>{p.icon} {p.h1.split(' — ')[0]}</Link></span>))}</p></section>
+        <ul className="gamelist">{PLAY_PAGES.map((p) => (
+          <li key={p.slug}><Link href={`/play/${p.slug}/`}>{p.icon} {p.h1.split(' — ')[0]}</Link> — {p.description}</li>
+        ))}</ul></section>
 
       <section><h2>Also in the city</h2>
         <p>Driving jeeps, tuk-tuks, bikes and cycles (with petrol and a fuel station), giving people lifts, the Harbour Bridge to Eastside island, buses and police on the roads, dogs, cats and birds, and a big map of it all.</p></section>

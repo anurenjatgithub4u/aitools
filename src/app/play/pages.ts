@@ -20,7 +20,7 @@ export const PLAY_PAGES: PlayPage[] = [
     slug: 'cricket-game-online', start: 'cricket', icon: '🏏',
     title: 'Cricket Game Online Free — Play in Browser, No Download (Bat & Bowl)',
     h1: 'Play a free cricket game online — bat and bowl in your browser',
-    description: 'Free online cricket game with a toss, eight batting shots you aim yourself, running between the wickets and a speed-and-line bowling panel. No download, works on phone.',
+    description: 'Free online cricket game with a toss, timing-based batting, running between the wickets and a speed-and-line bowling panel. No download, works on phone.',
     keywords: [
       'cricket game online free', 'play cricket online without download', 'cricket game in browser',
       'online cricket game for mobile', 'cricket batting game online', 'cricket bowling game online',
@@ -29,12 +29,12 @@ export const PLAY_PAGES: PlayPage[] = [
       'cricket game to play with friends', 'multiplayer cricket game online free', 'india cricket game online free',
       'how to play cricket online free', 'online cricket no app', 'free cricket game for pc browser',
       'cricket game 1 over 5 over online', 'kerala cricket game online', 'quick cricket game online',
-      'cricket game with toss online', 'cricket game choose your shot', 'aim your shots cricket game',
+      'cricket game with toss online', 'bat or bowl first cricket game', 'cricket timing game online',
     ],
     intro: 'FindurAI has a free cricket game online that you play inside a 3D city — walk onto the strip at the FindurAI Cricket Ground, press E, call the toss and choose whether to bat or bowl first. No app to install, no sign-up, and it runs on a phone browser as well as a laptop.',
     sections: [
       ['The toss, then the match', 'Choose 1, 2, 3 or 5 overs a side and call the toss in the air. Win it and you pick: bat first and set a target, or bowl first and chase a number you can see. Lose it and your rival chooses. Both sides bat the same number of overs, and the side that has not batted fields a full ring.'],
-      ['Choose your shot, then time it', 'Batting is not one button. Before each ball you pick one of eight strokes — block, straight drive, cover drive, cut, flick, pull, sweep or slog — on the panel or with keys 1 to 8, and the ball goes where that stroke sends it: through the covers, square on the off side, through mid-wicket, fine behind square or straight over the bowler. Bigger shots have a tighter timing window, so a mistimed pull or slog goes up in the air for the fielders instead of over the rope. Shuffle across with ◀ ▶, press Bat as the ball arrives, then Run to take runs — but be home before the throw.'],
+      ['Batting is all in the timing', 'Shuffle across the crease with ◀ ▶ and press Bat as the ball arrives. Perfect timing sends it for six, early pulls it high where a fielder can catch it, late squeezes it along the ground, and a straight one you miss bowls you. After a shot press Run to take runs with the non-striker — press again for a second, but the fielder throws at your stumps, so a lazy second run gets you run out.'],
       ['Bowling an over', 'Before every ball you pick the speed (slow, medium, fast) and the line (leg, stumps, off), tap Bowl to run in and press Bowl again at the top of your action. Release it right and the batter is beaten or bowled; release it late and it goes for four. Wickets and dot balls earn points, winning the match earns 200.'],
       ['Play with a friend', 'The cricket ground is in a shared multiplayer city. Meet a friend at the ground, watch each other bat, chat between overs, or race there on bikes first. Real players see each other in real time; the opponent in the match itself is an AI batter or bowler for now.'],
     ],
@@ -43,7 +43,6 @@ export const PLAY_PAGES: PlayPage[] = [
       ['Does it work on a phone?', 'Yes. There is a joystick and Bat / Bowl / Run buttons on phones; on a laptop you use the keyboard.'],
       ['How long is a match?', 'A one-over match takes about three minutes; five overs a side takes around fifteen.'],
       ['Can I choose to bat or bowl first?', 'Yes. Every match starts with a toss — call heads or tails, and if you win it you choose to bat first or to bowl first.'],
-      ['Can I aim my shots?', 'Yes. Pick one of eight shots before the ball arrives (keys 1 to 8, or the panel on a phone) and the ball goes to that part of the ground — as long as you time it.'],
     ],
   },
   {

@@ -6,7 +6,7 @@
 export type Gender = 'm' | 'f';
 
 export type NetMsg =
-  | { t: 's'; id: string; n: string; g: Gender; x: number; z: number; ry: number; w: number; j: number; v: string; h: number; ts: number; p?: string } // state (p = id of the driver whose car I am riding in)
+  | { t: 's'; id: string; n: string; g: Gender; x: number; z: number; ry: number; w: number; j: number; v: string; h: number; ts: number; p?: string; r?: string } // state (p = id of the driver whose car I am riding in)
   | { t: 'c'; id: string; n: string; text: string }                 // chat
   | { t: 'f'; id: string; to: string; n: string }                   // friend request
   | { t: 'fa'; id: string; to: string; n: string }                  // friend accepted
@@ -15,6 +15,8 @@ export type NetMsg =
   | { t: 'g'; id: string; to: string; n: string; gift: string }                     // a gift
   | { t: 'inv'; id: string; to: string; n: string; kind: string; x: number; z: number }   // "come to the pier bench / my apartment"
   | { t: 'lift'; id: string; to: string; n: string; on: boolean; seat: number }   // driver: hop in / out of my car
+  | { t: 'ping'; id: string; c: number }                            // clock sync: our send time, echoed back
+  | { t: 'pong'; c: number; s: number }                             // the relay's time when it saw that ping
   | { t: 'bye'; id: string };
 
 export type NetStatus = 'connecting' | 'online' | 'offline';
@@ -24,6 +26,9 @@ export interface Transport {
   send(msg: NetMsg): void;
   onMessage(cb: (msg: NetMsg) => void): void;
   onStatus(cb: (s: NetStatus) => void): void;
+  /** Room time in epoch milliseconds — the same number on every client, give or take the odd millisecond.
+   *  Anything the whole room has to agree on (the fairground rides) is a pure function of it. */
+  now(): number;
   close(): void;
 }
 
@@ -38,6 +43,7 @@ class LocalTransport implements Transport {
   send(msg: NetMsg) { this.ch?.postMessage(msg); }
   onMessage(cb: (m: NetMsg) => void) { this.cbs.push(cb); }
   onStatus(cb: (s: NetStatus) => void) { cb(this.ch ? 'online' : 'offline'); }
+  now() { return Date.now(); }                   // same machine, same clock
   close() { this.ch?.close(); }
 }
 
@@ -51,6 +57,9 @@ class WsTransport implements Transport {
   private timer = 0;
   private stopped = false;
   private queue: NetMsg[] = [];
+  private offset = 0;              // add to Date.now() for room time
+  private bestRtt = Infinity;      // the offset from the fastest round trip we have seen wins
+  private clockTimer = 0;
 
   constructor(private url: string, private room: string, private self: { id: string; name: string; gender: Gender }) {
     this.open();
@@ -69,11 +78,32 @@ class WsTransport implements Transport {
       ws.send(JSON.stringify({ t: 'join', id: this.self.id, n: this.self.name, g: this.self.gender, room: this.room }));
       this.setStatus('online');
       for (const m of this.queue.splice(0)) ws.send(JSON.stringify(m));
+      this.bestRtt = Infinity;                                        // a new socket may be a new route: measure again
+      for (const d of [0, 400, 1500]) setTimeout(() => this.syncClock(), d);
+      clearInterval(this.clockTimer);
+      this.clockTimer = window.setInterval(() => this.syncClock(), 20000);
     };
-    ws.onmessage = (e) => { let m: NetMsg; try { m = JSON.parse(String(e.data)); } catch { return; } this.cbs.forEach((cb) => cb(m)); };
+    ws.onmessage = (e) => {
+      let m: NetMsg; try { m = JSON.parse(String(e.data)); } catch { return; }
+      if (m.t === 'pong') { this.gotPong(m.c, m.s); return; }
+      this.cbs.forEach((cb) => cb(m));
+    };
     ws.onclose = () => { if (this.ws === ws) { this.ws = null; this.retry(); } };
     ws.onerror = () => ws.close();
   }
+
+  /** NTP in three lines: the relay's clock, plus half the round trip, is what our clock should have read. */
+  private syncClock() {
+    if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify({ t: 'ping', id: this.self.id, c: Date.now() }));
+    this.bestRtt *= 1.25;          // let a fresh, slightly slower sample take over eventually
+  }
+  private gotPong(sent: number, serverTime: number) {
+    const rtt = Date.now() - sent;
+    if (rtt < 0 || rtt > 4000 || rtt >= this.bestRtt) return;
+    this.bestRtt = rtt;
+    this.offset = serverTime + rtt / 2 - Date.now();
+  }
+  now() { return Date.now() + this.offset; }
 
   private retry() {
     if (this.stopped) return;
@@ -89,7 +119,7 @@ class WsTransport implements Transport {
   }
   onMessage(cb: (m: NetMsg) => void) { this.cbs.push(cb); }
   onStatus(cb: (s: NetStatus) => void) { this.statusCbs.push(cb); cb(this.status); }
-  close() { this.stopped = true; clearTimeout(this.timer); this.ws?.close(); }
+  close() { this.stopped = true; clearTimeout(this.timer); clearInterval(this.clockTimer); this.ws?.close(); }
 }
 
 export function createTransport(room: string, self: { id: string; name: string; gender: Gender }): Transport {

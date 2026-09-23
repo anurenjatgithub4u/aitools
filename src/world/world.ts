@@ -41,7 +41,6 @@ export interface WorldEvents {
   onTableStatus(text: string): void;
   onBowl(s: { pace: number; line: number } | null): void;   // pre-ball picker while you bowl
   onWanted(text: string | null): void;   // the police chip: heat, the chase, the cell
-  onShot(s: { shot: number; name: string; hint: string } | null): void;   // the shot picker while you bat
   onZombieClock(seconds: number | null, on: boolean): void;   // countdown to the next zombie night
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
@@ -80,25 +79,12 @@ const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [
 const MATCH_SECONDS = 90;
 // Cricket: the bowler runs in, you time the shot. 12 balls, 3 wickets, beat the target.
 type CricketPhase = 'ready' | 'runup' | 'flight' | 'hit' | 'result' | 'over';
-interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2; batFirst: boolean; shot: number; shotShown: number; firstWkts: number; firstBalls: number;
+interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2; batFirst: boolean; firstWkts: number; firstBalls: number;
   go: boolean; pickShown?: boolean;                                       // bowler: speed and line chosen, run in
   nonStriker: Avatar; bat2: THREE.Group;                                  // the batter at the other end
   run: { u: number; done: number; more: boolean; plan: number; moving: boolean } | null;   // batters running between the wickets
   throw: { from: THREE.Vector3; t0: number; dur: number } | null;        // the fielder's return to the stumps
   overLog: string[]; cheerUntil: number }                                // this over's balls; fielders celebrate a wicket until
-// The shots you can play. `ang` is where you mean to hit it (0 = straight back past the bowler, + = leg side,
-// - = off side, past 1.6 = behind square), `lift` how high it comes off the bat, `spray` how far a mistimed one
-// wanders off that line, and `risk` how much the timing window tightens: a block forgives, a slog does not.
-const SHOTS: { key: string; name: string; ang: number; lift: number; power: number; spray: number; risk: number; hint: string }[] = [
-  { key: '🛡', name: 'Block', ang: 0.00, lift: 0.05, power: 0.20, spray: 0.35, risk: 0.60, hint: 'dead bat, straight down the pitch' },
-  { key: '⬆', name: 'Drive', ang: 0.00, lift: 0.18, power: 1.00, spray: 0.70, risk: 1.00, hint: 'straight past the bowler' },
-  { key: '↖', name: 'Cover', ang: -0.80, lift: 0.14, power: 0.95, spray: 0.85, risk: 1.05, hint: 'cover drive, through the off side' },
-  { key: '⬅', name: 'Cut', ang: -1.40, lift: 0.20, power: 0.90, spray: 1.05, risk: 1.15, hint: 'square on the off side' },
-  { key: '↗', name: 'Flick', ang: 0.75, lift: 0.16, power: 0.85, spray: 0.85, risk: 1.00, hint: 'off the pads through mid-wicket' },
-  { key: '➡', name: 'Pull', ang: 1.30, lift: 0.48, power: 1.05, spray: 1.15, risk: 1.25, hint: 'square leg, up in the air' },
-  { key: '↘', name: 'Sweep', ang: 2.10, lift: 0.22, power: 0.80, spray: 1.25, risk: 1.30, hint: 'behind square, down to fine leg' },
-  { key: '🚀', name: 'Slog', ang: 0.30, lift: 0.62, power: 1.18, spray: 1.40, risk: 1.45, hint: 'over the top: six or caught' },
-];
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
@@ -170,7 +156,10 @@ interface RaceState { cars: RaceCar[]; countdown: number; laps: number; finished
 
 interface Bot { av: Avatar; label: CSS2DObject; name: string; female: boolean; target: THREE.Vector3; speed: number; wait: number; walking: number; riding: Vehicle | null; knocked: Knock | null; playing?: boolean; friend: boolean; asked: number; reply: { at: number; yes: boolean } | null; greeted: number; bubbleUntil: number; remote?: Remote }
 // A real player elsewhere on the network: we get their state a few times a second and glide between updates.
-interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null; p: string; boardedAt: number; buf: { t: number; x: number; z: number; h: number; ry: number }[] }
+interface Remote { id: string; tx: number; tz: number; ry: number; w: number; j: number; v: string; h: number; lastSeen: number; car: Vehicle | null; p: string; ride: string; boardedAt: number; buf: { t: number; x: number; z: number; h: number; ry: number }[] }
+// A ride, plus the seat list every client builds the same way: the index into it is what travels over the wire.
+// `times` is the lap profile of a tracked ride, integrated once so that time -> position is a pure lookup.
+interface Ride { def: RideDef; grp: THREE.Group; seats: THREE.Object3D[]; lap?: number; times?: number[] }
 const NET_DELAY = 130;   // ms behind the newest packet we render peers at, so there is always a next sample to glide toward
 const NET_RATE = 1 / 8;
 // A pedestrian that has been hit: flies with `vel`, then lies on the ground for a moment before getting up.
@@ -238,7 +227,7 @@ export class World {
   private spots: Spot[] = [];
   private date: DateState | null = null;
   private wheel: THREE.Group | null = null;
-  private rides: { def: RideDef; grp: THREE.Group }[] = [];
+  private rides: Ride[] = [];
   // The law: the patrol jeep leaves its beat when you earn heat, and the cell at the station is where you end up broke.
   private cop: { road: Road; officer: Avatar } | null = null;
   private station: { x: number; z: number; y: number; cell: { x: number; z: number; r: number }; gate: { x: number; z: number } } | null = null;
@@ -250,7 +239,7 @@ export class World {
   private sirenAt = 0;
   private bustCool = 0;
   private lastWantedHud = '';
-  private ride: { r: { def: RideDef; grp: THREE.Group }; seat: THREE.Object3D; pseat: THREE.Object3D | null; partner: Bot | null; t0: number; from: THREE.Vector3; pfrom: THREE.Vector3 | null } | null = null;
+  private ride: { r: Ride; seat: THREE.Object3D; seatIdx: number; pseat: THREE.Object3D | null; partner: Bot | null; t0: number; from: THREE.Vector3; pfrom: THREE.Vector3 | null } | null = null;
   private ridden = new Set<string>();
   private dateBoat: THREE.Group | null = null;
   private giftAt = new Map<string, number>();
@@ -379,6 +368,7 @@ export class World {
     const p = v ? v.group.position : this.player.group.position;
     const m: NetMsg = { t: 's', id: this.selfId, n: this.playerName, g: this.gender, x: +p.x.toFixed(2), z: +p.z.toFixed(2), ry: +this.player.group.rotation.y.toFixed(2), w: +this.moveAmount.toFixed(2), j: +this.airY.toFixed(2), v: v ? v.spec.kind : '', h: v ? +v.heading.toFixed(2) : 0, ts: Date.now() };
     if (this.ridingWith) m.p = this.ridingWith.bot.remote!.id;
+    if (this.ride && this.elapsed - this.ride.t0 > 1) m.r = `${this.ride.r.def.id}|${this.ride.seatIdx}`;   // once the hop into the seat is done
     return m;
   }
 
@@ -447,13 +437,13 @@ export class World {
       const label = new CSS2DObject(el); label.position.y = 2.7; label.userData.orig = text; av.group.add(label);
       this.scene.add(av.group);
       b = { av, label, name: m.n, female: m.g === 'f', target: new THREE.Vector3(), speed: 0, wait: 0, walking: 0, riding: null, knocked: null, friend, asked: -99, reply: null, greeted: -99, bubbleUntil: 0,
-        remote: { id: m.id, tx: m.x, tz: m.z, ry: m.ry, w: m.w, j: m.j, v: '', h: m.h, lastSeen: Date.now(), car: null, p: '', boardedAt: 0, buf: [] } };
+        remote: { id: m.id, tx: m.x, tz: m.z, ry: m.ry, w: m.w, j: m.j, v: '', h: m.h, lastSeen: Date.now(), car: null, p: '', ride: '', boardedAt: 0, buf: [] } };
       this.bots.push(b);
       this.ev.onCollect({ name: `${m.n} joined the city`, points: 0, color: 0x3fb7d9, shape: 'gem' });
       this.sfx.collect(0);
     }
     const r = b.remote!;
-    r.tx = m.x; r.tz = m.z; r.ry = m.ry; r.w = m.w; r.j = m.j; r.h = m.h; r.lastSeen = Date.now(); r.p = m.p ?? '';
+    r.tx = m.x; r.tz = m.z; r.ry = m.ry; r.w = m.w; r.j = m.j; r.h = m.h; r.lastSeen = Date.now(); r.p = m.p ?? ''; r.ride = m.r ?? '';
     const last = r.buf[r.buf.length - 1];
     if (last && Math.hypot(m.x - last.x, m.z - last.z) > 12) r.buf.length = 0;   // teleported: do not glide across the city
     r.buf.push({ t: performance.now(), x: m.x, z: m.z, h: m.h, ry: m.ry }); if (r.buf.length > 8) r.buf.shift();
@@ -507,6 +497,13 @@ export class World {
     const drvCar = drv?.remote?.car ?? null;
     if (drvCar) {   // riding with another real player: sit in that car
       if (b.av.group.parent !== drvCar.group) { b.av.group.removeFromParent(); drvCar.group.add(b.av.group); const seats = this.seatsFor(drvCar); b.av.group.position.copy(seats[Math.min(seats.length - 1, 1)] ?? drvCar.seat); b.av.group.rotation.set(0, 0, 0); if (drvCar.spec.ride) poseRide(b.av); else poseSit(b.av); }
+      b.label.visible = true; return;
+    }
+    const seat = this.peerSeat(r);
+    if (seat) {   // on a fairground ride: parent them to the seat, so they ride exactly what we can see, with no smoothing to go wrong
+      if (b.av.group.parent !== seat) { b.av.group.removeFromParent(); seat.add(b.av.group); b.av.group.position.set(0, 0, 0); b.av.group.rotation.set(0, 0, 0); b.av.group.scale.setScalar(1); }
+      poseSit(b.av);
+      if (b.bubbleUntil && t > b.bubbleUntil) { b.bubbleUntil = 0; b.label.element.textContent = b.label.userData.orig as string; b.label.element.classList.remove('talk'); }
       b.label.visible = true; return;
     }
     // back on foot after riding with someone (a peer driving their own car stays in it)
@@ -629,7 +626,7 @@ export class World {
     this.landmarkData = landmark.userData;
     this.spots = (landmark.userData.spots ?? []) as Spot[];
     this.wheel = (landmark.getObjectByName('ferris') as THREE.Group | undefined) ?? null;
-    landmark.traverse((o) => { if (o.userData.ride) this.rides.push({ def: o.userData.ride as RideDef, grp: o as THREE.Group }); });
+    landmark.traverse((o) => { if (o.userData.ride) this.rides.push(this.makeRide(o as THREE.Group)); });
     this.dateBoat = (landmark.getObjectByName('dateboat') as THREE.Group | undefined) ?? null;
     this.casino = (landmark.userData.casino as Casino | undefined) ?? null;
     this.landmarkRoot = landmark;
@@ -984,7 +981,6 @@ export class World {
       if (k === 'g' && !e.repeat) this.wantFriend = true;
       if (k === 'm' && !e.repeat) this.toggleMute();
 
-      if (k >= '1' && k <= '8' && !e.repeat) this.setShot(Number(k) - 1);
       if (k === ' ') { e.preventDefault(); if (!e.repeat) this.wantJump = true; }
       if (k === 'e' && !e.repeat) this.wantToggleDrive = true;
       if (k === 'f' && !e.repeat) this.wantLift = true;
@@ -1703,7 +1699,7 @@ export class World {
     this.tickClub(dt, t);
     if (this.pool) this.tickPool(dt, t);
     if (this.carrom) this.tickCarrom(dt, t);
-    if (this.wheel) { this.wheel.rotation.z += dt * (Math.PI * 2 / 40); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
+    if (this.wheel) { this.wheel.rotation.z = (this.rideTime() * Math.PI * 2 / 40) % (Math.PI * 2); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
     this.tickRides(dt, t);
     this.tickPolice(dt, t);
     if (this.date) this.tickDate(dt, t);
@@ -1843,7 +1839,7 @@ export class World {
       for (const x of st) { const [e, f] = P(x, this.train.z); ctx.beginPath(); ctx.arc(e, f, 2, 0, 7); ctx.fill(); }
     }
     if (this.casino) { const [a, b] = P(this.casino.x, this.casino.z); ctx.fillStyle = '#ff4fd8'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🎰', a, b + (labels ? 3.5 : 2)); }
-    for (const [wx, wz, icon] of [...(this.wheel ? [[this.wheel.position.x, this.wheel.position.z, '🎡'] as const] : []), ...this.rides.map((r) => [r.grp.position.x, r.grp.position.z, r.def.icon] as const)]) { const [a, b] = P(wx, wz); ctx.fillStyle = '#f2c31b'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(icon, a, b + (labels ? 3.5 : 2)); }
+    for (const [wx, wz, icon] of [...(this.wheel ? [[this.wheel.position.x, this.wheel.position.z, '🎡'] as const] : []), ...this.rides.map((r) => [r.def.x, r.def.z, r.def.icon] as const)]) { const [a, b] = P(wx, wz); ctx.fillStyle = '#f2c31b'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(icon, a, b + (labels ? 3.5 : 2)); }
     if (this.pumpPos) { const [a, b] = P(this.pumpPos.x, this.pumpPos.z); ctx.fillStyle = '#d94a3d'; ctx.beginPath(); ctx.arc(a, b, labels ? 6 : 3, 0, 7); ctx.fill(); if (labels) { ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('⛽', a, b + 3); } }
     const wp = new THREE.Vector3();
     const named: { x: number; y: number; text: string }[] = [];
@@ -2221,20 +2217,6 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   /** Who is batting right now: innings 1 belongs to whoever won the toss and chose to bat. */
   private youBat(c: CricketState) { return (c.innings === 1) === c.batFirst; }
 
-  /** The shot picker (1-8 on the keyboard, or the panel): which stroke the next ball gets. */
-  setShot(i: number) {
-    const c = this.cricket; if (!c || !this.youBat(c) || c.phase === 'over') return;
-    c.shot = Math.max(0, Math.min(SHOTS.length - 1, Math.round(i)));
-    this.showShot(c);
-  }
-  /** Keep the shot panel in step with the game: shown while you bat, gone while you bowl. */
-  private showShot(c: CricketState) {
-    const on = this.youBat(c) && c.phase !== 'over', want = on ? c.shot : -1;
-    if (want === c.shotShown) return;
-    c.shotShown = want;
-    this.ev.onShot(on ? { shot: c.shot, name: SHOTS[c.shot].name, hint: SHOTS[c.shot].hint } : null);
-  }
-
   /** The toss: call it in the air, and whoever wins it chooses to bat or to bowl. */
   private cricketToss(opp: Bot | undefined, balls: number) {
     const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : this.bots.find((x) => !x.remote && !x.riding && !x.knocked && !x.playing) ?? null;
@@ -2276,14 +2258,13 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
     const nonStriker = makeAvatar({ ...OUTFITS[3 % OUTFITS.length], skin: SKINS[2 % SKINS.length] }); this.scene.add(nonStriker.group);
     const bat2 = this.makeBat(); nonStriker.armR.add(bat2); nonStriker.armR.rotation.x = -0.6;
-    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, batFirst, shot: 1, shotShown: -2, firstWkts: 0, firstBalls: 0, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, batFirst, firstWkts: 0, firstBalls: 0, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
     for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
     this.setCreases();
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
     this.ev.onMode({ icon: '🏏', label: batFirst ? 'Bat' : 'Bowl', arrows: true, run: batFirst, stick: false });
-    this.showShot(this.cricket);
     this.ev.onCollect({ name: `You ${batFirst ? 'bat' : 'bowl'} first · ${balls / 6} over${balls > 6 ? 's' : ''}, ${this.cricket.maxWkts} wickets · ${batFirst ? `then ${rival.name} chases` : `then you chase them`}`, points: 0, color: 0x2fa66a, shape: 'gem' });
     this.botSays(rival, batFirst ? 'Watch the ball, not me 😏' : 'Right then — bowl it 🏏', 1.5);
   }
@@ -2355,22 +2336,17 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     return true;
   }
 
-  /** The bat meets the ball: `q` is the timing (0..1) and the shot is the stroke being played. Timing decides how
-   *  close it lands to where you aimed and how much of the bat's power it keeps; a big shot forgives far less. */
-  private strike(q: number, early: boolean, shotIdx?: number) {
+  /** The bat meets the ball with quality q (0..1): sets the ball flying, or misses / edges it. */
+  private strike(q: number, early: boolean) {
     const c = this.cricket!, o = this.oval!, ball = c.ball.position, you = this.youBat(c);
-    const S = SHOTS[Math.max(0, Math.min(SHOTS.length - 1, shotIdx ?? (you ? c.shot : 1)))];
     c.swingAt = this.elapsed; c.hit = true;
-    const raw = q;                            // raw timing decides whether the bat finds it at all…
-    q = Math.max(0, 1 - (1 - q) * S.risk);    // …then the shot decides how well it comes off: a block forgives, a slog does not
-    if (raw < 0.1) { c.note = raw < 0.04 ? 'Missed it…' : `Edged the ${S.name.toLowerCase()} — caught behind!`; if (raw >= 0.04 && (!you || Math.random() < 0.5)) this.wicket(); else { c.hit = false; c.note = 'Missed it…'; } return; }
-    const power = (you ? 17 + q * 20 + Math.random() * 3 : 9 + q * 13 + Math.random() * 2) * S.power;   // your bat has more in it than theirs
-    const lift = Math.min(1.2, S.lift + (1 - q) * S.spray * 0.5 + (early ? 0.22 : 0.02));               // mistime it and it goes up instead of along
-    const ang = S.ang + (1 - q) * S.spray * (early ? 0.9 : -0.75) + (Math.random() - 0.5) * (0.2 + (1 - q) * 0.6);   // early drags it to leg, late squirts to off
+    if (q < 0.1) { c.note = q < 0.04 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.04 && (!you || Math.random() < 0.5)) this.wicket(); else { c.hit = false; c.note = 'Missed it…'; } return; }
+    const power = you ? 17 + q * 20 + Math.random() * 3 : 9 + q * 13 + Math.random() * 2, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.6 ? 0.42 : 0.2;   // your bat has more in it than theirs
+    const side = early ? 1 : -1, ang = (1 - q) * 0.9 * side + (Math.random() - 0.5) * 0.3;   // early pulls to leg, late squirts to off
     c.vel.set(Math.cos(ang) * Math.cos(lift) * power, Math.sin(lift) * power, Math.sin(ang) * Math.cos(lift) * power);
     ball.set(o.x - 10 + 0.6, this.terrain.h(ball.x, ball.z) + 0.8, (you ? this.player.group.position.z - 0.55 : o.z + 0.3));
     c.airborne = lift > 0.3; c.bounced = false; c.phase = 'hit'; c.t0 = this.elapsed;
-    c.note = q > 0.85 ? `${S.name} — middled it!` : q > 0.5 ? `${S.name}, well struck` : early ? `${S.name}, early on it…` : `${S.name}, late on it`;
+    c.note = q > 0.85 ? 'Sweet timing!' : early ? 'Pulled high…' : 'Squeezed away';
     c.chaser = null;
     this.sfx.bump();
   }
@@ -2432,11 +2408,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       if (!batting && !c.decided && ball.x - batX < 1.6) {
         c.decided = true;
         const r = Math.random(), qb = c.quality + (c.pace === 2 ? 0.08 : c.pace === 0 ? -0.05 : 0), soft = c.pace === 0 ? 0.8 : 1;   // fast beats the bat more; slow balls are hit softer but sat up when loose
-        const pick = (list: number[]) => list[Math.floor(Math.random() * list.length)];
-        const shot = qb > 0.7 ? pick([0, 1, 1, 2, 4]) : qb > 0.35 ? pick([1, 2, 3, 4, 6]) : pick([5, 5, 7, 7, 6, 1]);   // a good ball gets respect, a loose one gets hit
-        if (qb > 0.7) { if (r < 0.45 + (c.pace === 2 ? 0.08 : 0)) { /* beaten */ } else this.strike(r < 0.8 ? 0.2 + Math.random() * 0.25 : 0.55 + Math.random() * 0.25, Math.random() < 0.3, shot); }
-        else if (qb > 0.35) { if (r < 0.18) { /* beaten */ } else this.strike(r < 0.55 ? 0.35 + Math.random() * 0.3 : 0.7 + Math.random() * 0.25, Math.random() < 0.4, shot); }
-        else { if (r < 0.06) { /* beaten */ } else this.strike((0.8 + Math.random() * 0.2) * (c.pace === 2 ? 1.05 : soft), Math.random() < 0.5, shot); }
+        if (qb > 0.7) { if (r < 0.45 + (c.pace === 2 ? 0.08 : 0)) { /* beaten */ } else this.strike(r < 0.8 ? 0.2 + Math.random() * 0.25 : 0.55 + Math.random() * 0.25, Math.random() < 0.3); }
+        else if (qb > 0.35) { if (r < 0.18) { /* beaten */ } else this.strike(r < 0.55 ? 0.35 + Math.random() * 0.3 : 0.7 + Math.random() * 0.25, Math.random() < 0.4); }
+        else { if (r < 0.06) { /* beaten */ } else this.strike((0.8 + Math.random() * 0.2) * (c.pace === 2 ? 1.05 : soft), Math.random() < 0.5); }
         if (c.phase === 'flight') c.swingAt = t;   // swung and missed, or left it
       }
       if (u >= 1 && !c.hit) {
@@ -2518,14 +2492,12 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           c.phase = 'ready'; c.t0 = t + 3;
           const you = this.youBat(c);   // the sides have just swapped
           this.ev.onMode({ icon: '🏏', label: you ? 'Bat' : 'Bowl', arrows: true, run: you, stick: false });
-          this.showShot(c);
           this.ev.onBanner('Innings over', you ? `${c.opp.name} made ${c.first} · you need ${c.target} to win` : `You made ${c.first} · ${c.opp.name} needs ${c.target} to win`, 'neutral');
           this.ev.onCollect({ name: you ? `Innings over · ${c.opp.name} made ${c.first}. Now chase it: pick a shot and time it` : `Innings over · you made ${c.first}. Now bowl: pick speed and line, tap Bowl to run in, Bowl again at the top`, points: 0, color: 0x3fb7d9, shape: 'gem' });
           this.botSays(c.opp, you ? `${c.first}? Good luck 😏` : `${c.first}? Easy 😏`, 1);
           this.sfx.questStart();
         } else {
           c.phase = 'over'; c.t0 = t;
-          this.showShot(c);
           const win = batting === chased;   // you chased it down, or you bowled second and held them out
           const by = batting ? `by ${c.maxWkts - c.wkts} wicket${c.maxWkts - c.wkts === 1 ? '' : 's'}` : `by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}`;
           const lost = batting ? `${c.target - c.runs} run${c.target - c.runs === 1 ? '' : 's'} short` : 'They chased it down';
@@ -2539,10 +2511,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (c.phase === 'over' && t > c.t0 + 4) { this.endCricket(); return; }
     if (t - this.lastCricketHud > 0.15 && c.phase !== 'over') {
       this.lastCricketHud = t;
-      this.showShot(c);
       const runupU = c.phase === 'runup' && !batting ? Math.min(1, (t - c.t0) / 1.8) : null;
       const overs = (n: number) => `${Math.floor(n / 6)}.${n % 6}`;
-      const S = SHOTS[c.shot], pace = ['🐢 slow', '🎯 medium', '⚡ fast'][c.pace];
+      const pace = ['🐢 slow', '🎯 medium', '⚡ fast'][c.pace];
       const who = batting ? 'You' : c.opp.name, verb = batting ? 'need' : 'needs', need = Math.max(0, c.target - c.runs), left = c.total - c.balls;
       const live = { score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true };
       const done = c.innings === 2 ? { score: `${c.first}/${c.firstWkts}`, sub: `${overs(c.firstBalls)} ov · done` } : { score: '—', sub: 'to bat' };
@@ -2555,8 +2526,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           b: batting ? { name: c.opp.name, ...done } : { name: c.opp.name, ...live },
           line: (c.innings === 1 ? `${left} ball${left === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${who} ${verb} ${need} off ${left} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`) + (c.overLog.length ? `  ·  this over ${c.overLog.join(' ')}` : ''),
         },
-        desc: batting ? `${c.opp.name} bowling · pick a shot (1‑8 or the panel), ◀ ▶ shuffle, Bat / Space as the ball arrives, then Run / W to take runs.` : `Pick speed and line, tap Bowl to run in, Bowl again at the top of your action. Wickets +25, dots +5.`,
-        progress: c.run && batting ? `Running… ${c.run.done} so far${c.throw ? ' · THROW COMING' : ' · Run again for another'}` : c.phase === 'hit' && batting && !c.throw ? 'Run / W to take a run' : batting ? `${S.key} ${S.name} — ${S.hint}` : c.phase === 'ready' && !c.go ? 'Pick speed & line, then Bowl' : runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${pace} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last} · ${pace}` : 'First ball coming up',
+        desc: batting ? `${c.opp.name} bowling · ◀ ▶ shuffle, Bat / Space as the ball arrives, then Run / W to take runs — be home before the throw.` : `Pick speed and line, tap Bowl to run in, Bowl again at the top of your action. Wickets +25, dots +5.`,
+        progress: c.run && batting ? `Running… ${c.run.done} so far${c.throw ? ' · THROW COMING' : ' · Run again for another'}` : c.phase === 'hit' && batting && !c.throw ? 'Run / W to take a run' : c.phase === 'ready' && !batting && !c.go ? 'Pick speed & line, then Bowl' : runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${pace} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last} · ${pace}` : 'First ball coming up',
         remaining: left, total: c.total, reward: 200, hint: null,
         fill: runupU !== null ? runupU : c.balls / c.total, timeText: `${c.balls}/${c.total}`,
       });
@@ -2629,7 +2600,6 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const c = this.cricket; if (!c) return;
     this.cricket = null;
     this.ev.onBowl(null);
-    this.ev.onShot(null);
     this.scene.remove(c.nonStriker.group);
     this.scene.remove(c.ball); c.bat.removeFromParent();
     if (c.stumps) c.stumps.rotation.z = 0;
@@ -3421,61 +3391,117 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.ev.onCollect({ name: 'Out of the lock-up — keep a few coins on you for fines', points: 0, color: 0x2fa66a, shape: 'gem' });
   }
 
-  // ---------- fairground rides: carousel, chair swing, pirate ship, the Sky Wheel ----------
+  // ---------- fairground rides ----------
+  // Every ride's position is a pure function of room time, not of anything this browser has accumulated,
+  // so two players at the same ride see the same carousel angle and the same train on the same hill
+  // without a single byte crossing the network. What does travel is which seat you are in.
+
+  /** Room time in seconds: the relay's clock, shared by everyone here. Alone, it is just our own clock. */
+  private rideTime() { return (this.net?.now() ?? Date.now()) / 1000; }
+
+  /** One ride: the seat list is built by traversing the same scene graph everywhere, so seat 4 is seat 4 for all of us. */
+  private makeRide(grp: THREE.Group): Ride {
+    const def = grp.userData.ride as RideDef;
+    const seats: THREE.Object3D[] = [];
+    grp.traverse((o) => { if (o.name.startsWith('seat')) seats.push(o); });
+    const ride: Ride = { def, grp, seats };
+    if (grp.userData.curve) this.buildLap(ride);
+    return ride;
+  }
+
+  /** A tracked ride's lap, integrated once: the chain hauls it up the lift hill, then speed comes from how far
+   *  it has fallen. Storing time-to-reach-each-step turns the whole thing into a lookup nobody can drift on. */
+  private buildLap(r: Ride) {
+    const curve = r.grp.userData.curve as THREE.CatmullRomCurve3, len = r.grp.userData.len as number, top = r.grp.userData.top as number;
+    const N = 360, times = new Array<number>(N + 1);
+    let acc = 0; times[0] = 0;
+    for (let i = 0; i < N; i++) {
+      const u = i / N, y = curve.getPointAt(u).y;
+      const v = u > 0.015 && u < 0.33 ? 5.5 : Math.max(6.5, Math.sqrt(2 * 9.8 * Math.max(0.4, top + 1.2 - y)));
+      acc += len / N / v;
+      times[i + 1] = acc;
+    }
+    r.times = times; r.lap = acc;
+  }
+
+  /** How far round the lap the train is at room time T. */
+  private lapU(r: Ride, T: number) {
+    const times = r.times!, lap = r.lap!, N = times.length - 1;
+    let x = T % lap; if (x < 0) x += lap;
+    let lo = 0, hi = N;
+    while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (times[mid] <= x) lo = mid; else hi = mid; }
+    const span = times[hi] - times[lo];
+    return (lo + (span > 0 ? (x - times[lo]) / span : 0)) / N;
+  }
+
+  /** The seat a peer says they are in, or null if they are not on a ride. */
+  private peerSeat(r: Remote) {
+    if (!r.ride) return null;
+    const bar = r.ride.indexOf('|');
+    const ride = this.rides.find((x) => x.def.id === r.ride.slice(0, bar));
+    return ride?.seats[Number(r.ride.slice(bar + 1))] ?? null;
+  }
+
+  /** Seats real players have told us they are in, so two of us never end up in the same cup. */
+  private takenSeats(rideId: string) {
+    const out = new Set<number>();
+    for (const b of this.bots) {
+      const rr = b.remote?.ride; if (!rr) continue;
+      const bar = rr.indexOf('|');
+      if (rr.slice(0, bar) === rideId) out.add(Number(rr.slice(bar + 1)));
+    }
+    return out;
+  }
+
   private nearestRide() {
     const p = this.player.group.position;
-    let best: { def: RideDef; grp: THREE.Group } | null = null, bd = 3.6;
+    let best: Ride | null = null, bd = 3.6;
     for (const r of this.rides) { const d = Math.hypot(r.def.x - p.x, r.def.z - p.z); if (d < bd) { bd = d; best = r; } }
     return best;
   }
 
   private tickRides(dt: number, t: number) {
-    for (const { def, grp } of this.rides) {
+    const T = this.rideTime(), TAU = Math.PI * 2;
+    const spin = (rate: number) => (T * rate) % TAU;   // room time is ~1.8e9 s: wrap before it becomes a silly number
+    for (const r of this.rides) {
+      const { def, grp } = r;
       switch (def.kind) {
-        case 'wheel': grp.rotation.z += dt * (Math.PI * 2 / 48); for (const c of grp.children) if (c.name.startsWith('gondola')) c.rotation.z = -grp.rotation.z; break;
-        case 'carousel': grp.rotation.y += dt * 0.5; for (const c of grp.children) if (c.name.startsWith('horse')) c.position.y = Math.sin(t * 2.2 + Number(c.name.slice(5))) * 0.28; break;
-        case 'swing': grp.rotation.y += dt * 1.25; break;
-        case 'ship': grp.rotation.x = Math.sin(t * 0.78) * 1.05; break;
+        case 'wheel': grp.rotation.z = spin(TAU / 48); for (const c of grp.children) if (c.name.startsWith('gondola')) c.rotation.z = -grp.rotation.z; break;
+        case 'carousel': grp.rotation.y = spin(0.5); for (const c of grp.children) if (c.name.startsWith('horse')) c.position.y = Math.sin(T * 2.2 + Number(c.name.slice(5))) * 0.28; break;
+        case 'swing': grp.rotation.y = spin(1.25); break;
+        case 'ship': grp.rotation.x = Math.sin(T * 0.78) * 1.05; break;
         case 'drop': {   // load, haul the gondola up the mast, hang there, then let go
-          const y0 = grp.userData.y0 as number, H = grp.userData.h as number, u = (t % 17) / 17;
+          const y0 = grp.userData.y0 as number, H = grp.userData.h as number, u = ((T % 17) + 17) % 17 / 17;
           let k: number;
           if (u < 0.14) k = 0;
           else if (u < 0.60) { const a = (u - 0.14) / 0.46; k = a * a * (3 - 2 * a); }
           else if (u < 0.74) k = 1;
           else if (u < 0.80) { const a = (u - 0.74) / 0.06; k = 1 - a * a; }
           else { const a = (u - 0.80) / 0.20; k = Math.abs(Math.sin(a * 9)) * 0.07 * (1 - a); }
-          grp.position.y = y0 + k * H; grp.rotation.y += dt * 0.22; break;
+          grp.position.y = y0 + k * H; grp.rotation.y = spin(0.22); break;
         }
-        case 'bumper': for (const c of grp.children) {   // six cars looping the rink at their own speed, swapping direction when they get bumped
+        case 'bumper': for (const c of grp.children) {   // each car loops the rink at its own rate, and backs up when the wobble outruns it
           const u = c.userData as { a: number; r: number; w: number };
-          u.a += dt * u.w;
-          const wob = 1 + Math.sin(t * 1.3 + u.r) * 0.18, nx = Math.cos(u.a) * u.r * wob, nz = Math.sin(u.a) * u.r * wob;
-          const head = Math.atan2(nx - c.position.x, nz - c.position.z);
-          c.position.x = nx; c.position.z = nz;
-          c.rotation.y += wrapAngle(head - c.rotation.y) * Math.min(1, dt * 5);
-          if (Math.random() < dt * 0.35) u.w = -u.w;
+          const at = (time: number) => {
+            const ang = u.a + u.w * (time + 6 * Math.sin(time * 0.3 + u.r)), rad = u.r * (1 + Math.sin(time * 1.3 + u.r) * 0.18);
+            return [Math.cos(ang) * rad, Math.sin(ang) * rad];
+          };
+          const [x0, z0] = at(T), [x1, z1] = at(T + 0.08);
+          c.position.x = x0; c.position.z = z0;
+          c.rotation.y = Math.atan2(x1 - x0, z1 - z0);
         } break;
-        case 'flyer': grp.rotation.x = Math.sin(t * 0.62) * 1.15; for (const c of grp.children) if (c.name === 'gondola') c.rotation.y += dt * 1.7; break;
-        case 'cups': grp.rotation.y += dt * 0.55; for (const c of grp.children) if (c.name.startsWith('cup')) c.rotation.y += dt * (1.3 + Number(c.name.slice(3)) * 0.22); break;
-        case 'coaster': {   // the chain hauls it up the lift hill, then gravity does the rest
-          const curve = grp.userData.curve as THREE.CatmullRomCurve3, len = grp.userData.len as number, top = grp.userData.top as number;
-          let u = grp.userData.u as number;
-          const here = curve.getPointAt(u);
-          const lift = u > 0.015 && u < 0.33;
-          const speed = lift ? 5.5 : Math.max(6.5, Math.sqrt(2 * 9.8 * Math.max(0.4, top + 1.2 - here.y)));
-          u = (u + (speed * dt) / len) % 1;
-          grp.userData.u = u;
-          const at = curve.getPointAt(u), tg = curve.getTangentAt(u);
+        case 'flyer': grp.rotation.x = Math.sin(T * 0.62) * 1.15; for (const c of grp.children) if (c.name === 'gondola') c.rotation.y = spin(1.7); break;
+        case 'cups': grp.rotation.y = spin(0.55); for (const c of grp.children) if (c.name.startsWith('cup')) c.rotation.y = spin(1.3 + Number(c.name.slice(3)) * 0.22); break;
+        case 'coaster': {
+          const curve = grp.userData.curve as THREE.CatmullRomCurve3;
+          const u = this.lapU(r, T), soon = this.lapU(r, T + 0.12);
+          const at = curve.getPointAt(u), tg = curve.getTangentAt(u), tg2 = curve.getTangentAt(soon);
           grp.position.copy(at);
           RIDE_AHEAD.copy(tg).negate();                                    // lookAt puts -Z on the target, so aim it behind
           RIDE_M4.lookAt(RIDE_ZERO, RIDE_AHEAD, RIDE_UP);
           grp.quaternion.setFromRotationMatrix(RIDE_M4);
-          const yaw = Math.atan2(tg.x, tg.z), turn = wrapAngle(yaw - (grp.userData.yaw as number ?? yaw));
-          grp.userData.yaw = yaw;
-          const want = Math.max(-0.7, Math.min(0.7, (turn / Math.max(dt, 0.001)) * 0.18));   // lean into the corners
-          const roll = (grp.userData.roll as number ?? 0) + (want - (grp.userData.roll as number ?? 0)) * Math.min(1, dt * 3);
-          grp.userData.roll = roll;
-          grp.quaternion.multiply(RIDE_Q.setFromAxisAngle(RIDE_FWD, roll));
+          const turn = wrapAngle(Math.atan2(tg2.x, tg2.z) - Math.atan2(tg.x, tg.z));
+          grp.quaternion.multiply(RIDE_Q.setFromAxisAngle(RIDE_FWD, Math.max(-0.7, Math.min(0.7, (turn / 0.12) * 0.18))));   // lean into the corner
           break;
         }
       }
@@ -3483,22 +3509,23 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (this.ride) this.tickRideSeat(dt, t);
   }
 
-  private startRide(r: { def: RideDef; grp: THREE.Group }) {
+  private startRide(r: Ride) {
     if (this.ride || this.inMode() || this.date || this.dancing || this.pool || this.carrom) return;
     if (this.driving) this.exitVehicle();
     const t = this.elapsed;
-    let seat: THREE.Object3D | null = null, pseat: THREE.Object3D | null = null;
-    if (r.def.kind === 'wheel') {   // the cabin nearest the ground
-      let best = Infinity, g: THREE.Object3D | null = null;
-      for (const c of r.grp.children) if (c.name.startsWith('gondola')) { const y = c.getWorldPosition(new THREE.Vector3()).y; if (y < best) { best = y; g = c; } }
-      seat = g?.getObjectByName('seat0') ?? null; pseat = g?.getObjectByName('seat1') ?? null;
-    } else { seat = r.grp.getObjectByName('seat0') ?? null; pseat = r.grp.getObjectByName('seat1') ?? null; }
-    if (!seat) return;
+    // the nearest seat nobody has claimed: on the wheel that is the cabin by the gate, on the coaster the front car
+    const taken = this.takenSeats(r.def.id), p = this.player.group.position;
+    const free = r.seats
+      .map((o, i) => ({ i, o, d: o.getWorldPosition(new THREE.Vector3()).distanceToSquared(p) }))
+      .filter((x) => !taken.has(x.i))
+      .sort((a, b) => a.d - b.d);
+    if (!free.length) { this.ev.onCollect({ name: `${r.def.label}: every seat is taken — wait for this go to finish`, points: 0, color: 0xf2c31b, shape: 'box' }); this.sfx.bump(); return; }
     if (store.coins() < RIDE_PRICE) { this.ev.onCollect({ name: `${r.def.label} costs ${RIDE_PRICE} 🪙 · you have ${store.coins()}. Coins are lying all over the city — pick them up`, points: 0, color: 0xf2c31b, shape: 'gem' }); this.sfx.bump(); return; }
     this.ev.onCoins(store.addCoins(-RIDE_PRICE));
-    const partner = this.datePartner();
+    const mine = free[0], next = free[1] ?? null;
+    const partner = next ? this.datePartner() : null;
     if (partner) { partner.playing = true; partner.wait = 0; partner.label.visible = true; if (this.hangout?.bot === partner) this.hangout.until += 90; }
-    this.ride = { r, seat, pseat: partner ? pseat : null, partner, t0: t, from: this.player.group.position.clone(), pfrom: partner ? partner.av.group.position.clone() : null };
+    this.ride = { r, seat: mine.o, seatIdx: mine.i, pseat: partner ? next!.o : null, partner, t0: t, from: p.clone(), pfrom: partner ? partner.av.group.position.clone() : null };
     this.airY = 0; this.vy = 0; this.dist = Math.max(this.dist, 9);   // pitch eases in tickRideSeat; camDist glides on its own
     const first = !this.ridden.has(r.def.id); this.ridden.add(r.def.id);
     if (first) { this.points += 20; this.ev.onPoints(this.points); }

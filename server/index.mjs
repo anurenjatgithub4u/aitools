@@ -2,6 +2,7 @@
 //
 // Client → server:  {t:'join', id, n, g, room}   first message
 //                   {t:'s'|'c'|'f'|'fa'|'bye', ...} afterwards (see src/world/net.ts for the shapes)
+//                   {t:'ping', id, c}              clock sync -> {t:'pong', c, s}, to that client only
 // Server → client:  {t:'who', peers:[latest state packet per player]}  right after join
 //                   every relayed message from other players in the same room
 //                   {t:'bye', id}  when someone disconnects
@@ -29,7 +30,7 @@ const server = createServer((req, res) => {
 
 // Only the game may connect: findurai.com, Vercel previews and local dev (ALLOWED_ORIGINS overrides, comma-separated;
 // entries starting with '.' match any subdomain).
-const ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://www.findurai.com,https://findurai.com,.vercel.app,http://localhost:3000').split(',').map((o) => o.trim()).filter(Boolean);
+const ORIGINS = (process.env.ALLOWED_ORIGINS || 'https://www.findurai.com,https://findurai.com,.vercel.app,http://localhost:3000,http://localhost:3100').split(',').map((o) => o.trim()).filter(Boolean);
 const originOk = (origin) => {
   if (!origin) return true;                                // non-browser clients (health checks, curl) carry no Origin
   let host; try { host = new URL(origin).hostname; } catch { return false; }
@@ -71,6 +72,7 @@ wss.on('connection', (ws) => {
     }
     if (!room || !id) return;
     if (m.id !== id) return;                               // no spoofing
+    if (m.t === 'ping') { ws.send(JSON.stringify({ t: 'pong', c: m.c, s: Date.now() })); return; }   // clock sync, never relayed
     if (m.t === 's') room.get(id).last = m;
     if (m.t === 'c') m.text = String(m.text || '').slice(0, 160);
     if (m.t === 'g') m.gift = String(m.gift || '').slice(0, 4);

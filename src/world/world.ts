@@ -40,6 +40,7 @@ export interface WorldEvents {
   onTable(power: number, pos: number | null): void;
   onTableStatus(text: string): void;
   onBowl(s: { pace: number; line: number } | null): void;   // pre-ball picker while you bowl
+  onShot(s: { shot: number; name: string; hint: string } | null): void;   // the shot picker while you bat
   onZombieClock(seconds: number | null, on: boolean): void;   // countdown to the next zombie night
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
   onChat(from: string, text: string, mine: boolean): void;
@@ -78,12 +79,25 @@ const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [
 const MATCH_SECONDS = 90;
 // Cricket: the bowler runs in, you time the shot. 12 balls, 3 wickets, beat the target.
 type CricketPhase = 'ready' | 'runup' | 'flight' | 'hit' | 'result' | 'over';
-interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2;
+interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2; batFirst: boolean; shot: number; shotShown: number; firstWkts: number; firstBalls: number;
   go: boolean; pickShown?: boolean;                                       // bowler: speed and line chosen, run in
   nonStriker: Avatar; bat2: THREE.Group;                                  // the batter at the other end
   run: { u: number; done: number; more: boolean; plan: number; moving: boolean } | null;   // batters running between the wickets
   throw: { from: THREE.Vector3; t0: number; dur: number } | null;        // the fielder's return to the stumps
   overLog: string[]; cheerUntil: number }                                // this over's balls; fielders celebrate a wicket until
+// The shots you can play. `ang` is where you mean to hit it (0 = straight back past the bowler, + = leg side,
+// - = off side, past 1.6 = behind square), `lift` how high it comes off the bat, `spray` how far a mistimed one
+// wanders off that line, and `risk` how much the timing window tightens: a block forgives, a slog does not.
+const SHOTS: { key: string; name: string; ang: number; lift: number; power: number; spray: number; risk: number; hint: string }[] = [
+  { key: '🛡', name: 'Block', ang: 0.00, lift: 0.05, power: 0.20, spray: 0.35, risk: 0.60, hint: 'dead bat, straight down the pitch' },
+  { key: '⬆', name: 'Drive', ang: 0.00, lift: 0.18, power: 1.00, spray: 0.70, risk: 1.00, hint: 'straight past the bowler' },
+  { key: '↖', name: 'Cover', ang: -0.80, lift: 0.14, power: 0.95, spray: 0.85, risk: 1.05, hint: 'cover drive, through the off side' },
+  { key: '⬅', name: 'Cut', ang: -1.40, lift: 0.20, power: 0.90, spray: 1.05, risk: 1.15, hint: 'square on the off side' },
+  { key: '↗', name: 'Flick', ang: 0.75, lift: 0.16, power: 0.85, spray: 0.85, risk: 1.00, hint: 'off the pads through mid-wicket' },
+  { key: '➡', name: 'Pull', ang: 1.30, lift: 0.48, power: 1.05, spray: 1.15, risk: 1.25, hint: 'square leg, up in the air' },
+  { key: '↘', name: 'Sweep', ang: 2.10, lift: 0.22, power: 0.80, spray: 1.25, risk: 1.30, hint: 'behind square, down to fine leg' },
+  { key: '🚀', name: 'Slog', ang: 0.30, lift: 0.62, power: 1.18, spray: 1.40, risk: 1.45, hint: 'over the top: six or caught' },
+];
 // Zombie night: waves of the undead shamble toward the player; punch them, crush them with a car, don't get bitten.
 type ZombieKind = 'walker' | 'runner' | 'crawler' | 'brute' | 'headless' | 'hopper' | 'bloater';
 interface Zombie { av: Avatar; kind: ZombieKind; hp: number; speed: number; dying: number; hitAt: number; groan: number; head: THREE.Object3D | null; limp: boolean; tilt: number; sway: number; arms: number; twitchAt: number; runner: boolean; hop: { t0: number; fx: number; fz: number; tx: number; tz: number } | null; hopAt: number; belly: THREE.Mesh | null }
@@ -171,6 +185,8 @@ const WALK_SPEED = 9.5;
 const JUMP_SPEED = 8.5;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const wrapAngle = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
+// scratch used while a coaster train is driven along its track
+const RIDE_M4 = new THREE.Matrix4(), RIDE_Q = new THREE.Quaternion(), RIDE_UP = new THREE.Vector3(0, 1, 0), RIDE_FWD = new THREE.Vector3(0, 0, 1), RIDE_ZERO = new THREE.Vector3(), RIDE_AHEAD = new THREE.Vector3();
 
 export class World {
   private scene = new THREE.Scene();
@@ -945,6 +961,7 @@ export class World {
       if (k === 't' && !e.repeat) this.wantQuest = true;
       if (k === 'g' && !e.repeat) this.wantFriend = true;
       if (k === 'm' && !e.repeat) this.toggleMute();
+      if (k >= '1' && k <= '8' && !e.repeat) this.setShot(Number(k) - 1);
       if (k === ' ') { e.preventDefault(); if (!e.repeat) this.wantJump = true; }
       if (k === 'e' && !e.repeat) this.wantToggleDrive = true;
       if (k === 'f' && !e.repeat) this.wantLift = true;
@@ -1494,7 +1511,7 @@ export class World {
       const cboard = this.date || this.dancing || this.pool || this.carrom || ptab ? null : this.nearestCarrom();
       const rd = this.date || this.dancing || this.pool || this.carrom || this.ride ? null : this.nearestRide();
       if (this.pool || this.carrom) this.prompt(null, false);
-      else if (this.ride) this.prompt(`${this.ride.r.def.icon} ${Math.max(0, Math.ceil(RIDE_SECONDS - (t - this.ride.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early`, false);
+      else if (this.ride) this.prompt(`${this.ride.r.def.icon} ${Math.max(0, Math.ceil((this.ride.r.def.seconds ?? RIDE_SECONDS) - (t - this.ride.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early`, false);
       else if (rd && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${rd.def.label}${pt ? ` with ${pt.name}` : ''} · ${RIDE_PRICE} 🪙${store.coins() < RIDE_PRICE ? ` (you have ${store.coins()})` : ''}`, false); }
       else if (cboard && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Play carrom${pt ? ` with ${pt.name}` : ''}`, false); }
       else if (this.dancing) this.prompt(`${this.mobile ? 'Tap Jump' : 'Press E or Space'} to stop dancing`, false);
@@ -1505,7 +1522,7 @@ export class World {
       else if (this.match && !this.match.over) this.prompt(this.mobile ? '⚽ Run into the ball to dribble · Jump button shoots' : '⚽ Run into the ball to dribble · Space shoots', false);
       else if (this.zombies && !this.zombies.ending) this.prompt(this.mobile ? '🧟 Jump button punches · cars crush them · Z ends the night' : '🧟 Space punches the zombie in front · cars crush them · Z ends the night', false);
       else if (!near && this.onPitch() && !this.match) this.prompt(this.mobile ? '⚽ Tap Drive to kick off a football match' : '⚽ Press E to kick off a football match', false);
-      else if (this.cricket) this.prompt(this.cricket.phase === 'over' ? null : this.cricket.innings === 2 ? (this.mobile ? '🏏 Tap Bowl at the top of your action' : '🏏 Space / Bowl at the top of your action') : this.mobile ? '🏏 Tap Bat as the ball reaches you' : '🏏 Space / Bat as the ball reaches you', false);
+      else if (this.cricket) this.prompt(this.cricket.phase === 'over' ? null : !this.youBat(this.cricket) ? (this.mobile ? '🏏 Tap Bowl at the top of your action' : '🏏 Space / Bowl at the top of your action') : this.mobile ? '🏏 Tap Bat as the ball reaches you' : '🏏 Space / Bat as the ball reaches you', false);
       else if (!near && this.onStrip() && !this.cricket) this.prompt(this.mobile ? '🏏 Tap Drive to start a match' : '🏏 Press E to start a cricket match', false);
       else this.prompt(near ? (this.mobile ? `Ride the ${near.spec.label}?` : `Press E to drive the ${near.spec.label}`) : null, false);
       // friend requests: walk up to an explorer and press G
@@ -2146,16 +2163,16 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.ev.onCollect({ name: 'Hit by the bus! Look both ways', points: -20, color: 0xd94a3d, shape: 'box' });
   }
   /** The bowling picker: speed 0..2 and line 0 leg / 1 stumps / 2 off, chosen before running in. */
-  setPace(i: number) { const c = this.cricket; if (!c || c.innings !== 2 || c.phase !== 'ready') return; c.pace = Math.max(0, Math.min(2, Math.round(i))) as 0 | 1 | 2; this.ev.onBowl({ pace: c.pace, line: c.aim < -0.3 ? 0 : c.aim > 0.3 ? 2 : 1 }); }
-  setLine(i: number) { const c = this.cricket; if (!c || c.innings !== 2 || c.phase !== 'ready') return; c.aim = [-0.8, 0, 0.8][Math.max(0, Math.min(2, Math.round(i)))]; this.ev.onBowl({ pace: c.pace, line: Math.max(0, Math.min(2, Math.round(i))) }); }
+  setPace(i: number) { const c = this.cricket; if (!c || this.youBat(c) || c.phase !== 'ready') return; c.pace = Math.max(0, Math.min(2, Math.round(i))) as 0 | 1 | 2; this.ev.onBowl({ pace: c.pace, line: c.aim < -0.3 ? 0 : c.aim > 0.3 ? 2 : 1 }); }
+  setLine(i: number) { const c = this.cricket; if (!c || this.youBat(c) || c.phase !== 'ready') return; c.aim = [-0.8, 0, 0.8][Math.max(0, Math.min(2, Math.round(i)))]; this.ev.onBowl({ pace: c.pace, line: Math.max(0, Math.min(2, Math.round(i))) }); }
   /** Run between the wickets (Run button / W) once you have hit the ball; press again for another. */
   takeRun() {
-    const c = this.cricket; if (!c || c.innings !== 1 || c.phase !== 'hit') return;
+    const c = this.cricket; if (!c || !this.youBat(c) || c.phase !== 'hit') return;
     if (c.run) { if (c.run.moving) c.run.more = true; else { c.run.moving = true; c.run.u = 0; } return; }
     c.run = { u: 0, done: 0, more: false, plan: 0, moving: true };
   }
   /** Bowling speed: slow / medium / fast (cycles). */
-  cyclePace() { const c = this.cricket; if (!c || c.innings !== 2 || c.phase === 'flight' || c.phase === 'hit') return; c.pace = ((c.pace + 1) % 3) as 0 | 1 | 2; this.ev.onCollect({ name: ['🐢 Slow ball — more bounce, harder to time', '🎯 Medium pace', '⚡ Fast — beats the bat, but loose ones fly'][c.pace], points: 0, color: 0x3fb7d9, shape: 'gem' }); }
+  cyclePace() { const c = this.cricket; if (!c || this.youBat(c) || c.phase === 'flight' || c.phase === 'hit') return; c.pace = ((c.pace + 1) % 3) as 0 | 1 | 2; this.ev.onCollect({ name: ['🐢 Slow ball — more bounce, harder to time', '🎯 Medium pace', '⚡ Fast — beats the bat, but loose ones fly'][c.pace], points: 0, color: 0x3fb7d9, shape: 'gem' }); }
 
   /** In a game, race or zombie night: the HUD and the world drop everything that is not the game. */
   private inMode() { return !!(this.match || this.cricket || this.race || this.pool || this.carrom || (this.zombies && !this.zombies.ending)); }
@@ -2166,14 +2183,50 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     return Math.abs(q.x - o.x) < o.len / 2 + 4 && Math.abs(q.z - o.z) < 4;
   }
 
-  /** A two-innings match at the cricket ground: you bat first, then `opp` (or a passer-by) chases while you bowl. */
-  startCricket(opp?: Bot, balls?: number) {
+  /** Who is batting right now: innings 1 belongs to whoever won the toss and chose to bat. */
+  private youBat(c: CricketState) { return (c.innings === 1) === c.batFirst; }
+
+  /** The shot picker (1-8 on the keyboard, or the panel): which stroke the next ball gets. */
+  setShot(i: number) {
+    const c = this.cricket; if (!c || !this.youBat(c) || c.phase === 'over') return;
+    c.shot = Math.max(0, Math.min(SHOTS.length - 1, Math.round(i)));
+    this.showShot(c);
+  }
+  /** Keep the shot panel in step with the game: shown while you bat, gone while you bowl. */
+  private showShot(c: CricketState) {
+    const on = this.youBat(c) && c.phase !== 'over', want = on ? c.shot : -1;
+    if (want === c.shotShown) return;
+    c.shotShown = want;
+    this.ev.onShot(on ? { shot: c.shot, name: SHOTS[c.shot].name, hint: SHOTS[c.shot].hint } : null);
+  }
+
+  /** The toss: call it in the air, and whoever wins it chooses to bat or to bowl. */
+  private cricketToss(opp: Bot | undefined, balls: number) {
+    const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : this.bots.find((x) => !x.remote && !x.riding && !x.knocked && !x.playing) ?? null;
+    const name = rival?.name ?? 'The captain';
+    this.ev.onPick({ title: '🪙 The toss', sub: `${name} spins the coin — call it in the air.`, options: ['Heads', 'Tails'] }, (call) => {
+      const coin = Math.random() < 0.5 ? 0 : 1, face = coin === 0 ? 'Heads' : 'Tails';
+      this.sfx.checkpoint();
+      if (coin === call) {
+        this.ev.onPick({ title: `${face} — you win the toss!`, sub: 'Bat first and set them a target, or bowl first and know exactly what you are chasing.', options: ['🏏 Bat first', '🎯 Bowl first'] }, (j) => this.startCricket(opp, balls, j === 0));
+      } else {
+        const theyBat = Math.random() < 0.55;
+        this.ev.onBanner(`${face} — ${name} wins the toss`, theyBat ? `${name} will have a bat` : `${name} puts you in to bat`, 'neutral');
+        if (rival) this.botSays(rival, theyBat ? 'We will bat first 🏏' : 'You bat — we will chase it down 😏', 0.6);
+        this.startCricket(opp, balls, !theyBat);
+      }
+    });
+  }
+
+  /** A two-innings match at the cricket ground: the toss picks who bats first, then the other side chases. */
+  startCricket(opp?: Bot, balls?: number, batFirst?: boolean) {
     const o = this.oval;
     if (!o || this.cricket || this.match || this.race) return;
     if (balls === undefined) {   // ask how long a match first
       this.ev.onPick({ title: 'How many overs?', sub: 'Each side bats the same. Wickets: 2 for a single over, 3 up to two, 5 beyond that.', options: ['1 over', '2 overs', '3 overs', '5 overs'] }, (i) => this.startCricket(opp, [6, 12, 18, 30][i]));
       return;
     }
+    if (batFirst === undefined) { this.cricketToss(opp, balls); return; }   // then spin the coin
     if (this.driving) this.exitVehicle();
     const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && !x.playing && x !== opp && this.hangout?.bot !== x);
     const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
@@ -2188,15 +2241,16 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
     const nonStriker = makeAvatar({ ...OUTFITS[3 % OUTFITS.length], skin: SKINS[2 % SKINS.length] }); this.scene.add(nonStriker.group);
     const bat2 = this.makeBat(); nonStriker.armR.add(bat2); nonStriker.armR.rotation.x = -0.6;
-    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, batFirst, shot: 1, shotShown: -2, firstWkts: 0, firstBalls: 0, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
     for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
     this.setCreases();
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
-    this.ev.onMode({ icon: '🏏', label: 'Bat', arrows: true, run: true, stick: false });
-    this.ev.onCollect({ name: `You bat first · ${balls / 6} over${balls > 6 ? 's' : ''}, ${this.cricket.maxWkts} wickets · then ${rival.name} chases`, points: 0, color: 0x2fa66a, shape: 'gem' });
-    this.botSays(rival, 'Watch the ball, not me 😏', 1.5);
+    this.ev.onMode({ icon: '🏏', label: batFirst ? 'Bat' : 'Bowl', arrows: true, run: batFirst, stick: false });
+    this.showShot(this.cricket);
+    this.ev.onCollect({ name: `You ${batFirst ? 'bat' : 'bowl'} first · ${balls / 6} over${balls > 6 ? 's' : ''}, ${this.cricket.maxWkts} wickets · ${batFirst ? `then ${rival.name} chases` : `then you chase them`}`, points: 0, color: 0x2fa66a, shape: 'gem' });
+    this.botSays(rival, batFirst ? 'Watch the ball, not me 😏' : 'Right then — bowl it 🏏', 1.5);
   }
 
   /** Batting animation: side-on stance with the bat tapped down, backlift as the ball comes, downswing, follow-through, recover. */
@@ -2239,13 +2293,13 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   /** Batter to the crease (in front of the stumps, a touch to leg), bowler to the top of the run-up. */
   private setCreases() {
     const c = this.cricket!, o = this.oval!, y = this.terrain.h(o.x, o.z);
-    const batter = c.innings === 1 ? this.player : c.opp.av, bowler = c.innings === 1 ? c.opp.av : this.player;
+    const you = this.youBat(c), batter = you ? this.player : c.opp.av, bowler = you ? c.opp.av : this.player;
     batter.group.position.set(o.x - 10 + 1.0, y, o.z - 0.15); batter.group.rotation.y = Math.PI / 2;   // bat arc sits on the line of a straight ball
     bowler.group.position.set(o.x + 26, this.terrain.h(o.x + 26, o.z), o.z - 1.2); bowler.group.rotation.y = -Math.PI / 2;
     c.nonStriker.group.position.set(o.x + 9, this.terrain.h(o.x + 9, o.z), o.z + 1.7); c.nonStriker.group.rotation.y = -Math.PI / 2 + 0.4; c.nonStriker.legL.rotation.x = c.nonStriker.legR.rotation.x = 0;
     c.run = null; c.throw = null; c.go = false;
     c.bat.removeFromParent(); batter.armR.add(c.bat);
-    this.airY = 0; this.vy = 0; this.yaw = c.innings === 1 ? -Math.PI / 2 : Math.PI / 2;
+    this.airY = 0; this.vy = 0; this.yaw = you ? -Math.PI / 2 : Math.PI / 2;
     if (c.balls === 0) { this.pitch = 0.22; this.dist = 24; this.camDist = 24; }   // start each innings zoomed right out and low, like a broadcast camera
     c.ball.visible = false;
   }
@@ -2253,7 +2307,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   /** Space / Bat: innings 1 swings the bat, innings 2 releases the ball. Timing decides everything. */
   private swing(): boolean {
     const c = this.cricket!;
-    if (c.innings === 2) {
+    if (!this.youBat(c)) {
       if (c.phase === 'ready') { c.go = true; this.ev.onBowl(null); return true; }
       if (c.phase === 'runup' && c.released < 0) c.released = Math.min(1, (this.elapsed - c.t0) / 1.8);
       return true;
@@ -2266,17 +2320,22 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     return true;
   }
 
-  /** The bat meets the ball with quality q (0..1): sets the ball flying, or misses / edges it. */
-  private strike(q: number, early: boolean) {
-    const c = this.cricket!, o = this.oval!, ball = c.ball.position;
+  /** The bat meets the ball: `q` is the timing (0..1) and the shot is the stroke being played. Timing decides how
+   *  close it lands to where you aimed and how much of the bat's power it keeps; a big shot forgives far less. */
+  private strike(q: number, early: boolean, shotIdx?: number) {
+    const c = this.cricket!, o = this.oval!, ball = c.ball.position, you = this.youBat(c);
+    const S = SHOTS[Math.max(0, Math.min(SHOTS.length - 1, shotIdx ?? (you ? c.shot : 1)))];
     c.swingAt = this.elapsed; c.hit = true;
-    if (q < 0.1) { c.note = q < 0.04 ? 'Missed it…' : 'Edged… caught behind!'; if (q >= 0.04 && (c.innings === 2 || Math.random() < 0.5)) this.wicket(); else { c.hit = false; c.note = 'Missed it…'; } return; }
-    const power = c.innings === 1 ? 17 + q * 20 + Math.random() * 3 : 9 + q * 13 + Math.random() * 2, lift = early ? 0.72 + (1 - q) * 0.3 : q > 0.6 ? 0.42 : 0.2;   // your bat has more in it than theirs
-    const side = early ? 1 : -1, ang = (1 - q) * 0.9 * side + (Math.random() - 0.5) * 0.3;   // early pulls to leg, late squirts to off
+    const raw = q;                            // raw timing decides whether the bat finds it at all…
+    q = Math.max(0, 1 - (1 - q) * S.risk);    // …then the shot decides how well it comes off: a block forgives, a slog does not
+    if (raw < 0.1) { c.note = raw < 0.04 ? 'Missed it…' : `Edged the ${S.name.toLowerCase()} — caught behind!`; if (raw >= 0.04 && (!you || Math.random() < 0.5)) this.wicket(); else { c.hit = false; c.note = 'Missed it…'; } return; }
+    const power = (you ? 17 + q * 20 + Math.random() * 3 : 9 + q * 13 + Math.random() * 2) * S.power;   // your bat has more in it than theirs
+    const lift = Math.min(1.2, S.lift + (1 - q) * S.spray * 0.5 + (early ? 0.22 : 0.02));               // mistime it and it goes up instead of along
+    const ang = S.ang + (1 - q) * S.spray * (early ? 0.9 : -0.75) + (Math.random() - 0.5) * (0.2 + (1 - q) * 0.6);   // early drags it to leg, late squirts to off
     c.vel.set(Math.cos(ang) * Math.cos(lift) * power, Math.sin(lift) * power, Math.sin(ang) * Math.cos(lift) * power);
-    ball.set(o.x - 10 + 0.6, this.terrain.h(ball.x, ball.z) + 0.8, (c.innings === 1 ? this.player.group.position.z - 0.55 : o.z + 0.3));
+    ball.set(o.x - 10 + 0.6, this.terrain.h(ball.x, ball.z) + 0.8, (you ? this.player.group.position.z - 0.55 : o.z + 0.3));
     c.airborne = lift > 0.3; c.bounced = false; c.phase = 'hit'; c.t0 = this.elapsed;
-    c.note = q > 0.85 ? 'Sweet timing!' : early ? 'Pulled high…' : 'Squeezed away';
+    c.note = q > 0.85 ? `${S.name} — middled it!` : q > 0.5 ? `${S.name}, well struck` : early ? `${S.name}, early on it…` : `${S.name}, late on it`;
     c.chaser = null;
     this.sfx.bump();
   }
@@ -2284,16 +2343,17 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   private wicket() {
     const c = this.cricket!;
     c.wkts++; c.phase = 'result'; c.t0 = this.elapsed; c.last = 'OUT'; c.cheerUntil = this.elapsed + 2.2;
-    this.ev.onBanner(c.note.startsWith('Run out') ? 'RUN OUT!' : c.note.startsWith('Caught') ? 'CAUGHT!' : c.note.startsWith('Bowled') ? 'BOWLED!' : 'OUT!', c.innings === 1 ? `${c.note} · ${c.wkts} down` : `${c.opp.name} · ${c.runs}/${c.wkts}`, c.innings === 1 ? 'bad' : 'good');
+    const you = this.youBat(c);
+    this.ev.onBanner(c.note.startsWith('Run out') ? 'RUN OUT!' : c.note.startsWith('Caught') ? 'CAUGHT!' : c.note.startsWith('Bowled') ? 'BOWLED!' : 'OUT!', you ? `${c.note} · ${c.wkts} down` : `${c.opp.name} · ${c.runs}/${c.wkts}`, you ? 'bad' : 'good');
     if (c.stumps && c.note.startsWith('Bowled')) c.stumps.rotation.z = -1.3;
-    if (c.innings === 1) { this.sfx.questFail(); this.botSays(c.opp, ['Gotcha! 🎯', 'Next! 😎', 'Timber! 🏏'][c.wkts % 3], 0.5); }
+    if (you) { this.sfx.questFail(); this.botSays(c.opp, ['Gotcha! 🎯', 'Next! 😎', 'Timber! 🏏'][c.wkts % 3], 0.5); }
     else { this.sfx.questDone(); this.points += 25; this.ev.onPoints(this.points); this.botSays(c.opp, ['Argh! 😤', 'Lucky ball…', 'Fine, fine 🙄'][c.wkts % 3], 0.5); }
-    this.ev.onCollect({ name: `${c.note} · WICKET`, points: c.innings === 2 ? 25 : 0, color: c.innings === 2 ? 0x2fa66a : 0xd94a3d, shape: 'box' });
+    this.ev.onCollect({ name: `${c.note} · WICKET`, points: you ? 0 : 25, color: you ? 0xd94a3d : 0x2fa66a, shape: 'box' });
   }
 
   private tickCricket(dt: number, t: number) {
     const c = this.cricket!, o = this.oval!, ball = c.ball.position, batX = o.x - 10, y0 = this.terrain.h(o.x, o.z);
-    const batting = c.innings === 1, batter = batting ? this.player : c.opp.av, bowler = batting ? c.opp.av : this.player;
+    const batting = this.youBat(c), batter = batting ? this.player : c.opp.av, bowler = batting ? c.opp.av : this.player;
     this.yaw += wrapAngle((batting ? -Math.PI / 2 : Math.PI / 2) - this.yaw) * Math.min(1, dt * 3);
     if (!c.run) this.batPose(batter, c, t, batting);
     this.tickRunning(c, dt, t, batting, batter);
@@ -2337,14 +2397,16 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       if (!batting && !c.decided && ball.x - batX < 1.6) {
         c.decided = true;
         const r = Math.random(), qb = c.quality + (c.pace === 2 ? 0.08 : c.pace === 0 ? -0.05 : 0), soft = c.pace === 0 ? 0.8 : 1;   // fast beats the bat more; slow balls are hit softer but sat up when loose
-        if (qb > 0.7) { if (r < 0.45 + (c.pace === 2 ? 0.08 : 0)) { /* beaten */ } else this.strike(r < 0.8 ? 0.2 + Math.random() * 0.25 : 0.55 + Math.random() * 0.25, Math.random() < 0.3); }
-        else if (qb > 0.35) { if (r < 0.18) { /* beaten */ } else this.strike(r < 0.55 ? 0.35 + Math.random() * 0.3 : 0.7 + Math.random() * 0.25, Math.random() < 0.4); }
-        else { if (r < 0.06) { /* beaten */ } else this.strike((0.8 + Math.random() * 0.2) * (c.pace === 2 ? 1.05 : soft), Math.random() < 0.5); }
+        const pick = (list: number[]) => list[Math.floor(Math.random() * list.length)];
+        const shot = qb > 0.7 ? pick([0, 1, 1, 2, 4]) : qb > 0.35 ? pick([1, 2, 3, 4, 6]) : pick([5, 5, 7, 7, 6, 1]);   // a good ball gets respect, a loose one gets hit
+        if (qb > 0.7) { if (r < 0.45 + (c.pace === 2 ? 0.08 : 0)) { /* beaten */ } else this.strike(r < 0.8 ? 0.2 + Math.random() * 0.25 : 0.55 + Math.random() * 0.25, Math.random() < 0.3, shot); }
+        else if (qb > 0.35) { if (r < 0.18) { /* beaten */ } else this.strike(r < 0.55 ? 0.35 + Math.random() * 0.3 : 0.7 + Math.random() * 0.25, Math.random() < 0.4, shot); }
+        else { if (r < 0.06) { /* beaten */ } else this.strike((0.8 + Math.random() * 0.2) * (c.pace === 2 ? 1.05 : soft), Math.random() < 0.5, shot); }
         if (c.phase === 'flight') c.swingAt = t;   // swung and missed, or left it
       }
       if (u >= 1 && !c.hit) {
         const onStumps = Math.abs(c.line) < 0.45 && ball.y - y0 < 0.75;
-        c.note = onStumps ? (batting ? 'Bowled him!' : `Bowled ${c.opp.name}!`) : batting ? 'Dot ball' : 'Beaten · dot ball';
+        c.note = onStumps ? (batting ? 'Bowled you!' : `Bowled ${c.opp.name}!`) : batting ? 'Dot ball' : 'Beaten · dot ball';
         if (onStumps) this.wicket(); else { c.phase = 'result'; c.t0 = t; c.last = '·'; if (!batting) { this.points += 5; this.ev.onPoints(this.points); } }
         c.ball.visible = !onStumps;
       }
@@ -2412,22 +2474,29 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (c.phase === 'result' && t > c.t0 + 2.4) {
       c.balls++;
       c.overLog.push(c.last === 'OUT' ? 'W' : c.last === 'SIX!' ? '6' : c.last === 'FOUR!' ? '4' : /^(\d)/.test(c.last) ? c.last[0] : '·'); if (c.balls % 6 === 0) c.overLog = [];
-      const chased = !batting && c.runs >= c.target;
+      const chased = c.innings === 2 && c.runs >= c.target;
       if (c.balls >= c.total || c.wkts >= c.maxWkts || chased) {
-        if (batting) {   // innings break: swap ends, they chase your total
-          c.first = c.runs; c.target = c.runs + 1; c.innings = 2; c.runs = 0; c.wkts = 0; c.balls = 0; c.last = ''; c.note = ''; c.overLog = [];
+        if (c.innings === 1) {   // innings break: swap ends, the other side chases
+          c.first = c.runs; c.firstWkts = c.wkts; c.firstBalls = c.balls; c.target = c.runs + 1;
+          c.innings = 2; c.runs = 0; c.wkts = 0; c.balls = 0; c.last = ''; c.note = ''; c.overLog = [];
           this.setCreases();
           c.phase = 'ready'; c.t0 = t + 3;
-          this.ev.onMode({ icon: '🏏', label: 'Bowl', arrows: true, stick: false });
-          this.ev.onBanner('Innings over', `You made ${c.first} · ${c.opp.name} needs ${c.first + 1} to win`, 'neutral');
-          this.ev.onCollect({ name: `Innings over · you made ${c.first}. Now bowl: pick speed and line, tap Bowl to run in, Bowl again at the top`, points: 0, color: 0x3fb7d9, shape: 'gem' });
-          this.botSays(c.opp, `${c.first}? Easy 😏`, 1);
+          const you = this.youBat(c);   // the sides have just swapped
+          this.ev.onMode({ icon: '🏏', label: you ? 'Bat' : 'Bowl', arrows: true, run: you, stick: false });
+          this.showShot(c);
+          this.ev.onBanner('Innings over', you ? `${c.opp.name} made ${c.first} · you need ${c.target} to win` : `You made ${c.first} · ${c.opp.name} needs ${c.target} to win`, 'neutral');
+          this.ev.onCollect({ name: you ? `Innings over · ${c.opp.name} made ${c.first}. Now chase it: pick a shot and time it` : `Innings over · you made ${c.first}. Now bowl: pick speed and line, tap Bowl to run in, Bowl again at the top`, points: 0, color: 0x3fb7d9, shape: 'gem' });
+          this.botSays(c.opp, you ? `${c.first}? Good luck 😏` : `${c.first}? Easy 😏`, 1);
           this.sfx.questStart();
         } else {
           c.phase = 'over'; c.t0 = t;
-          const win = c.runs < c.target;
-          this.ev.onBanner(win ? 'YOU WIN!' : `${c.opp.name.toUpperCase()} WINS`, win ? `by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'} · +200` : 'They chased it down', win ? 'good' : 'bad');
-          this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}!` : `${c.opp.name} chased it down`, board: { icon: win ? '🏆' : '🏏', a: { name: 'You', score: `${c.first}`, on: win }, b: { name: c.opp.name, score: `${c.runs}/${c.wkts}`, on: !win }, line: win ? `You win by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}! +200` : `${c.opp.name} chased it down` }, desc: `You ${c.first} · ${c.opp.name} ${c.runs}/${c.wkts}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
+          this.showShot(c);
+          const win = batting === chased;   // you chased it down, or you bowled second and held them out
+          const by = batting ? `by ${c.maxWkts - c.wkts} wicket${c.maxWkts - c.wkts === 1 ? '' : 's'}` : `by ${c.target - 1 - c.runs} run${c.target - 1 - c.runs === 1 ? '' : 's'}`;
+          const lost = batting ? `${c.target - c.runs} run${c.target - c.runs === 1 ? '' : 's'} short` : 'They chased it down';
+          const mine = batting ? `${c.runs}/${c.wkts}` : `${c.first}/${c.firstWkts}`, theirs = batting ? `${c.first}/${c.firstWkts}` : `${c.runs}/${c.wkts}`;
+          this.ev.onBanner(win ? 'YOU WIN!' : `${c.opp.name.toUpperCase()} WINS`, win ? `${by} · +200` : lost, win ? 'good' : 'bad');
+          this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win ${by}!` : batting ? `You finished ${lost}` : `${c.opp.name} chased it down`, board: { icon: win ? '🏆' : '🏏', a: { name: 'You', score: mine, on: win }, b: { name: c.opp.name, score: theirs, on: !win }, line: win ? `You win ${by}! +200` : batting ? `${c.opp.name} defends ${c.first} — you finished ${lost}` : `${c.opp.name} chased it down` }, desc: `You ${mine} · ${c.opp.name} ${theirs}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
           this.gameResult('cricket', win, c.opp.name);
         }
       } else { c.phase = 'ready'; c.t0 = t + 1.2; this.setCreases(); }
@@ -2435,20 +2504,25 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (c.phase === 'over' && t > c.t0 + 4) { this.endCricket(); return; }
     if (t - this.lastCricketHud > 0.15 && c.phase !== 'over') {
       this.lastCricketHud = t;
+      this.showShot(c);
       const runupU = c.phase === 'runup' && !batting ? Math.min(1, (t - c.t0) / 1.8) : null;
       const overs = (n: number) => `${Math.floor(n / 6)}.${n % 6}`;
+      const S = SHOTS[c.shot], pace = ['🐢 slow', '🎯 medium', '⚡ fast'][c.pace];
+      const who = batting ? 'You' : c.opp.name, verb = batting ? 'need' : 'needs', need = Math.max(0, c.target - c.runs), left = c.total - c.balls;
+      const live = { score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true };
+      const done = c.innings === 2 ? { score: `${c.first}/${c.firstWkts}`, sub: `${overs(c.firstBalls)} ov · done` } : { score: '—', sub: 'to bat' };
       this.ev.onQuest({
         status: 'active',
-        title: batting ? `🏏 You ${c.runs} / ${c.wkts}` : `🏏 ${c.opp.name} ${c.runs} / ${c.wkts} · needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls}`,
+        title: c.innings === 1 ? `🏏 ${who} ${c.runs} / ${c.wkts}` : `🏏 ${who} ${c.runs} / ${c.wkts} · ${verb} ${need} off ${left}`,
         board: {
           icon: '🏏',
-          a: batting ? { name: 'You', score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true } : { name: 'You', score: `${c.first}/${c.maxWkts}`, sub: `${overs(c.total)} ov · all out / done` },
-          b: batting ? { name: c.opp.name, score: '—', sub: 'to bat' } : { name: c.opp.name, score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true },
-          line: (batting ? `${c.total - c.balls} ball${c.total - c.balls === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${c.opp.name} needs ${Math.max(0, c.target - c.runs)} off ${c.total - c.balls} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`) + (c.overLog.length ? `  ·  this over ${c.overLog.join(' ')}` : ''),
+          a: batting ? { name: 'You', ...live } : { name: 'You', ...done },
+          b: batting ? { name: c.opp.name, ...done } : { name: c.opp.name, ...live },
+          line: (c.innings === 1 ? `${left} ball${left === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${who} ${verb} ${need} off ${left} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`) + (c.overLog.length ? `  ·  this over ${c.overLog.join(' ')}` : ''),
         },
-        desc: batting ? `${c.opp.name} bowling · ◀ ▶ shuffle, Bat / Space as the ball arrives, then Run / W to take runs — be home before the throw.` : `Pick speed and line, tap Bowl to run in, Bowl again at the top of your action. Wickets +25, dots +5.`,
-        progress: c.run && batting ? `Running… ${c.run.done} so far${c.throw ? ' · THROW COMING' : ' · Run again for another'}` : c.phase === 'hit' && batting && !c.throw ? 'Run / W to take a run' : c.phase === 'ready' && !batting && !c.go ? 'Pick speed & line, then Bowl' : runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last}${!batting ? ` · ${['🐢 slow', '🎯 medium', '⚡ fast'][c.pace]}` : ''}` : 'First ball coming up',
-        remaining: c.total - c.balls, total: c.total, reward: 200, hint: null,
+        desc: batting ? `${c.opp.name} bowling · pick a shot (1‑8 or the panel), ◀ ▶ shuffle, Bat / Space as the ball arrives, then Run / W to take runs.` : `Pick speed and line, tap Bowl to run in, Bowl again at the top of your action. Wickets +25, dots +5.`,
+        progress: c.run && batting ? `Running… ${c.run.done} so far${c.throw ? ' · THROW COMING' : ' · Run again for another'}` : c.phase === 'hit' && batting && !c.throw ? 'Run / W to take a run' : batting ? `${S.key} ${S.name} — ${S.hint}` : c.phase === 'ready' && !c.go ? 'Pick speed & line, then Bowl' : runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${pace} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last} · ${pace}` : 'First ball coming up',
+        remaining: left, total: c.total, reward: 200, hint: null,
         fill: runupU !== null ? runupU : c.balls / c.total, timeText: `${c.balls}/${c.total}`,
       });
     }
@@ -2520,6 +2594,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const c = this.cricket; if (!c) return;
     this.cricket = null;
     this.ev.onBowl(null);
+    this.ev.onShot(null);
     this.scene.remove(c.nonStriker.group);
     this.scene.remove(c.ball); c.bat.removeFromParent();
     if (c.stumps) c.stumps.rotation.z = 0;
@@ -3230,6 +3305,38 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         case 'carousel': grp.rotation.y += dt * 0.5; for (const c of grp.children) if (c.name.startsWith('horse')) c.position.y = Math.sin(t * 2.2 + Number(c.name.slice(5))) * 0.28; break;
         case 'swing': grp.rotation.y += dt * 1.25; break;
         case 'ship': grp.rotation.x = Math.sin(t * 0.78) * 1.05; break;
+        case 'drop': {   // load, haul the gondola up the mast, hang there, then let go
+          const y0 = grp.userData.y0 as number, H = grp.userData.h as number, u = (t % 17) / 17;
+          let k: number;
+          if (u < 0.14) k = 0;
+          else if (u < 0.60) { const a = (u - 0.14) / 0.46; k = a * a * (3 - 2 * a); }
+          else if (u < 0.74) k = 1;
+          else if (u < 0.80) { const a = (u - 0.74) / 0.06; k = 1 - a * a; }
+          else { const a = (u - 0.80) / 0.20; k = Math.abs(Math.sin(a * 9)) * 0.07 * (1 - a); }
+          grp.position.y = y0 + k * H; grp.rotation.y += dt * 0.22; break;
+        }
+        case 'cups': grp.rotation.y += dt * 0.55; for (const c of grp.children) if (c.name.startsWith('cup')) c.rotation.y += dt * (1.3 + Number(c.name.slice(3)) * 0.22); break;
+        case 'coaster': {   // the chain hauls it up the lift hill, then gravity does the rest
+          const curve = grp.userData.curve as THREE.CatmullRomCurve3, len = grp.userData.len as number, top = grp.userData.top as number;
+          let u = grp.userData.u as number;
+          const here = curve.getPointAt(u);
+          const lift = u > 0.015 && u < 0.33;
+          const speed = lift ? 5.5 : Math.max(6.5, Math.sqrt(2 * 9.8 * Math.max(0.4, top + 1.2 - here.y)));
+          u = (u + (speed * dt) / len) % 1;
+          grp.userData.u = u;
+          const at = curve.getPointAt(u), tg = curve.getTangentAt(u);
+          grp.position.copy(at);
+          RIDE_AHEAD.copy(tg).negate();                                    // lookAt puts -Z on the target, so aim it behind
+          RIDE_M4.lookAt(RIDE_ZERO, RIDE_AHEAD, RIDE_UP);
+          grp.quaternion.setFromRotationMatrix(RIDE_M4);
+          const yaw = Math.atan2(tg.x, tg.z), turn = wrapAngle(yaw - (grp.userData.yaw as number ?? yaw));
+          grp.userData.yaw = yaw;
+          const want = Math.max(-0.7, Math.min(0.7, (turn / Math.max(dt, 0.001)) * 0.18));   // lean into the corners
+          const roll = (grp.userData.roll as number ?? 0) + (want - (grp.userData.roll as number ?? 0)) * Math.min(1, dt * 3);
+          grp.userData.roll = roll;
+          grp.quaternion.multiply(RIDE_Q.setFromAxisAngle(RIDE_FWD, roll));
+          break;
+        }
       }
     }
     if (this.ride) this.tickRideSeat(dt, t);
@@ -3269,9 +3376,10 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.player.group.rotation.y = u < 1 ? this.player.group.rotation.y + wrapAngle(face - this.player.group.rotation.y) * Math.min(1, dt * 6) : face;
     if (u < 0.6) poseJump(this.player); else poseSit(this.player);
     if (rd.pseat && rd.partner) { const q = rd.pseat.getWorldPosition(new THREE.Vector3()); const pp = rd.partner.av.group.position; if (rd.pfrom) pp.lerpVectors(rd.pfrom, q, e); else pp.copy(q); pp.y += hop; rd.partner.av.group.rotation.y = this.player.group.rotation.y; if (u < 0.6) poseJump(rd.partner.av); else poseSit(rd.partner.av); }
-    this.yaw += wrapAngle(this.player.group.rotation.y + Math.PI + Math.sin(t * 0.2) * 0.6 - this.yaw) * Math.min(1, dt * 1.5);
-    this.pitch += ((rd.r.def.kind === 'wheel' ? 0.15 : 0.35) - this.pitch) * Math.min(1, dt * 2);
-    if (t - rd.t0 > RIDE_SECONDS) this.endRide();
+    const kind = rd.r.def.kind, coaster = kind === 'coaster';
+    this.yaw += wrapAngle(this.player.group.rotation.y + Math.PI + (coaster ? 0 : Math.sin(t * 0.2) * 0.6) - this.yaw) * Math.min(1, dt * (coaster ? 5 : 1.5));
+    this.pitch += ((kind === 'wheel' ? 0.15 : coaster ? 0.08 : 0.35) - this.pitch) * Math.min(1, dt * 2);
+    if (t - rd.t0 > (rd.r.def.seconds ?? RIDE_SECONDS)) this.endRide();
   }
 
   private endRide() {

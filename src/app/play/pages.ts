@@ -20,7 +20,7 @@ export const PLAY_PAGES: PlayPage[] = [
     slug: 'cricket-game-online', start: 'cricket', icon: '🏏',
     title: 'Cricket Game Online Free — Play in Browser, No Download (Bat & Bowl)',
     h1: 'Play a free cricket game online — bat and bowl in your browser',
-    description: 'Free online cricket game with real batting and bowling: pick overs, time your shots, run between the wickets, choose speed and line when you bowl. No download, works on phone.',
+    description: 'Free online cricket game with a toss, eight batting shots you aim yourself, running between the wickets and a speed-and-line bowling panel. No download, works on phone.',
     keywords: [
       'cricket game online free', 'play cricket online without download', 'cricket game in browser',
       'online cricket game for mobile', 'cricket batting game online', 'cricket bowling game online',
@@ -29,17 +29,21 @@ export const PLAY_PAGES: PlayPage[] = [
       'cricket game to play with friends', 'multiplayer cricket game online free', 'india cricket game online free',
       'how to play cricket online free', 'online cricket no app', 'free cricket game for pc browser',
       'cricket game 1 over 5 over online', 'kerala cricket game online', 'quick cricket game online',
+      'cricket game with toss online', 'cricket game choose your shot', 'aim your shots cricket game',
     ],
-    intro: 'FindurAI has a free cricket game online that you play inside a 3D city — walk onto the strip at the FindurAI Cricket Ground, press E, and you are batting. No app to install, no sign-up, and it runs on a phone browser as well as a laptop.',
+    intro: 'FindurAI has a free cricket game online that you play inside a 3D city — walk onto the strip at the FindurAI Cricket Ground, press E, call the toss and choose whether to bat or bowl first. No app to install, no sign-up, and it runs on a phone browser as well as a laptop.',
     sections: [
-      ['How the cricket match works', 'Choose 1, 2, 3 or 5 overs a side. You bat first against an AI bowler: shuffle across the crease with ◀ ▶ and press Bat as the ball arrives. Perfect timing sends it for six, early pulls it high where a fielder can catch it, late squeezes it along the ground, and a straight one you miss bowls you. After a shot press Run to take runs with the non-striker — press again for a second, but the fielder throws at your stumps, so a lazy second run gets you run out.'],
-      ['Then you bowl', 'The other side chases your total. Before every ball you pick the speed (slow, medium, fast) and the line (leg, stumps, off), tap Bowl to run in and press Bowl again at the top of your action. Release it right and the batter is beaten or bowled; release it late and it goes for four. Wickets and dot balls earn points, winning the match earns 200.'],
+      ['The toss, then the match', 'Choose 1, 2, 3 or 5 overs a side and call the toss in the air. Win it and you pick: bat first and set a target, or bowl first and chase a number you can see. Lose it and your rival chooses. Both sides bat the same number of overs, and the side that has not batted fields a full ring.'],
+      ['Choose your shot, then time it', 'Batting is not one button. Before each ball you pick one of eight strokes — block, straight drive, cover drive, cut, flick, pull, sweep or slog — on the panel or with keys 1 to 8, and the ball goes where that stroke sends it: through the covers, square on the off side, through mid-wicket, fine behind square or straight over the bowler. Bigger shots have a tighter timing window, so a mistimed pull or slog goes up in the air for the fielders instead of over the rope. Shuffle across with ◀ ▶, press Bat as the ball arrives, then Run to take runs — but be home before the throw.'],
+      ['Bowling an over', 'Before every ball you pick the speed (slow, medium, fast) and the line (leg, stumps, off), tap Bowl to run in and press Bowl again at the top of your action. Release it right and the batter is beaten or bowled; release it late and it goes for four. Wickets and dot balls earn points, winning the match earns 200.'],
       ['Play with a friend', 'The cricket ground is in a shared multiplayer city. Meet a friend at the ground, watch each other bat, chat between overs, or race there on bikes first. Real players see each other in real time; the opponent in the match itself is an AI batter or bowler for now.'],
     ],
     faq: [
       ['Is the cricket game free?', 'Yes. FindurAI is completely free and runs in the browser — nothing to download.'],
       ['Does it work on a phone?', 'Yes. There is a joystick and Bat / Bowl / Run buttons on phones; on a laptop you use the keyboard.'],
       ['How long is a match?', 'A one-over match takes about three minutes; five overs a side takes around fifteen.'],
+      ['Can I choose to bat or bowl first?', 'Yes. Every match starts with a toss — call heads or tails, and if you win it you choose to bat first or to bowl first.'],
+      ['Can I aim my shots?', 'Yes. Pick one of eight shots before the ball arrives (keys 1 to 8, or the panel on a phone) and the ball goes to that part of the ground — as long as you time it.'],
     ],
   },
   {
@@ -234,28 +238,68 @@ export const PLAY_PAGES: PlayPage[] = [
   },
   {
     slug: 'monopoly', start: 'explore', icon: '🎩',
-    title: 'Monopoly Game Online Free — Play in Browser vs 3 Computer Players, No Download',
+    title: 'Monopoly Game Online Free — Play Classic Board Game in Browser, No Download (2–4 Players)',
     h1: 'Play Monopoly online free — classic board game in your browser',
-    description: 'Free Monopoly board game in the browser: buy countries, build houses and hotels, collect rent, draw Chance and Community Chest cards. Four players — you against three computer rivals. No download, no sign-up.',
+    description: 'Free Monopoly board game in the browser: buy properties, build houses and hotels, collect rent, Chance & Community Chest cards. 2–4 players hot-seat. No download, no sign-up. Works on phone and PC.',
     keywords: [
-      'monopoly game online free', 'play monopoly in browser', 'monopoly no download',
-      'monopoly board game online', 'free monopoly online no sign up', 'monopoly 4 player online free',
-      'monopoly vs computer online free', 'classic board game online free', 'monopoly game for pc browser',
-      'monopoly game for mobile browser', 'online monopoly no app', 'monopoly buy properties online',
-      'best free monopoly game browser', 'monopoly against computer free', 'monopoly world edition online', 'monopoly with countries online',
+      // core intent
+      'monopoly game online free',
+      'play monopoly in browser',
+      'monopoly no download',
+      'monopoly board game online',
+      'free monopoly online no sign up',
+      // player count
+      'monopoly 2 player online free',
+      'monopoly 3 player online free',
+      'monopoly 4 player online free',
+      'monopoly hot seat 2 players',
+      'monopoly pass and play online free',
+      // device / platform
+      'monopoly game for pc browser',
+      'monopoly game for mobile browser',
+      'monopoly game for android browser',
+      'monopoly online no app needed',
+      'monopoly game no install',
+      'free monopoly game for iphone browser',
+      // classic rules
+      'classic monopoly game online free',
+      'monopoly buy properties online',
+      'monopoly build houses and hotels online',
+      'monopoly community chest chance cards online',
+      'monopoly jail rules online',
+      'monopoly bankruptcy game online',
+      // how-to intent
+      'how to play monopoly online free',
+      'how to play monopoly with friends online',
+      'monopoly game rules online free',
+      // comparison / alternative
+      'monopoly go alternative free browser',
+      'monopoly king alternative free',
+      'best free monopoly game browser',
+      'free monopoly game like monopoly go',
+      // india / regional
+      'monopoly game india free',
+      'monopoly game in hindi browser',
+      'monopoly game online india no download',
+      // social / friends
+      'monopoly game with friends browser',
+      'monopoly game to play with friends online free',
+      'board game online free with friends no download',
     ],
-    intro: 'FindurAI has a free Monopoly game you play in the browser — no download, no sign-up. It is a world tour: instead of Atlantic City streets the squares are countries, from Nepal and Sri Lanka up to the USA and India, with airports in place of railroads. You play against three explorers who take their own turns, so there is always a full four-player game waiting.',
+    intro: 'FindurAI has a fully playable free Monopoly game in your browser — no download, no sign-up. Choose 2 to 4 players (hot-seat / pass the device), pick your token (🎩 🚗 🐶 🚢), roll the dice, buy properties from Mediterranean Avenue to Boardwalk, build houses and hotels, draw Chance and Community Chest cards, navigate jail, and outlast every other player.',
     sections: [
-      ['Full classic Monopoly rules', 'All 40 squares are here: 22 countries in 8 colour groups, 4 airports, 2 utilities, Income Tax, Luxury Tax, Community Chest, Chance, GO, Jail, Free Parking and Go To Jail. Roll doubles and go again — three in a row and you go straight to jail. Build houses once you own a full colour group and upgrade to a hotel for the big rent. Mortgage when you need cash. Both card decks are complete. The last player standing wins.'],
-      ['Four players, always', 'You are the red token; Mia (blue), Arjun (green) and Zara (yellow) take their own turns — rolling, buying, building and paying you rent — so you never need a second person or a second device to start a game.'],
-      ['A board you can read', 'A flat square board in the light FindurAI theme, with the flag of every country on its square, 3D dice that tumble on each roll, tokens that hop square by square, houses and hotels that appear on the land you own, and a little 3D city in the middle that grows as the board fills up.'],
+      ['Full classic Monopoly rules', 'All 40 squares are here: 22 properties in 8 colour groups (Brown, Light Blue, Pink, Orange, Red, Yellow, Green, Dark Blue), 4 railroads, 2 utilities, Income Tax, Luxury Tax, Community Chest (×3), Chance (×3), Go, Jail, Free Parking and Go To Jail. Roll doubles and go again — roll three in a row and you go straight to jail. Build houses once you own a full colour group; upgrade to a hotel for maximum rent. Mortgage properties when you need cash. Both 16-card decks are fully implemented. The last player standing wins.'],
+      ['2 to 4 players, hot-seat', 'Choose 2, 3 or 4 players at the start and pass the device between turns — no second account needed. Each player sees their own money, properties and buildings on screen. Bankrupted players are eliminated; the winner is the last one with money.'],
+      ['Premium animated board', 'A dark premium board with gold accents, 3D CSS dice that spin on every roll, smooth token animation that hops square by square, floating +$200 / -$150 money toasts, house and hotel icons on every property you own, a live game log, and a confetti win screen. A 3D mini-city sits in the center of the board and grows as properties get bought.'],
     ],
     faq: [
-      ['Is the Monopoly game free?', 'Yes — completely free, no download, no account needed.'],
-      ['How many players can play?', 'Four — you plus three computer explorers, so a game always starts straight away.'],
-      ['Does it follow real Monopoly rules?', 'Yes — buying properties, rent, houses, hotels, Chance, Community Chest, jail, taxes and bankruptcy all follow classic Monopoly rules.'],
+      ['Is the Monopoly game completely free?', 'Yes — no download, no account, no payment. Just open the page and play.'],
+      ['How many players can play?', '2, 3 or 4 players on the same device — pick a number at the start and pass the phone or laptop between turns.'],
+      ['Does it follow classic Monopoly rules?', 'Yes — all 40 squares, correct rent tables, houses and hotels, Chance and Community Chest card decks, jail rules, Income Tax, Luxury Tax and bankruptcy all follow the classic Hasbro Monopoly rules.'],
+      ['Does it work on mobile?', 'Yes. The board scales down for phones and all controls are tap-friendly.'],
     ],
   },
+
 ];
 
 /**

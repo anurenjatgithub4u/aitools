@@ -77,7 +77,7 @@ function house(g: THREE.Group, x: number, y: number, z: number, ry: number, wall
 
 export interface Clear { x: number; z: number; r: number }
 
-export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship'; label: string; x: number; z: number; y: number; icon: string }
+export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship' | 'drop' | 'cups' | 'coaster'; label: string; x: number; z: number; y: number; icon: string; seconds?: number }
 
 // Every road segment in the city (x0, z0, x1, z1). Declared up front so the ground can be smoothed under
 // all of them before a single building is placed; road() below draws them and checks it is on this list.
@@ -767,6 +767,80 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     for (let k = 0; k < 3; k++) { const z = (k - 1) * 2; pivot.add(at(box(2.4, 0.4, 0.5, 0x3a2418), 0, -5.9, z)); seat(pivot, `seat${k * 2}`, -0.6, -5.7, z); seat(pivot, `seat${k * 2 + 1}`, 0.6, -5.7, z); }
     ride(pivot, { id: 'ship', kind: 'ship', label: 'Ride the Pirate Ship', x: px + 5.5, z: pz, y: py, icon: '🏴‍☠️' });
     place('Pirate Ship', px, TOP + 4, pz, 160);
+  }
+  // Sky Drop — the drop tower behind the beach fairground: hauled to the top, a long pause, then let go
+  { const dx = 116, dz = 168, dy = h(dx, dz), H = 24;
+    g.add(at(box(9, 0.8, 9, 0x555555), dx, dy + 0.4, dz)); keep(dx, dz, 14);
+    for (const [ox, oz] of [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]] as const) g.add(at(box(0.5, H, 0.5, 0x2c3e6b), dx + ox, dy + H / 2, dz + oz));
+    for (let k = 1; k * 3 < H; k++) g.add(at(box(3.9, 0.22, 3.9, 0x3fb7d9), dx, dy + k * 3, dz));
+    g.add(at(cone(3.8, 3.2, 0xd94a3d, 8), dx, dy + H + 1.6, dz));
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; g.add(at(glow(0.3, 0.3, 0.3, bulbs[k % 4]), dx + Math.cos(a) * 3.4, dy + H - 0.3, dz + Math.sin(a) * 3.4)); }
+    const car = new THREE.Group(); car.position.set(dx, dy + 1.4, dz);
+    car.userData.y0 = dy + 1.4; car.userData.h = H - 8;   // it stops short of the crown, so the camera never ends up inside the cap
+    car.add(at(cyl(3.4, 3.4, 0.35, 0xf2c31b, 14), 0, 0, 0)); car.add(at(cyl(2.3, 2.3, 1.2, 0xd94a3d, 14), 0, 0.75, 0));
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, st = new THREE.Group(), c = bulbs[k % 4];
+      st.position.set(Math.cos(a) * 2.9, 0.18, Math.sin(a) * 2.9); st.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); car.add(st);   // every seat faces out over the beach
+      st.add(at(box(0.9, 0.12, 0.8, c), 0, 0, 0)); st.add(at(box(0.9, 1.1, 0.12, c), 0, 0.55, -0.44));
+      for (const ox of [-0.5, 0.5]) st.add(at(box(0.1, 0.6, 0.8, 0x555555), ox, 0.4, 0));
+      seat(st, `seat${k}`, 0, 0.22, 0.05);
+    }
+    ride(car, { id: 'drop', kind: 'drop', label: 'Ride the Sky Drop', x: dx + 7.5, z: dz, y: dy, icon: '🗼', seconds: 42 });
+    place('Sky Drop', dx, H + 6, dz, 200);
+  }
+  // Spinning Teacups on the sand at the south end of the beach: the floor turns, each cup spins on top of it
+  { const cx = 188, cz = 148, cy = h(cx, cz);
+    g.add(at(cyl(9, 9.4, 0.5, 0xd9cfbc, 24), cx, cy + 0.25, cz)); keep(cx, cz, 12);
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; g.add(at(cyl(0.12, 0.12, 5, 0xdddddd, 6), cx + Math.cos(a) * 8.4, cy + 2.5, cz + Math.sin(a) * 8.4)); }
+    g.add(at(cone(9.6, 2.6, 0xff7ab8, 12), cx, cy + 6.3, cz));
+    for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; g.add(at(glow(0.26, 0.26, 0.26, bulbs[k % 4]), cx + Math.cos(a) * 9, cy + 4.8, cz + Math.sin(a) * 9)); }
+    const floor = new THREE.Group(); floor.position.set(cx, cy + 0.5, cz);
+    floor.add(at(cyl(8.4, 8.4, 0.3, 0x6a3fb0, 24), 0, 0.15, 0));
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2, cup = new THREE.Group(), c = [0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a, 0xff7ab8][k];
+      cup.name = `cup${k}`; cup.position.set(Math.cos(a) * 5, 0.3, Math.sin(a) * 5); floor.add(cup);
+      cup.add(at(cyl(1.55, 1.15, 1.4, c, 14), 0, 0.7, 0)); cup.add(at(cyl(1.65, 1.65, 0.16, 0xffffff, 14), 0, 1.42, 0));
+      cup.add(at(cyl(0.5, 0.5, 0.22, 0x333333, 10), 0, 1.6, 0));                                            // the wheel you spin
+      cup.add(rot(at(mesh(new THREE.TorusGeometry(0.4, 0.1, 6, 10), c), 1.6, 0.8, 0), 'y', Math.PI / 2));    // the handle
+      seat(cup, `seat${k * 2}`, -0.7, 0.95, 0); seat(cup, `seat${k * 2 + 1}`, 0.7, 0.95, 0);
+    }
+    ride(floor, { id: 'cups', kind: 'cups', label: 'Ride the Teacups', x: cx + 10.5, z: cz, y: cy, icon: '🍵', seconds: 48 });
+    place('Spinning Teacups', cx, 10, cz, 170);
+  }
+  // Seaside Coaster — a real circuit behind the dunes: the chain lift, the first drop, two camelbacks, the brake run
+  { const cx = 162, cz = 192, cy = h(cx, cz) + 1.4, RX = 24, RZ = 16;
+    const prof = [1.6, 3.8, 8.0, 12.0, 13.6, 6.6, 1.8, 7.4, 3.8, 6.8, 2.8, 1.6];
+    const spine = new THREE.CatmullRomCurve3(prof.map((py, k) => { const a = Math.PI + (k / prof.length) * Math.PI * 2; return V(cx + Math.cos(a) * RX, cy + py, cz + Math.sin(a) * RZ); }), true, 'catmullrom', 0.5);
+    const track = new THREE.Group(), N = 168, side = new THREE.Vector3(), railL: THREE.Vector3[] = [], railR: THREE.Vector3[] = [];
+    for (let i = 0; i < N; i++) {
+      const pt = spine.getPointAt(i / N), tg = spine.getTangentAt(i / N);
+      side.copy(tg).cross(V(0, 1, 0)).normalize().multiplyScalar(0.6);
+      railL.push(pt.clone().add(side)); railR.push(pt.clone().sub(side));
+      if (i % 6 === 0) track.add(bar(pt.clone().add(side), pt.clone().sub(side), 0.07, 0x8a6a4a));                                             // sleepers
+      if (i % 12 === 0) { const gy = h(pt.x, pt.z); if (pt.y - gy > 1.6) track.add(bar(V(pt.x, gy, pt.z), V(pt.x, pt.y - 0.3, pt.z), 0.17, 0x2c3e6b)); }   // trestles
+    }
+    for (const r of [railL, railR]) track.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(r, true, 'catmullrom', 0.5), N, 0.1, 5, true), 0xd94a3d));
+    track.traverse((o) => { o.userData.noCollide = true; }); g.add(track); keep(cx, cz, RX + 8);
+    const sx = cx - RX - 4.5, sz = cz, sy = h(sx, sz), legH = Math.max(0.8, cy + 1.2 - sy);                 // the station, level with the track
+    g.add(at(box(5, 0.5, 11, 0x8a6a4a), sx, cy + 1.45, sz));
+    for (const oz of [-4.6, 4.6]) for (const ox of [-2, 2]) g.add(at(cyl(0.16, 0.16, legH, 0x555555, 6), sx + ox, cy + 1.2 - legH / 2, sz + oz));
+    g.add(at(box(5.6, 0.3, 12, 0xd94a3d), sx, cy + 4.6, sz));
+    for (const oz of [-5, 5]) for (const ox of [-2.3, 2.3]) g.add(at(cyl(0.12, 0.12, 3, 0xffffff, 6), sx + ox, cy + 3, sz + oz));
+    for (let k = 0; k < 8; k++) g.add(at(glow(0.26, 0.26, 0.26, bulbs[k % 4]), sx - 2.9 + (k % 4) * 1.9, cy + 4.9, sz + (k < 4 ? -5.8 : 5.8)));
+    g.add(rot(at(box(4.5, 0.4, 5, 0x8a6a4a), sx - 3.6, cy + 0.6, sz), 'z', 0.42));                          // the ramp up from the sand
+    keep(sx, sz, 9);
+    const train = new THREE.Group();
+    train.userData.curve = spine; train.userData.len = spine.getLength(); train.userData.u = 0; train.userData.top = cy + 13.6;
+    for (let k = 0; k < 3; k++) {
+      const c = [0xf2c31b, 0x3fb7d9, 0x2fa66a][k], car = new THREE.Group();
+      car.position.z = k * 2.6; train.add(car);                                                             // +Z is the way the train is going: you ride the back car, the rest run ahead of you
+      car.add(at(box(1.7, 0.75, 2.3, c), 0, 0.38, 0)); car.add(at(box(1.8, 0.4, 0.2, 0x333333), 0, 0.9, -1.1));
+      for (const ox of [-0.88, 0.88]) car.add(at(box(0.16, 0.5, 2.3, c), ox, 0.9, 0));
+      car.add(at(box(1.5, 0.12, 0.5, 0x333333), 0, 1.05, 0.55));                                            // the lap bar
+      seat(car, `seat${k * 2}`, -0.42, 0.62, 0.3); seat(car, `seat${k * 2 + 1}`, 0.42, 0.62, 0.3);
+    }
+    ride(train, { id: 'coaster', kind: 'coaster', label: 'Ride the Seaside Coaster', x: sx - 3, z: sz + 7, y: h(sx - 3, sz + 7), icon: '🎢', seconds: 44 });
+    place('Seaside Coaster', cx, 22, cz, 240);
   }
   // the date boat, moored at the marina; it is moved by the world during a ride
   { const b = new THREE.Group(); b.name = 'dateboat'; b.userData.animated = true; b.position.set(406, 0.3, -152);

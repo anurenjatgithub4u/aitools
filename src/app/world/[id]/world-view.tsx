@@ -97,6 +97,7 @@ export function WorldView({ id }: { id: string }) {
           onTableStatus: (s) => hud.tableStatus(s),
           onBowl: (s) => hud.bowl(s),
           onShot: (s) => hud.shot(s),
+          onWanted: (text) => hud.wanted(text),
           onZombieClock: (s, on) => hud.zombieClock(s, on),
           onMeet: (m) => hud.meet(m),
           onChat: (from, text, mine) => hud.chat(from, text, mine),

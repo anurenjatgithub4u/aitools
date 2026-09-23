@@ -40,6 +40,7 @@ export interface WorldEvents {
   onTable(power: number, pos: number | null): void;
   onTableStatus(text: string): void;
   onBowl(s: { pace: number; line: number } | null): void;   // pre-ball picker while you bowl
+  onWanted(text: string | null): void;   // the police chip: heat, the chase, the cell
   onShot(s: { shot: number; name: string; hint: string } | null): void;   // the shot picker while you bat
   onZombieClock(seconds: number | null, on: boolean): void;   // countdown to the next zombie night
   onMeet(m: { name: string; friend: boolean; real: boolean } | null): void;
@@ -238,6 +239,17 @@ export class World {
   private date: DateState | null = null;
   private wheel: THREE.Group | null = null;
   private rides: { def: RideDef; grp: THREE.Group }[] = [];
+  // The law: the patrol jeep leaves its beat when you earn heat, and the cell at the station is where you end up broke.
+  private cop: { road: Road; officer: Avatar } | null = null;
+  private station: { x: number; z: number; y: number; cell: { x: number; z: number; r: number }; gate: { x: number; z: number } } | null = null;
+  private heat = 0;                       // wanted stars, 0-3
+  private crimeName = 'reckless driving';
+  private crimeCool: Record<string, number> = {};
+  private escapeT = 0;                    // seconds spent out of their sight
+  private jail: { until: number; total: number } | null = null;
+  private sirenAt = 0;
+  private bustCool = 0;
+  private lastWantedHud = '';
   private ride: { r: { def: RideDef; grp: THREE.Group }; seat: THREE.Object3D; pseat: THREE.Object3D | null; partner: Bot | null; t0: number; from: THREE.Vector3; pfrom: THREE.Vector3 | null } | null = null;
   private ridden = new Set<string>();
   private dateBoat: THREE.Group | null = null;
@@ -621,6 +633,7 @@ export class World {
     this.dateBoat = (landmark.getObjectByName('dateboat') as THREE.Group | undefined) ?? null;
     this.casino = (landmark.userData.casino as Casino | undefined) ?? null;
     this.landmarkRoot = landmark;
+    this.station = (landmark.userData.police as { x: number; z: number; y: number; cell: { x: number; z: number; r: number }; gate: { x: number; z: number } } | undefined) ?? null;
     if (landmark.userData.cricket) this.oval = { ...(landmark.userData.cricket as { x: number; z: number; r: number; len: number }) };
     if (landmark.userData.pitch) { const p = landmark.userData.pitch as { x: number; z: number; w: number; d: number; goal: number; goalH: number }; this.field = { ...p }; }
     if (landmark.userData.circuit) { const c = landmark.userData.circuit as { pts: [number, number][]; width: number; pads: [number, number, number][] }; this.circuit = { pts: c.pts.map(([x, z]) => new THREE.Vector3(x, this.terrain.h(x, z), z)), width: c.width, pads: c.pads.map(([x, z, ang]) => ({ x, z, ang, cool: 0 })) }; }
@@ -947,6 +960,15 @@ export class World {
       this.scene.add(t.group);
       this.roads.push({ t, route, i: 0, dir: 1 });
     }
+    // the patrol jeep gets a driver, and doubles as the unit that comes after you
+    const patrol = this.roads.find((r) => r.t.label.includes('Police'));
+    if (patrol) {
+      const officer = makeAvatar({ shirt: 0xa89465, pants: 0x6f6244, hat: 'cap', hairStyle: 'buzz', skin: SKINS[1 % SKINS.length], hair: 0x1a1a1a });
+      officer.group.position.set(0.55, 1.02, -0.2);
+      poseSit(officer);
+      patrol.t.group.add(officer.group);
+      this.cop = { road: patrol, officer };
+    }
   }
 
   // ---------- input ----------
@@ -961,6 +983,7 @@ export class World {
       if (k === 't' && !e.repeat) this.wantQuest = true;
       if (k === 'g' && !e.repeat) this.wantFriend = true;
       if (k === 'm' && !e.repeat) this.toggleMute();
+
       if (k >= '1' && k <= '8' && !e.repeat) this.setShot(Number(k) - 1);
       if (k === ' ') { e.preventDefault(); if (!e.repeat) this.wantJump = true; }
       if (k === 'e' && !e.repeat) this.wantToggleDrive = true;
@@ -1244,6 +1267,7 @@ export class World {
       this.points = Math.max(0, this.points - 10);
       this.ev.onPoints(this.points);
       this.ev.onCollect({ name: `Hit ${b.name}! Careful`, points: -10, color: 0xd94a3d, shape: 'box' });
+      this.crime('hit-and-run', 2, 'run', 2);
     }
   }
 
@@ -1349,6 +1373,7 @@ export class World {
       else if (this.dancing) this.stopDancing();
       else if (this.ride) this.endRide();
       else if (this.pool || this.carrom) { /* use Shoot / Flick */ }
+      else if (this.jail) this.sfx.bump();   // the door is locked
       else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); const cb = this.nearestCarrom(); const rd = this.nearestRide(); if (pt) this.startPool(pt); else if (cb) this.startCarrom(cb); else if (this.onDanceFloor()) this.startDancing(); else if (rd) this.startRide(rd); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
     }
 
@@ -1402,7 +1427,9 @@ export class World {
           if (this.vehicleFits(nx2, nz2, v.heading, s.length, s.width, vp.y)) { vp.x = nx2; vp.z = nz2; }
           v.speed *= 0.4; this.sfx.thud(); this.ev.onHurt();
           this.points = Math.max(0, this.points - 20); this.ev.onPoints(this.points);
-          this.ev.onCollect({ name: 'Hit the bus! That will leave a dent', points: -20, color: 0xd94a3d, shape: 'box' });
+          const cop = !!this.cop && r === this.cop.road;
+          this.ev.onCollect({ name: cop ? 'You rammed the police jeep!' : 'Hit the bus! That will leave a dent', points: -20, color: 0xd94a3d, shape: 'box' });
+          if (cop) this.crime('ramming a police jeep', 2, 'ram', 3);
         }
       }
       this.settleVehicle(v);
@@ -1417,6 +1444,7 @@ export class World {
       focus = vp.clone().add(new THREE.Vector3(0, 2.2, 0));
       focusRadius = 3;
       const speedKmh = Math.round(Math.abs(v.speed) * 3.6);
+      if (this.cop && speedKmh > 80) { const jp = this.cop.road.t.group.position; if (Math.hypot(vp.x - jp.x, vp.z - jp.z) < 34) this.crime('speeding past a patrol', 1, 'speed', 12); }
       this.prompt(empty ? `Out of petrol! Find the \u26FD pump` : this.mobile ? null : `${s.label} · W/S drive · A/D steer · Shift boost · H horn · E out`, true);
 
       // refuelling at the pump: stop within 9 m and press R (or the button)
@@ -1490,6 +1518,10 @@ export class World {
         if (this.airY === 0) { this.vy = 0; if (this.wasAirborne) this.sfx.land(); }
       }
       this.wasAirborne = this.airY > 0;
+      if (this.jail && this.station) {   // the cell holds you: walk about in it all you like
+        const c = this.station.cell, dx = p.x - c.x, dz = p.z - c.z, d = Math.hypot(dx, dz);
+        if (d > c.r) { p.x = c.x + (dx / d) * c.r; p.z = c.z + (dz / d) * c.r; }
+      }
       const ground = this.groundAt(p.x, p.z, p.y - this.airY);
       const drop = p.y - this.airY - ground;
       if (drop > 0.05 && this.airY <= 0) this.airY = drop;   // walked off a ledge: fall
@@ -1642,6 +1674,7 @@ export class World {
       b.wingL.rotation.z = -flap; b.wingR.rotation.z = flap;
     }
     for (const r of this.roads) {
+      if (this.cop && r === this.cop.road && this.heat > 0) continue;   // off its beat: tickPolice is driving it
       const gp = r.t.group.position;
       const next = r.route[r.i + r.dir];
       const dx = next.x - gp.x, dz = next.z - gp.z, d = Math.hypot(dx, dz);
@@ -1672,6 +1705,7 @@ export class World {
     if (this.carrom) this.tickCarrom(dt, t);
     if (this.wheel) { this.wheel.rotation.z += dt * (Math.PI * 2 / 40); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
     this.tickRides(dt, t);
+    this.tickPolice(dt, t);
     if (this.date) this.tickDate(dt, t);
     this.sunsetK = Math.max(0, Math.min(1, this.sunsetK + ((this.date?.spot.kind === 'sunset') ? dt / 4 : -dt / 4)));
     if (this.sunsetK > 0 && !(this.zombies && !this.zombies.ending)) this.applySunset(this.sunsetK);
@@ -2153,6 +2187,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   /** Touched by a moving bus: sent flying, −20. The bus does not even slow down. */
   private busHit(hit: { pos: THREE.Vector3; heading: number }, t: number) {
     if (t - this.lastHit <= 2.5) return;
+    if (this.heat > 0 && this.cop && hit.pos === this.cop.road.t.group.position) return;   // the patrol boxing you in is an arrest, not a road accident
     const p = this.player.group.position;
     this.lastHit = t;
     const fx = Math.sin(hit.heading), fz = Math.cos(hit.heading), side = Math.sign((p.x - hit.pos.x) * fz - (p.z - hit.pos.z) * fx) || 1;
@@ -3290,6 +3325,102 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (!d.rewarded && t - d.t0 > 15) { d.rewarded = true; this.points += 20; this.ev.onPoints(this.points); this.ev.onCollect({ name: d.partner ? `A moment with ${d.partner.name}` : 'A quiet moment', points: 20, color: 0xe75480, shape: 'gem' }); if (d.partner) this.ev.onHearts(); }
   }
 
+  // ---------- the law: heat, the chase, the fine, the cell ----------
+  /** Something the city saw you do. Adds heat and puts the patrol on you; `key` stops one prang counting ten times. */
+  private crime(name: string, heat: number, key: string, cool: number) {
+    const t = this.elapsed;
+    if (this.jail || !this.cop || (this.crimeCool[key] ?? -99) > t) return;
+    this.crimeCool[key] = t + cool;
+    const before = this.heat;
+    this.heat = Math.min(3, this.heat + heat);
+    this.crimeName = name;
+    this.escapeT = 0;
+    this.sfx.siren();
+    if (this.heat > before) this.ev.onBanner('WANTED', `${name[0].toUpperCase()}${name.slice(1)} · ${'★'.repeat(this.heat)}`, 'bad');
+  }
+
+  /** The chase: the patrol drives at you, noses round what is in the way, and books you once you are slow enough. */
+  private tickPolice(dt: number, t: number) {
+    if (this.jail) { if (t >= this.jail.until) this.release(); else this.wantedHud(`🚔 In the cell · ${Math.ceil(this.jail.until - t)} s`); return; }
+    const c = this.cop;
+    if (!c || this.heat <= 0) { this.wantedHud(''); return; }
+    const p = this.player.group.position, g = c.road.t.group, jp = g.position;
+    const d = Math.hypot(p.x - jp.x, p.z - jp.z);
+    const speed = 9 + this.heat * 2.4, step = Math.min(speed * dt, Math.max(0, d - 3));
+    g.rotation.y += wrapAngle(Math.atan2(p.x - jp.x, p.z - jp.z) - g.rotation.y) * Math.min(1, dt * 2.4);
+    const roomFor = (h: number, nx: number, nz: number) => {   // its own bonnet and three corners: buildings stop it, parked cars do not
+      const fx = Math.sin(h), fz = Math.cos(h);
+      for (const [a, b] of [[0, 0], [2.1, 1], [2.1, -1]] as const) if (!this.walkable(nx + fx * a + fz * b, nz + fz * a - fx * b, jp.y)) return false;
+      return true;
+    };
+    for (const a of [0, 0.7, -0.7, 1.5, -1.5]) {          // straight at you, or round the corner of whatever is between
+      const h = g.rotation.y + a, nx = jp.x + Math.sin(h) * step, nz = jp.z + Math.cos(h) * step;
+      if (!this.terrain.onLand(nx, nz) || Math.hypot(nx, nz) > WORLD_RADIUS - 6) continue;
+      if (!roomFor(h, nx, nz)) continue;
+      jp.x = nx; jp.z = nz; break;
+    }
+    this.settle(g, g.rotation.y, c.road.t.length, 2.6);
+    for (const w of c.road.t.wheels) w.rotation.x += step / 0.5;
+    const lights = c.road.t.light;
+    if (lights) { const on = Math.floor(t * 6) % 2 === 0; (lights[0].material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 2 : 0.1; (lights[1].material as THREE.MeshStandardMaterial).emissiveIntensity = on ? 0.1 : 2; }
+    if (t > this.sirenAt && d < 100) { this.sirenAt = t + 3.2; this.sfx.siren(); }
+    const slow = !this.driving || Math.abs(this.driving.speed) < 5;
+    if (d < 6 && slow && t > this.bustCool) { this.bust(); return; }
+    if (d > 130) {
+      this.escapeT += dt;
+      if (this.escapeT > 12) {
+        this.heat = 0; this.escapeT = 0; this.wantedHud('');
+        this.ev.onBanner('LOST THEM', 'The patrol is back on its beat', 'good');
+        this.ev.onCollect({ name: 'You lost the police', points: 0, color: 0x2fa66a, shape: 'gem' });
+        return;
+      }
+    } else this.escapeT = 0;
+    this.wantedHud(`🚨 WANTED ${'★'.repeat(this.heat)} · ${d < 20 ? 'PULL OVER' : `${Math.round(d)} m`}`);
+  }
+
+  private wantedHud(text: string) {
+    if (text === this.lastWantedHud) return;
+    this.lastWantedHud = text;
+    this.ev.onWanted(text || null);
+  }
+
+  /** Pulled over: the fine comes out of your coins, and if it cannot, you do the time instead. */
+  private bust() {
+    const fine = 15 * Math.max(1, this.heat);
+    this.bustCool = this.elapsed + 8;
+    if (this.driving) this.exitVehicle();
+    if (store.coins() < fine) { this.lockUp(fine); return; }
+    this.ev.onCoins(store.addCoins(-fine));
+    this.heat = 0; this.escapeT = 0; this.wantedHud('');
+    this.sfx.questFail();
+    this.ev.onBanner('PULLED OVER', `Fined ${fine} 🪙 for ${this.crimeName}`, 'bad');
+    this.ev.onCollect({ name: `Fined ${fine} 🪙 for ${this.crimeName} · ${store.coins()} 🪙 left`, points: 0, color: 0x2b6fd9, shape: 'box' });
+  }
+
+  /** Not enough coins on you: the holding cell at the station, and it costs points too. */
+  private lockUp(fine: number) {
+    const secs = 20 + this.heat * 8, st = this.station;
+    this.jail = { until: this.elapsed + secs, total: secs };
+    this.heat = 0; this.escapeT = 0;
+    this.points = Math.max(0, this.points - 30); this.ev.onPoints(this.points);
+    this.clearQuest();
+    this.questCooldown = secs + 6;
+    if (st) { const cl = st.cell; this.player.group.position.set(cl.x, this.groundAt(cl.x, cl.z, st.y), cl.z); this.airY = 0; this.vy = 0; this.knock = null; }
+    this.sfx.questFail();
+    this.ev.onBanner('IN THE LOCK-UP', `${fine} 🪙 fine, ${store.coins()} 🪙 on you`, 'bad');
+    this.ev.onCollect({ name: `Could not pay the ${fine} 🪙 fine — ${secs} s in the cell`, points: -30, color: 0xd94a3d, shape: 'box' });
+  }
+
+  private release() {
+    const st = this.station;
+    this.jail = null;
+    this.wantedHud('');
+    if (st) { const { x, z } = st.gate; this.player.group.position.set(x, this.groundAt(x, z, st.y), z); this.airY = 0; this.vy = 0; }
+    this.sfx.questDone();
+    this.ev.onBanner('RELEASED', 'Keep it clean out there', 'good');
+    this.ev.onCollect({ name: 'Out of the lock-up — keep a few coins on you for fines', points: 0, color: 0x2fa66a, shape: 'gem' });
+  }
+
   // ---------- fairground rides: carousel, chair swing, pirate ship, the Sky Wheel ----------
   private nearestRide() {
     const p = this.player.group.position;
@@ -3315,6 +3446,16 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           else { const a = (u - 0.80) / 0.20; k = Math.abs(Math.sin(a * 9)) * 0.07 * (1 - a); }
           grp.position.y = y0 + k * H; grp.rotation.y += dt * 0.22; break;
         }
+        case 'bumper': for (const c of grp.children) {   // six cars looping the rink at their own speed, swapping direction when they get bumped
+          const u = c.userData as { a: number; r: number; w: number };
+          u.a += dt * u.w;
+          const wob = 1 + Math.sin(t * 1.3 + u.r) * 0.18, nx = Math.cos(u.a) * u.r * wob, nz = Math.sin(u.a) * u.r * wob;
+          const head = Math.atan2(nx - c.position.x, nz - c.position.z);
+          c.position.x = nx; c.position.z = nz;
+          c.rotation.y += wrapAngle(head - c.rotation.y) * Math.min(1, dt * 5);
+          if (Math.random() < dt * 0.35) u.w = -u.w;
+        } break;
+        case 'flyer': grp.rotation.x = Math.sin(t * 0.62) * 1.15; for (const c of grp.children) if (c.name === 'gondola') c.rotation.y += dt * 1.7; break;
         case 'cups': grp.rotation.y += dt * 0.55; for (const c of grp.children) if (c.name.startsWith('cup')) c.rotation.y += dt * (1.3 + Number(c.name.slice(3)) * 0.22); break;
         case 'coaster': {   // the chain hauls it up the lift hill, then gravity does the rest
           const curve = grp.userData.curve as THREE.CatmullRomCurve3, len = grp.userData.len as number, top = grp.userData.top as number;
@@ -3378,7 +3519,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (rd.pseat && rd.partner) { const q = rd.pseat.getWorldPosition(new THREE.Vector3()); const pp = rd.partner.av.group.position; if (rd.pfrom) pp.lerpVectors(rd.pfrom, q, e); else pp.copy(q); pp.y += hop; rd.partner.av.group.rotation.y = this.player.group.rotation.y; if (u < 0.6) poseJump(rd.partner.av); else poseSit(rd.partner.av); }
     const kind = rd.r.def.kind, coaster = kind === 'coaster';
     this.yaw += wrapAngle(this.player.group.rotation.y + Math.PI + (coaster ? 0 : Math.sin(t * 0.2) * 0.6) - this.yaw) * Math.min(1, dt * (coaster ? 5 : 1.5));
-    this.pitch += ((kind === 'wheel' ? 0.15 : coaster ? 0.08 : 0.35) - this.pitch) * Math.min(1, dt * 2);
+    this.pitch += ((rd.r.def.cam ?? (kind === 'wheel' ? 0.15 : coaster ? 0.08 : 0.35)) - this.pitch) * Math.min(1, dt * 2);
     if (t - rd.t0 > (rd.r.def.seconds ?? RIDE_SECONDS)) this.endRide();
   }
 

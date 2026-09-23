@@ -77,7 +77,7 @@ function house(g: THREE.Group, x: number, y: number, z: number, ry: number, wall
 
 export interface Clear { x: number; z: number; r: number }
 
-export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship' | 'drop' | 'cups' | 'coaster'; label: string; x: number; z: number; y: number; icon: string; seconds?: number }
+export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship' | 'drop' | 'cups' | 'coaster' | 'bumper' | 'flyer'; label: string; x: number; z: number; y: number; icon: string; seconds?: number; cam?: number }
 
 // Every road segment in the city (x0, z0, x1, z1). Declared up front so the ground can be smoothed under
 // all of them before a single building is placed; road() below draws them and checks it is on this list.
@@ -841,6 +841,117 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     }
     ride(train, { id: 'coaster', kind: 'coaster', label: 'Ride the Seaside Coaster', x: sx - 3, z: sz + 7, y: h(sx - 3, sz + 7), icon: '🎢', seconds: 44 });
     place('Seaside Coaster', cx, 22, cz, 240);
+  }
+  // Bumper Cars — a covered rink between the Skate Park and the beach; six cars bump around and you drive one
+  { const cx = 150, cz = 125, cy = h(cx, cz), R = 11;
+    g.add(at(cyl(R, R + 0.4, 0.4, 0x3a3a4a, 28), cx, cy + 0.2, cz)); keep(cx, cz, R + 4);
+    for (let k = 0; k < 20; k++) { const a = (k / 20) * Math.PI * 2; g.add(rot(at(box(3.6, 0.9, 0.45, k % 2 ? 0xd94a3d : 0xf2c31b), cx + Math.cos(a) * R, cy + 0.65, cz + Math.sin(a) * R), 'y', -a)); }   // the rail you bounce off
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2 + 0.4; g.add(at(cyl(0.16, 0.16, 6, 0x555555, 6), cx + Math.cos(a) * (R + 0.6), cy + 3, cz + Math.sin(a) * (R + 0.6))); }
+    g.add(at(cyl(R + 1.6, R + 1.6, 0.3, 0x2c3e6b, 28), cx, cy + 6.1, cz));                                  // the roof the poles reach up to
+    g.add(at(cyl(R + 1.2, R + 1.2, 0.08, 0x1a1a2a, 28), cx, cy + 5.9, cz));
+    for (let k = 0; k < 16; k++) { const a = (k / 16) * Math.PI * 2; g.add(at(glow(0.28, 0.28, 0.28, bulbs[k % 4]), cx + Math.cos(a) * (R + 1.4), cy + 6.35, cz + Math.sin(a) * (R + 1.4))); }
+    const rink = new THREE.Group(); rink.position.set(cx, cy + 0.4, cz);
+    for (let k = 0; k < 6; k++) {
+      const c = [0xd94a3d, 0x3fb7d9, 0xf2c31b, 0x2fa66a, 0xff7ab8, 0x6a3fb0][k], car = new THREE.Group();
+      car.name = `dodgem${k}`;
+      car.userData.a = (k / 6) * Math.PI * 2; car.userData.r = 4 + (k % 3) * 2; car.userData.w = (k % 2 ? 1 : -1) * (0.5 + k * 0.07);
+      rink.add(car);
+      car.add(at(cyl(1.5, 1.6, 0.35, 0x222222, 14), 0, 0.18, 0));                                           // rubber skirt
+      car.add(at(box(1.7, 0.5, 2.1, c), 0, 0.6, 0)); car.add(at(box(1.5, 0.5, 0.12, c), 0, 1.0, -0.85));    // tub + back rest
+      car.add(at(box(0.08, 2.9, 0.08, 0x777777), 0, 2.3, -0.7)); car.add(at(box(0.5, 0.12, 0.3, 0x777777), 0, 3.7, -0.7));   // the pole up to the roof
+      car.add(at(glow(0.2, 0.2, 0.2, c), 0, 3.9, -0.7));
+      car.add(rot(at(cyl(0.34, 0.34, 0.07, 0x333333, 10), 0, 0.95, 0.45), 'x', 1.1));                       // wheel
+      seat(car, `seat${k * 2}`, -0.34, 0.72, -0.1); seat(car, `seat${k * 2 + 1}`, 0.34, 0.72, -0.1);
+    }
+    ride(rink, { id: 'bumper', kind: 'bumper', label: 'Ride the Bumper Cars', x: cx + R + 2.5, z: cz, y: cy, icon: '🚗', seconds: 46 });
+    place('Bumper Cars', cx, 9, cz, 190);
+  }
+  // Sky Flyer — a swinging arm on the sand with a gondola that spins as it goes over
+  { const fx = 188, fz = 118, fy = h(fx, fz), TOP = 15;
+    for (const [ox, oz] of [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]] as const) g.add(bar(V(fx + ox, fy, fz + oz), V(fx, fy + TOP, fz), 0.3, 0x2c3e6b));
+    g.add(at(cyl(4.4, 4.8, 0.5, 0x555555, 16), fx, fy + 0.25, fz)); keep(fx, fz, 13);
+    g.add(rot(at(cyl(0.34, 0.34, 3.2, 0x333333, 10), fx, fy + TOP, fz), 'z', Math.PI / 2));
+    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; g.add(at(glow(0.26, 0.26, 0.26, bulbs[k % 4]), fx + Math.cos(a) * 4.5, fy + 0.7, fz + Math.sin(a) * 4.5)); }
+    const arm = new THREE.Group(); arm.position.set(fx, fy + TOP, fz);
+    for (const ox of [-1.1, 1.1]) arm.add(at(box(0.3, 9.4, 0.3, 0xeeeeee), ox, -4.7, 0));
+    const gondola = new THREE.Group(); gondola.name = 'gondola'; gondola.position.y = -9.6; arm.add(gondola);
+    gondola.add(at(cyl(2.6, 2.2, 0.4, 0xd94a3d, 16), 0, 0.2, 0)); gondola.add(at(cyl(0.6, 0.6, 1.4, 0x333333, 10), 0, 0.9, 0));
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, st = new THREE.Group(), c = bulbs[k % 4];
+      st.position.set(Math.cos(a) * 2.0, -0.1, Math.sin(a) * 2.0); st.rotation.y = Math.atan2(Math.cos(a), Math.sin(a)); gondola.add(st);   // feet out over the sea
+      st.add(at(box(0.8, 0.12, 0.7, c), 0, 0, 0)); st.add(at(box(0.8, 1.0, 0.12, c), 0, 0.5, -0.4));
+      st.add(at(box(0.7, 0.1, 0.12, 0x333333), 0, 0.45, 0.35));
+      seat(st, `seat${k}`, 0, 0.22, 0.02);
+    }
+    ride(arm, { id: 'flyer', kind: 'flyer', label: 'Ride the Sky Flyer', x: fx + 8, z: fz, y: fy, icon: '🎠', seconds: 44 });
+    place('Sky Flyer', fx, TOP + 5, fz, 200);
+  }
+  // Spooky Express — a little ghost train that winds between the gravestones behind the fairground
+  { const cx = 126, cz = 212, cy = h(cx, cz) + 1.5;
+    const ring: THREE.Vector3[] = [];
+    for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2, wob = 1 + Math.sin(a * 3) * 0.22; ring.push(V(cx + Math.cos(a) * 12 * wob, cy, cz + Math.sin(a) * 9 * wob)); }
+    const spine = new THREE.CatmullRomCurve3(ring, true, 'catmullrom', 0.5);
+    const track = new THREE.Group(), N = 120, side = new THREE.Vector3(), railL: THREE.Vector3[] = [], railR: THREE.Vector3[] = [];
+    for (let i = 0; i < N; i++) {
+      const pt = spine.getPointAt(i / N), tg = spine.getTangentAt(i / N);
+      side.copy(tg).cross(V(0, 1, 0)).normalize().multiplyScalar(0.55);
+      railL.push(pt.clone().add(side)); railR.push(pt.clone().sub(side));
+      if (i % 5 === 0) track.add(bar(pt.clone().add(side), pt.clone().sub(side), 0.07, 0x3a2418));
+      if (i % 10 === 0) { const gy = h(pt.x, pt.z); track.add(bar(V(pt.x, gy, pt.z), V(pt.x, pt.y - 0.2, pt.z), 0.14, 0x4a3a2a)); }
+    }
+    for (const r of [railL, railR]) track.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(r, true, 'catmullrom', 0.5), N, 0.09, 5, true), 0x6a3fb0));
+    track.traverse((o) => { o.userData.noCollide = true; }); g.add(track); keep(cx, cz, 18);
+    // the graveyard it winds through: stones, pumpkins, sheets on poles and two dead trees
+    for (let k = 0; k < 9; k++) {
+      const a = (k / 9) * Math.PI * 2 + 0.3, d = k % 2 ? 5 : 16, sx = cx + Math.cos(a) * d, sz = cz + Math.sin(a) * d * 0.8, sy = h(sx, sz);
+      g.add(rot(at(box(0.9, 1.5, 0.22, 0x8a8a8a), sx, sy + 0.75, sz), 'y', a));
+      g.add(rot(at(cyl(0.45, 0.45, 0.22, 0x8a8a8a, 10), sx, sy + 1.5, sz), 'x', Math.PI / 2));
+      if (k % 3 === 0) g.add(at(glow(0.55, 0.5, 0.55, 0xff8a2b), sx + 1.2, sy + 0.3, sz + 0.6));                                   // a lit pumpkin
+      if (k % 3 === 1) { g.add(at(cyl(0.06, 0.06, 2.4, 0x6b4a2a, 6), sx - 1.4, sy + 1.2, sz)); g.add(at(cone(0.7, 1.4, 0xf4f4f4, 8), sx - 1.4, sy + 2.2, sz)); }   // a sheet on a pole
+    }
+    for (const [ox, oz] of [[-15, -7], [15, 7]] as const) { const tx = cx + ox, tz = cz + oz, ty = h(tx, tz); g.add(at(cyl(0.3, 0.45, 5, 0x3a2a1a, 6), tx, ty + 2.5, tz)); for (const [bx, by, bz] of [[-1.6, 4.4, 0], [1.4, 5, 0.4], [0, 5.6, -1.2]] as const) g.add(rot(at(box(0.2, 2.4, 0.2, 0x3a2a1a), tx + bx, ty + by, tz + bz), 'z', bx * 0.35)); }
+    const sx2 = cx - 14.6, sz2 = cz;                                                                                              // the station and its arch
+    g.add(at(box(4.4, 0.4, 7, 0x3a2418), sx2 - 1.6, cy + 0.05, sz2)); keep(sx2, sz2, 7);
+    for (const oz of [-3.4, 3.4]) g.add(at(cyl(0.2, 0.2, 4.4, 0x2a2a3a, 6), sx2 + 0.4, cy + 2.2, sz2 + oz));
+    g.add(at(box(0.5, 0.6, 7.6, 0x2a2a3a), sx2 + 0.4, cy + 4.3, sz2));
+    g.add(at(glow(0.1, 1.1, 3.4, 0x9a4aff), sx2 + 0.4, cy + 3.5, sz2));
+    g.add(at(sph(0.5, 0xf4f4f4, 10), sx2 + 0.4, cy + 4.9, sz2));                                                                   // skull on the arch
+    const train = new THREE.Group();
+    train.userData.curve = spine; train.userData.len = spine.getLength(); train.userData.u = 0; train.userData.top = cy;
+    for (let k = 0; k < 2; k++) {
+      const c = k ? 0x6a3fb0 : 0x2a2a3a, car = new THREE.Group();
+      car.position.z = k * 2.4; train.add(car);
+      car.add(at(box(1.6, 0.8, 2.1, c), 0, 0.4, 0)); car.add(at(box(1.7, 0.4, 0.18, 0x1a1a1a), 0, 0.9, -1.0));
+      for (const ox of [-0.82, 0.82]) car.add(at(box(0.14, 0.5, 2.1, c), ox, 0.9, 0));
+      if (k) { car.add(at(sph(0.42, 0xf4f4f4, 10), 0, 1.25, 1.0)); car.add(at(glow(0.5, 0.18, 0.1, 0xff8a2b), 0, 1.0, 1.15)); }     // a skull and a lantern up front
+      seat(car, `seat${k * 2}`, -0.38, 0.62, 0.25); seat(car, `seat${k * 2 + 1}`, 0.38, 0.62, 0.25);
+    }
+    ride(train, { id: 'spooky', kind: 'coaster', label: 'Ride the Spooky Express', x: sx2 - 4.5, z: sz2 + 1, y: h(sx2 - 4.5, sz2 + 1), icon: '👻', seconds: 42, cam: 0.32 });
+    place('Spooky Express', cx, 9, cz, 200);
+  }
+  // ================= CITY POLICE STATION (east of downtown) =================
+  // Drive like an idiot and the patrol jeep comes for you; if you cannot pay the fine you spend it in this cell.
+  { const px = 58, pz = 18, py = h(px, pz);
+    g.add(at(box(20, 5.4, 12, 0xe8e2d4), px, py + 2.7, pz));
+    g.add(at(box(21, 0.7, 13, 0x2b6fd9), px, py + 5.6, pz));                                                   // blue band along the roof
+    g.add(at(box(6, 1.2, 0.4, 0x2b6fd9), px - 4, py + 6.4, pz + 6)); g.add(at(glow(5.4, 0.7, 0.12, 0x7ad7ff), px - 4, py + 6.4, pz + 6.25));   // POLICE sign
+    g.add(at(box(2.2, 3.2, 0.2, 0x3a2418), px - 4, py + 1.6, pz + 6.1));                                       // door
+    for (const ox of [-8.5, 1.5, 5.5]) g.add(at(box(2.6, 1.8, 0.15, glass), px + ox, py + 3.4, pz + 6.05));
+    g.add(at(cyl(0.12, 0.12, 8, 0xdddddd, 6), px - 9, py + 4, pz + 8)); g.add(at(box(2.4, 1.5, 0.08, 0xf2c31b), px - 7.8, py + 7.3, pz + 8));  // flag
+    g.add(at(box(14, 0.15, 7, 0x777777), px - 2, py + 0.08, pz + 10));                                         // the yard the jeep parks in
+    for (const ox of [-6, 0]) g.add(at(box(0.2, 0.05, 5.6, 0xffffff), px + ox, py + 0.17, pz + 10));
+    // the holding cell on the east end: three solid walls, bars across the front, a bench inside
+    const kx = px + 14.5, kz = pz;
+    g.add(at(box(0.5, 4.2, 9, 0xd8d2c4), kx + 3.4, py + 2.1, kz)); g.add(at(box(7.3, 4.2, 0.5, 0xd8d2c4), kx, py + 2.1, kz - 4.25)); g.add(at(box(7.3, 4.2, 0.5, 0xd8d2c4), kx, py + 2.1, kz + 4.25));
+    g.add(at(box(7.8, 0.4, 9.4, 0x9a9488), kx, py + 4.4, kz)); g.add(at(box(7.3, 0.2, 8.6, 0x6e6a60), kx, py + 0.1, kz));
+    for (let k = 0; k <= 9; k++) { const b = at(cyl(0.07, 0.07, 4.2, 0x555555, 6), kx - 3.5, py + 2.1, kz - 4 + k * 0.9); b.userData.noCollide = true; g.add(b); }
+    { const t = at(box(0.16, 0.16, 8.6, 0x555555), kx - 3.5, py + 4.05, kz); t.userData.noCollide = true; g.add(t); }
+    g.add(at(box(2.6, 0.12, 0.7, 0x8a5a2b), kx + 2.2, py + 0.7, kz - 2)); for (const oz of [-2.6, -1.4]) g.add(at(box(0.12, 0.6, 0.6, 0x555555), kx + 2.2, py + 0.4, kz + oz));   // bench
+    g.add(at(cyl(0.35, 0.3, 0.5, 0x777777, 10), kx + 2.6, py + 0.35, kz + 3));
+    keep(px, pz, 24);
+    shop('Police Station', px, 7.4, pz);
+    place('City Police Station', px, 11, pz, 220);
+    g.userData.police = { x: px, z: pz, y: py, cell: { x: kx, z: kz, r: 2.9 }, gate: { x: px - 4, z: pz + 9.5 } };
   }
   // the date boat, moored at the marina; it is moved by the world during a ride
   { const b = new THREE.Group(); b.name = 'dateboat'; b.userData.animated = true; b.position.set(406, 0.3, -152);

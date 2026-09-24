@@ -594,20 +594,21 @@ body.indoors .hud .bottom-left, body.indoors .hints { display: none !important; 
 @media (max-width: 720px) { .skyline { padding: 0 24vw 0 5vw; } .wheel { right: 3vw; } }
 
 /* ---- table games: aim / striker / power panel, Exit button ---- */
-.hud .tablectl { position: absolute; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(440px, 94vw); background: rgba(12, 12, 22, .78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; color: #fff; pointer-events: auto; z-index: 6; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.hud .tablectl { position: absolute; left: 50%; bottom: calc(8px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(440px, 94vw); background: rgba(12, 12, 22, .78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.12); border-radius: 18px; padding: 6px 14px 7px; display: flex; flex-direction: column; gap: 4px; color: #fff; pointer-events: auto; z-index: 6; box-shadow: 0 12px 40px rgba(0,0,0,.4); }
 .tablectl .trow { display: flex; align-items: center; gap: 10px; margin: 0; }
 .tablectl .trow > span { width: 56px; flex: none; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.7); }
 .tablectl .trow > small { margin-left: auto; font-size: 11px; color: rgba(255,255,255,.45); }
-.tablectl input[type=range] { flex: 1; min-width: 0; accent-color: #f2c31b; height: 30px; margin: 0; touch-action: none; }
+.tablectl input[type=range] { flex: 1; min-width: 0; accent-color: #f2c31b; height: 24px; margin: 0; touch-action: none; }
 .tablectl b { width: 42px; flex: none; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
-.tbtn { width: 52px; height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.12); color: #fff; font-size: 18px; cursor: pointer; touch-action: none; user-select: none; font-family: inherit; }
+.tbtn { width: 46px; height: 28px; border-radius: 9px; border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.12); color: #fff; font-size: 15px; cursor: pointer; touch-action: none; user-select: none; font-family: inherit; }
 .tbtn:active { background: #f2c31b; color: #111; }
-.tablectl .btns { justify-content: center; gap: 18px; padding-top: 4px; }
-.tablectl .act { width: 66px; height: 66px; }
+.tablectl .btns { justify-content: center; gap: 12px; padding-top: 0; }
+.tablectl .act { width: 46px; height: 46px; font-size: 17px; }
+.tablectl .act small { font-size: 7px; }
 .act.exit { background: rgba(217, 74, 61, .85); border-color: rgba(255,255,255,.5); }
 .act.exit:active { background: #ff6b5c; color: #fff; }
 body.tablemode .hud .actions, body.tablemode .hud .bottom-right, body.tablemode .hud .zoom, body.tablemode .hud .bubble { display: none !important; }
-@media (max-width: 720px) { .hud .tablectl { padding: 8px 12px 10px; gap: 6px; border-radius: 16px; } .tablectl .act { width: 58px; height: 58px; } .tablectl .trow > small { display: none; } }
+@media (max-width: 720px) { .hud .tablectl { padding: 5px 12px 6px; gap: 3px; border-radius: 16px; } .tablectl .act { width: 42px; height: 42px; } .tablectl .trow > small { display: none; } }
 
 /* ---- match scoreboard inside the task card (cricket, football) ---- */
 body.inmode .labels .tag.me { display: none !important; }
@@ -693,15 +694,15 @@ body.tablemode .stick { display: none !important; }   /* no joystick ghost behin
 /* ---- table games: no task card, a tighter control panel on phones ---- */
 body.tablemode .hud .quest { display: none !important; }
 @media (max-width: 720px) {
-  .hud .tablectl { width: min(330px, 92vw); padding: 6px 10px 8px; gap: 4px; border-radius: 14px; }
+  .hud .tablectl { width: min(330px, 92vw); padding: 5px 10px 6px; gap: 3px; border-radius: 14px; }
   .tablectl .trow { gap: 8px; }
   .tablectl .trow > span { width: 46px; font-size: 10px; }
-  .tbtn { width: 44px; height: 34px; font-size: 15px; border-radius: 10px; }
-  .tablectl input[type=range] { height: 24px; }
+  .tbtn { width: 40px; height: 28px; font-size: 14px; border-radius: 9px; }
+  .tablectl input[type=range] { height: 20px; }
   .tablectl b { font-size: 12px; width: 36px; }
-  .tablectl .btns { gap: 14px; padding-top: 2px; }
-  .tablectl .act { width: 50px; height: 50px; font-size: 18px; }
-  .tablectl .act small { font-size: 7px; }
+  .tablectl .btns { gap: 10px; padding-top: 0; }
+  .tablectl .act { width: 40px; height: 40px; font-size: 15px; }
+  .tablectl .act small { font-size: 6px; }
 }
 
 .chip.big .coins { margin-left: 10px; padding-left: 10px; border-left: 1px solid rgba(255,255,255,.25); color: #ffe08a; font-weight: 700; }
@@ -722,27 +723,27 @@ body.nostick .stick { display: none !important; }
   .bowlctl .seg button { font-size: 11px; padding: 7px 2px; }
 }
 
-.tablectl .tstatus { font-size: 12px; font-weight: 600; color: #ffe08a; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 16px; }
+.tablectl .tstatus { font-size: 11px; font-weight: 600; color: #ffe08a; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 13px; line-height: 1.2; }
 @media (max-width: 720px) { .tablectl .tstatus { font-size: 11px; } }
 /* the table-game scoreboard: who is winning, right from the first shot */
 .tablectl .tboard { display: flex; align-items: center; gap: 6px; }
-.tablectl .tbside { flex: 1; min-width: 0; text-align: center; padding: 5px 4px; border-radius: 10px; background: rgba(255,255,255,.06); }
-.tablectl .tbside small { display: block; letter-spacing: .1em; font-size: 9px; text-transform: uppercase; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tablectl .tbside b { display: block; font-size: 20px; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--gold); }
-.tablectl .tbside span { display: block; font-size: 10px; color: rgba(255,255,255,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tablectl .tbclock { flex: none; min-width: 44px; text-align: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe08a; background: rgba(255,255,255,.08); border-radius: 10px; padding: 4px 6px; }
+.tablectl .tbside { flex: 1; min-width: 0; text-align: center; padding: 2px 4px; border-radius: 9px; background: rgba(255,255,255,.06); }
+.tablectl .tbside small { display: block; letter-spacing: .1em; font-size: 8px; text-transform: uppercase; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tablectl .tbside b { display: block; font-size: 15px; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--gold); }
+.tablectl .tbside span { display: block; font-size: 9px; color: rgba(255,255,255,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tablectl .tbclock { flex: none; min-width: 40px; text-align: center; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe08a; background: rgba(255,255,255,.08); border-radius: 9px; padding: 3px 5px; }
 /* the aim-direction arrow between the two turn buttons: a plain visual read of which way you are pointed */
 .taimdir { display: inline-flex; align-items: center; justify-content: center; width: 26px; font-size: 16px; transition: transform .05s linear; }
 /* quick power presets sitting right under the slider they set */
-.tablectl .presets { justify-content: center; gap: 6px; }
-.tablectl .presets button { flex: 1; max-width: 90px; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: 11px; font-weight: 600; padding: 6px 0; cursor: pointer; touch-action: none; }
+.tablectl .presets { justify-content: center; gap: 6px; margin-top: -2px; }
+.tablectl .presets button { flex: 1; max-width: 90px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: 10px; font-weight: 600; padding: 2px 0; cursor: pointer; touch-action: none; }
 .tablectl .presets button:active { background: #f2c31b; color: #111; }
 @media (max-width: 720px) {
-  .tablectl .tbside b { font-size: 16px; }
+  .tablectl .tbside b { font-size: 13px; }
   .tablectl .tbside span { display: none; }
-  .tablectl .tbclock { font-size: 11px; min-width: 36px; }
-  .taimdir { width: 20px; font-size: 13px; }
-  .tablectl .presets button { font-size: 10px; padding: 5px 0; }
+  .tablectl .tbclock { font-size: 10px; min-width: 32px; padding: 2px 4px; }
+  .taimdir { width: 18px; font-size: 12px; }
+  .tablectl .presets button { font-size: 9px; padding: 2px 0; }
 }
 
 .meet .mrow.games a.gamelink { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }

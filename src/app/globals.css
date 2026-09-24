@@ -655,9 +655,17 @@ body.inmode .labels .tag.me { display: none !important; }
 .bowlctl .seg button { flex: 1; border: 0; border-radius: 9px; padding: 8px 4px; background: transparent; color: #fff; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; touch-action: none; user-select: none; white-space: nowrap; }
 .bowlctl .seg button.on { background: var(--gold); color: var(--ink); }
 .bowlctl > small { text-align: center; font-size: 11px; color: rgba(255,255,255,.55); }
+/* the shot picker: one compact row of icon buttons, far smaller than the bowling panel — desktop only, see below */
+.hud .shotctl { position: absolute; left: 50%; bottom: calc(112px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: auto; z-index: 6; }
+.shotctl .shotrow { display: flex; gap: 3px; background: rgba(12, 12, 22, .78); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 4px; }
+.shotctl .shotrow button { width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #fff; font-size: 15px; line-height: 1; cursor: pointer; touch-action: none; user-select: none; }
+.shotctl .shotrow button.on { background: var(--gold); color: var(--ink); }
+.shotctl > small { font-size: 10px; color: rgba(255,255,255,.7); background: rgba(12,12,22,.6); padding: 2px 8px; border-radius: 8px; }
 .chip.zombie { cursor: default; }
 .chip.zombie:hover { background: rgba(70, 110, 60, .85); }
 @media (max-width: 720px) { .hud .bowlctl { bottom: calc(180px + env(safe-area-inset-bottom)); width: min(340px, 94vw); padding: 8px 10px; gap: 6px; } .bowlctl .seg button { font-size: 11px; padding: 7px 2px; } .bowlctl > small { display: none; } }
+/* the shot picker is a desktop refinement — phones keep pure timing-based batting, one thing less to manage on a small screen */
+@media (max-width: 720px) { .hud .shotctl { display: none !important; } }
 
 /* ---- ad units on the content pages ---- */
 .adbox { max-width: 760px; margin: 0 0 34px; padding: 10px 0 4px; border-top: 1px solid rgba(0,0,0,.08); border-bottom: 1px solid rgba(0,0,0,.08); }

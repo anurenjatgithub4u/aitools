@@ -1735,7 +1735,17 @@ export class World {
     // --- world labels + metro train
     const wp = new THREE.Vector3();
     const lr = this.mobile ? 0.5 : 1;
-    for (const l of this.worldLabels) l.visible = l.getWorldPosition(wp).distanceToSquared(focus) < ((l.userData.range as number) * lr) ** 2;
+    // Only the nearest few of each kind of label show at once — a cluster of rides or shops never turns into a wall
+    // of white pills; the ones further off just wait their turn as you get closer and something else drops out.
+    const placeCap = this.mobile ? 3 : 4, shopCap = this.mobile ? 2 : 3;
+    const places: { l: CSS2DObject; d2: number }[] = [], shops: { l: CSS2DObject; d2: number }[] = [];
+    for (const l of this.worldLabels) {
+      const d2 = l.getWorldPosition(wp).distanceToSquared(focus);
+      l.visible = false;
+      if (d2 < ((l.userData.range as number) * lr) ** 2) ((l.element as HTMLElement).className === 'shop' ? shops : places).push({ l, d2 });
+    }
+    places.sort((a, b) => a.d2 - b.d2); for (const c of places.slice(0, placeCap)) c.l.visible = true;
+    shops.sort((a, b) => a.d2 - b.d2); for (const c of shops.slice(0, shopCap)) c.l.visible = true;
     if (this.train) {
       const tr = this.train;
       if (tr.pause > 0) tr.pause -= dt;

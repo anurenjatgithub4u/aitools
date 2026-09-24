@@ -37,8 +37,10 @@ export interface WorldEvents {
   onHearts(): void;
   onPick(p: { title: string; sub?: string; options: string[] } | null, choose?: (i: number) => void): void;
   onMode(action: { icon: string; label: string; button?: boolean; arrows?: boolean; pace?: boolean; table?: 'pool' | 'carrom'; run?: boolean; stick?: boolean } | null): void;
-  onTable(power: number, pos: number | null): void;
+  onTable(power: number, pos: number | null, dir?: number): void;
   onTableStatus(text: string): void;
+  onTableScore(a: { name: string; score: string; sub: string } | null, b: { name: string; score: string; sub: string } | null): void;   // pool / carrom scoreboard
+  onShotClock(text: string | null): void;   // the optional shot-clock countdown while it is your turn
   onBowl(s: { pace: number; line: number } | null): void;   // pre-ball picker while you bowl
   onShot(s: { shot: number; name: string; hint: string } | null): void;   // the shot picker while you bat (desktop only)
   onWanted(text: string | null): void;   // the police chip: heat, the chase, the cell
@@ -159,10 +161,10 @@ function dressZombie(av: Avatar, look: ZombieLook, head: THREE.Object3D | null) 
 interface Spot { id: string; kind: string; label: string; x: number; z: number; y: number; ry: number; seats: [number, number][]; face?: boolean }
 // The Neon Palace: dance floor, lasers and two real pool tables.
 interface Casino { x: number; z: number; w: number; d: number; floor: { x: number; z: number; w: number; d: number }; tables: { x: number; z: number; ry: number; y: number }[]; carrom: { x: number; z: number; y: number }[] }
-interface CarromState { game: CarromGame; board: { x: number; z: number; y: number }; opp: Bot; coins: THREE.Mesh[]; strikerMesh: THREE.Mesh; aimLine: THREE.Mesh; phase: 'slide' | 'aim' | 'power'; aim: number; power: number; over: boolean; endAt: number; status: string; botAim: { until: number } | null; lastHud: number }
+interface CarromState { game: CarromGame; board: { x: number; z: number; y: number }; opp: Bot; coins: THREE.Mesh[]; strikerMesh: THREE.Mesh; aimLine: THREE.Mesh; phase: 'slide' | 'aim' | 'power'; aim: number; power: number; over: boolean; endAt: number; status: string; botAim: { until: number } | null; lastHud: number; camView: number; shotClock: number; deadline: number }
 const CARROM_SCALE = 1.0 / CARROM.W;   // board units → metres (a 1 m board)
 interface Dancer { av: Avatar; phase: number; style: number }
-interface PoolState { game: PoolGame; table: Casino['tables'][number]; opp: Bot; meshes: THREE.Mesh[]; cueStick: THREE.Mesh; aimLine: THREE.Mesh; aim: number; power: number; charging: boolean; status: string; over: boolean; endAt: number; botAim: { angle: number; until: number } | null; lastHud: number }
+interface PoolState { game: PoolGame; table: Casino['tables'][number]; opp: Bot; meshes: THREE.Mesh[]; cueStick: THREE.Mesh; aimLine: THREE.Mesh; aim: number; power: number; charging: boolean; status: string; over: boolean; endAt: number; botAim: { angle: number; until: number } | null; lastHud: number; camView: number; shotClock: number; deadline: number }
 const POOL_SCALE = 2.9 / POOL.W;   // table units → metres
 interface DateState { spot: Spot; partner: Bot | null; t0: number; nextLine: number; gondola: THREE.Object3D | null; boatA: number; rewarded: boolean; giftAt: number }
 const GIFTS: { e: string; n: string }[] = [{ e: '🌹', n: 'Rose' }, { e: '🍦', n: 'Ice cream' }, { e: '☕', n: 'Chai' }, { e: '🧸', n: 'Teddy' }, { e: '🍫', n: 'Chocolate' }, { e: '💌', n: 'Love note' }];
@@ -2214,6 +2216,17 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   /** Table games: power and striker position come straight from the sliders (or W/S, Q/E). */
   setPower(v: number) { v = Math.max(0.05, Math.min(1, v)); if (this.pool) this.pool.power = v; if (this.carrom) this.carrom.power = v; }
   setPos(v: number) { const g = this.carrom?.game; if (!g || g.turn !== 'you' || g.moving) return; g.striker.x = CARROM.MIN_X + Math.max(0, Math.min(1, v)) * (CARROM.MAX_X - CARROM.MIN_X); }
+  /** Cycle to the next camera angle on whichever table game is on — a few fixed views per game, no free camera. */
+  cycleTableCam() {
+    if (this.pool) this.pool.camView = (this.pool.camView + 1) % 3;
+    else if (this.carrom) this.carrom.camView = (this.carrom.camView + 1) % 3;
+  }
+  private poolCamView(i: number): [number, number] {
+    return [[this.mobile ? 1.35 : 1.1, this.mobile ? 5.6 : 5], [0.55, 3.2], [1.48, this.mobile ? 7.5 : 7]][i] as [number, number];
+  }
+  private carromCamView(i: number): [number, number] {
+    return [[1.5, this.mobile ? 2.3 : 1.8], [1.05, this.mobile ? 2.7 : 2.15], [1.5, this.mobile ? 1.6 : 1.3]][i] as [number, number];
+  }
   /** Straight from the profile screen into a game: go there and start it. */
   quickStart(kind: string) {
     const tp = (x: number, z: number) => { if (this.driving) this.exitVehicle(); this.player.group.position.set(x, this.groundAt(x, z, this.terrain.h(x, z)), z); this.airY = 0; this.vy = 0; };
@@ -3142,8 +3155,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     return out.set(tb.x + u * c - v * s, tb.y + POOL.R * POOL_SCALE, tb.z + u * s + v * c);
   }
 
-  startPool(table: Casino['tables'][number], oppBot?: Bot) {
+  startPool(table: Casino['tables'][number], oppBot?: Bot, shotClock?: number) {
     if (this.pool || this.inMode()) return;
+    if (shotClock === undefined) { this.ev.onPick({ title: 'Shot clock?', sub: 'Run out of time on your turn and you play whatever shot you had lined up.', options: ['No timer', '30s a shot', '15s a shot'] }, (i) => this.startPool(table, oppBot, [0, 30, 15][i])); return; }
     if (this.driving) this.exitVehicle();
     if (this.date) this.endDate(); if (this.dancing) this.stopDancing();
     const opp = oppBot ?? this.datePartner() ?? this.bots.filter((b) => !b.remote && !b.riding && !b.knocked && !b.playing).sort((a, b) => a.av.group.position.distanceTo(this.player.group.position) - b.av.group.position.distanceTo(this.player.group.position))[0];
@@ -3171,10 +3185,10 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     }
     const cueStick = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 1.45, 8), new THREE.MeshStandardMaterial({ color: 0xc9a86a, roughness: 0.6 })); cueStick.geometry.translate(0, 0.72, 0); cueStick.rotation.x = Math.PI / 2; this.scene.add(cueStick);
     const aimLine = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.004, 1.2), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.8, transparent: true, opacity: 0.7 })); aimLine.geometry.translate(0, 0, 0.6); this.scene.add(aimLine);
-    this.pool = { game, table, opp, meshes, cueStick, aimLine, aim: 0, power: 0.6, charging: false, status: 'Your shot', over: false, endAt: 0, botAim: null, lastHud: 0 };
+    this.pool = { game, table, opp, meshes, cueStick, aimLine, aim: 0, power: 0.6, charging: false, status: 'Your shot', over: false, endAt: 0, botAim: null, lastHud: 0, camView: 0, shotClock: shotClock ?? 0, deadline: 0 };
     this.clearQuest(); this.questCooldown = 30;
     this.ev.onMode({ icon: '🎱', label: 'Shoot', arrows: true, table: 'pool' });
-    this.ev.onTable(0.6, null);
+    this.ev.onTable(0.6, null, 0);
     this.ev.onCollect({ name: `8-ball vs ${opp.name} · ◀ ▶ aim, set the power, Shoot`, points: 0, color: 0xff4fd8, shape: 'gem' });
     this.botSays(opp, 'Your break. Do not scratch 😏', 1.2);
     this.sfx.questStart();
@@ -3191,14 +3205,20 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   private tickPool(dt: number, t: number) {
     const ps = this.pool!, g = ps.game, tb = ps.table;
-    this.yaw = 0; this.pitch = this.mobile ? 1.35 : 1.1; this.dist = this.mobile ? 5.6 : 5;   // fixed high camera while the game is on
+    this.yaw = 0; [this.pitch, this.dist] = this.poolCamView(ps.camView);   // a few fixed camera angles while the game is on
     if (ps.over && t > ps.endAt) { this.endPool(); return; }
     g.step();
     // aim with ◀ ▶ (or A/D); power meter bounces while charging
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
-    if (g.turn === 'you' && !g.moving) ps.aim += held * dt * (this.keys.has('shift') ? 0.35 : 1.1);
+    const yourTurn = g.turn === 'you' && !g.moving;
+    if (yourTurn) ps.aim += held * dt * (this.keys.has('shift') ? 0.35 : 1.1);
     const pw = (this.keys.has('w') || this.keys.has('arrowup') ? 1 : 0) - (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0);
-    if (pw) { this.setPower(ps.power + pw * dt * 0.6); this.ev.onTable(ps.power, null); }
+    if (pw) this.setPower(ps.power + pw * dt * 0.6);
+    if (yourTurn) this.ev.onTable(ps.power, null, ps.aim);   // keeps the aim-direction arrow live as you steer, not just when power changes
+    // the optional shot clock: run out on your turn and whatever shot you had lined up goes
+    const clockOn = ps.shotClock > 0 && yourTurn;
+    if (clockOn) { if (ps.deadline === 0) ps.deadline = t + ps.shotClock; else if (t >= ps.deadline) { ps.deadline = 0; this.poolButton(); } } else ps.deadline = 0;
+    this.ev.onShotClock(clockOn ? `⏱ ${Math.max(0, Math.ceil(ps.deadline - t))}s` : null);
     // balls
     const v = new THREE.Vector3();
     for (const b of g.balls) { const m = ps.meshes[b.n]; if (!m) continue; m.visible = !b.in; if (!b.in) { this.tablePos(tb, b.x, b.y, v); m.position.copy(v); m.rotation.x += b.vy * POOL_SCALE * 0.5; m.rotation.z -= b.vx * POOL_SCALE * 0.5; } }
@@ -3220,7 +3240,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (t - ps.lastHud > 0.15) {
       ps.lastHud = t;
       const you = g.groups.you ? `${g.groupName('you')} · ${g.remaining('you')} left` : 'open table', them = g.groups.you ? `${g.groupName('bot')} · ${g.remaining('bot')} left` : 'open table';
-      this.ev.onTableStatus(ps.over ? ps.status : g.turn === 'you' ? (g.moving ? 'Balls rolling…' : g.ballInHand ? 'Ball in hand · Shoot places the cue ball' : `Your shot · you: ${you} · ${ps.opp.name}: ${them}`) : `${ps.opp.name}'s shot · ${ps.status}`);
+      const potted = (who: 'you' | 'bot') => g.groups.you === null ? '—' : `${7 - g.remaining(who)}/7`;
+      this.ev.onTableScore({ name: 'You', score: potted('you'), sub: g.groupName('you') }, { name: ps.opp.name, score: potted('bot'), sub: g.groupName('bot') });
+      this.ev.onTableStatus(ps.over ? ps.status : g.turn === 'you' ? (g.moving ? 'Balls rolling…' : g.ballInHand ? 'Ball in hand · Shoot places the cue ball' : 'Your shot') : `${ps.opp.name}'s shot · ${ps.status}`);
       this.ev.onQuest({ status: ps.over ? (ps.status.startsWith('You sank the 8-ball to win') || (ps.status.includes(ps.opp.name) && ps.status.includes('too early')) ? 'done' : 'failed') : 'active', title: `🎱 You (${you}) vs ${ps.opp.name} (${them})`, desc: ps.over ? ps.status : g.turn === 'you' ? (g.moving ? 'Balls rolling…' : g.ballInHand ? 'Ball in hand · Shoot places the cue ball' : `${this.mobile ? '◀ ▶' : '◀ ▶ / A D'} to aim${this.mobile ? '' : ' (Shift = fine) · W S power'} · Shoot to strike`) : ps.status, progress: g.turn === 'you' ? `Power ${Math.round(ps.power * 100)}%` : `${ps.opp.name}'s shot`, remaining: 1, total: 1, reward: 250, hint: null, fill: g.turn === 'you' ? ps.power : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
     }
   }
@@ -3235,7 +3257,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     ps.opp.playing = false; ps.opp.wait = 2; ps.opp.av.body.rotation.set(0, 0, 0); ps.opp.av.armL.rotation.set(0, 0, 0); ps.opp.av.armR.rotation.set(0, 0, 0); if (this.hangout?.bot !== ps.opp) ps.opp.target = this.wanderFrom(ps.opp.av.group.position);
     this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0);
     this.pitch = 0.3; this.dist = 10; this.camDist = 10;
-    this.ev.onMode(null); this.ev.onQuest(null);
+    this.ev.onMode(null); this.ev.onQuest(null); this.ev.onTableScore(null, null); this.ev.onShotClock(null);
     this.questCooldown = 10;
   }
 
@@ -3250,8 +3272,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     return out.set(b.x + (x - CARROM.W / 2) * CARROM_SCALE, b.y + 0.012, b.z + (y - CARROM.W / 2) * CARROM_SCALE);
   }
 
-  startCarrom(board: Casino['carrom'][number], oppBot?: Bot) {
+  startCarrom(board: Casino['carrom'][number], oppBot?: Bot, shotClock?: number) {
     if (this.carrom || this.inMode()) return;
+    if (shotClock === undefined) { this.ev.onPick({ title: 'Shot clock?', sub: 'Run out of time on your turn and you flick whatever you had lined up.', options: ['No timer', '30s a turn', '15s a turn'] }, (i) => this.startCarrom(board, oppBot, [0, 30, 15][i])); return; }
     if (this.driving) this.exitVehicle();
     if (this.date) this.endDate(); if (this.dancing) this.stopDancing();
     const opp = oppBot ?? this.datePartner() ?? this.bots.filter((b) => !b.remote && !b.riding && !b.knocked && !b.playing).sort((a, b) => a.av.group.position.distanceTo(this.player.group.position) - b.av.group.position.distanceTo(this.player.group.position))[0];
@@ -3267,7 +3290,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const coins: THREE.Mesh[] = [];
     const game = createCarrom(opp.name, {
       status: (text) => { if (this.carrom) this.carrom.status = text; },
-      turn: (who) => { const cs = this.carrom; if (cs && who === 'you') { cs.aim = -Math.PI / 2; this.ev.onTable(cs.power, (cs.game.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X)); } },
+      turn: (who) => { const cs = this.carrom; if (cs && who === 'you') { cs.aim = -Math.PI / 2; this.ev.onTable(cs.power, (cs.game.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X), cs.aim); } },
       finish: (win, why) => { const cs = this.carrom; if (!cs) return; cs.over = true; cs.endAt = this.elapsed + 5; cs.status = why; this.gameResult('carrom', win, opp.name); },
       potted: () => this.sfx.click(),
       botAim: () => { if (this.carrom) this.carrom.botAim = { until: this.elapsed + 0.6 }; if (Math.random() < 0.3) this.botSays(opp, POOL_TALK[Math.floor(Math.random() * POOL_TALK.length)], 0); },
@@ -3276,10 +3299,10 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     game.coins.forEach((k, i) => { coins[i] = disc(CARROM.R * CARROM_SCALE, k.kind === 'w' ? 0xfdf5e0 : k.kind === 'b' ? 0x2a2a2a : 0xe04a3a); });
     const strikerMesh = disc(CARROM.RS * CARROM_SCALE, 0x5fd0ee);
     const aimLine = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.003, 0.5), new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0x111111, transparent: true, opacity: 0.8 })); aimLine.geometry.translate(0, 0, 0.25); this.scene.add(aimLine);
-    this.carrom = { game, board, opp, coins, strikerMesh, aimLine, phase: 'aim', aim: -Math.PI / 2, power: 0.6, over: false, endAt: 0, status: 'Your turn.', botAim: null, lastHud: 0 };
+    this.carrom = { game, board, opp, coins, strikerMesh, aimLine, phase: 'aim', aim: -Math.PI / 2, power: 0.6, over: false, endAt: 0, status: 'Your turn.', botAim: null, lastHud: 0, camView: 0, shotClock: shotClock ?? 0, deadline: 0 };
     this.clearQuest(); this.questCooldown = 30;
     this.ev.onMode({ icon: '🎯', label: 'Flick', arrows: true, table: 'carrom' });
-    this.ev.onTable(0.6, (game.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X));
+    this.ev.onTable(0.6, (game.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X), -Math.PI / 2);
     this.ev.onCollect({ name: `Carrom vs ${opp.name} · slide the striker, ◀ ▶ aim, set the power, Flick`, points: 0, color: 0xf2c31b, shape: 'gem' });
     this.botSays(opp, 'White is yours. Queen is mine 😉', 1.2);
     this.sfx.questStart();
@@ -3295,17 +3318,22 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
 
   private tickCarrom(dt: number, t: number) {
     const cs = this.carrom!, g = cs.game, b = cs.board;
-    this.yaw = 0; this.pitch = 1.5; this.dist = this.mobile ? 2.3 : 1.8;   // fixed top-down camera while the game is on
+    this.yaw = 0; [this.pitch, this.dist] = this.carromCamView(cs.camView);   // a few fixed camera angles while the game is on
     if (cs.over && t > cs.endAt) { this.endCarrom(); return; }
     g.step();
     const held = this.batDir || (this.keys.has('d') || this.keys.has('arrowright') ? 1 : 0) - (this.keys.has('a') || this.keys.has('arrowleft') ? 1 : 0);
-    if (g.turn === 'you' && !g.moving) {
+    const yourTurn = g.turn === 'you' && !g.moving;
+    if (yourTurn) {
       cs.aim += held * dt * (this.keys.has('shift') ? 0.3 : 0.9);
       const slide = (this.keys.has('e') ? 1 : 0) - (this.keys.has('q') ? 1 : 0), pw = (this.keys.has('w') || this.keys.has('arrowup') ? 1 : 0) - (this.keys.has('s') || this.keys.has('arrowdown') ? 1 : 0);
       if (slide) g.striker.x = Math.max(CARROM.MIN_X, Math.min(CARROM.MAX_X, g.striker.x + slide * dt * 180));
       if (pw) this.setPower(cs.power + pw * dt * 0.6);
-      if (slide || pw) this.ev.onTable(cs.power, (g.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X));
+      this.ev.onTable(cs.power, (g.striker.x - CARROM.MIN_X) / (CARROM.MAX_X - CARROM.MIN_X), cs.aim);   // keeps the aim arrow and striker slider live every frame, not just on a change
     }
+    // the optional shot clock: run out on your turn and whatever you had lined up gets flicked
+    const clockOn = cs.shotClock > 0 && yourTurn;
+    if (clockOn) { if (cs.deadline === 0) cs.deadline = t + cs.shotClock; else if (t >= cs.deadline) { cs.deadline = 0; this.carromButton(); } } else cs.deadline = 0;
+    this.ev.onShotClock(clockOn ? `⏱ ${Math.max(0, Math.ceil(cs.deadline - t))}s` : null);
     const v = new THREE.Vector3();
     g.coins.forEach((k, i) => { const m = cs.coins[i]; m.visible = !k.in; if (!k.in) m.position.copy(this.boardPos(b, k.x, k.y, v)); });
     cs.strikerMesh.visible = !g.striker.in; if (!g.striker.in) cs.strikerMesh.position.copy(this.boardPos(b, g.striker.x, g.striker.y, v));
@@ -3318,7 +3346,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       cs.lastHud = t;
       const you = `${g.potted.you} / 9 white${g.queen === 'you' ? ' + queen' : ''}`, them = `${g.potted.bot} / 9 black${g.queen === 'bot' ? ' + queen' : ''}`;
       const step = this.mobile ? 'Striker slider · ◀ ▶ aim · Power slider · Flick' : 'Q E striker · ◀ ▶ / A D aim (Shift = fine) · W S power · Flick';
-      this.ev.onTableStatus(cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : `Your turn · ⚪ ${9 - g.potted.you} left · ⚫ ${9 - g.potted.bot} left${g.queen ? ` · 👑 ${g.queen === 'you' ? 'yours' : 'theirs'}` : ''}`) : `${cs.opp.name}'s turn · ${cs.status}`);
+      this.ev.onTableScore({ name: 'You', score: `${g.potted.you}/9`, sub: g.queen === 'you' ? 'white + queen' : 'white' }, { name: cs.opp.name, score: `${g.potted.bot}/9`, sub: g.queen === 'bot' ? 'black + queen' : 'black' });
+      this.ev.onTableStatus(cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : 'Your turn') : `${cs.opp.name}'s turn · ${cs.status}`);
       this.ev.onQuest({ status: cs.over ? (cs.status.startsWith('All nine') ? 'done' : 'failed') : 'active', title: `🎯 You ${you} · ${cs.opp.name} ${them}`, desc: cs.over ? cs.status : g.turn === 'you' ? (g.moving ? 'Coins rolling…' : step) : cs.status, progress: g.turn === 'you' ? `Power ${Math.round(cs.power * 100)}%` : `${cs.opp.name}'s turn`, remaining: 1, total: 1, reward: 200, hint: null, fill: g.turn === 'you' ? cs.power : 0, timeText: g.turn === 'you' ? '🫵' : '⏳' });
     }
   }
@@ -3334,7 +3363,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.player.armL.rotation.set(0, 0, 0); this.player.armR.rotation.set(0, 0, 0); this.player.body.rotation.set(0, 0, 0); this.player.legL.rotation.x = this.player.legR.rotation.x = 0;
     const p = this.player.group.position; p.set(cs.board.x + 1.6, this.terrain.h(cs.board.x + 1.6, cs.board.z + 1.2), cs.board.z + 1.2);
     this.pitch = 0.3; this.dist = 10; this.camDist = 10;
-    this.ev.onMode(null); this.ev.onQuest(null);
+    this.ev.onMode(null); this.ev.onQuest(null); this.ev.onTableScore(null, null); this.ev.onShotClock(null);
     this.questCooldown = 10;
   }
 

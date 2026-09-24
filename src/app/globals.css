@@ -724,6 +724,26 @@ body.nostick .stick { display: none !important; }
 
 .tablectl .tstatus { font-size: 12px; font-weight: 600; color: #ffe08a; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 16px; }
 @media (max-width: 720px) { .tablectl .tstatus { font-size: 11px; } }
+/* the table-game scoreboard: who is winning, right from the first shot */
+.tablectl .tboard { display: flex; align-items: center; gap: 6px; }
+.tablectl .tbside { flex: 1; min-width: 0; text-align: center; padding: 5px 4px; border-radius: 10px; background: rgba(255,255,255,.06); }
+.tablectl .tbside small { display: block; letter-spacing: .1em; font-size: 9px; text-transform: uppercase; color: rgba(255,255,255,.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tablectl .tbside b { display: block; font-size: 20px; line-height: 1.15; font-variant-numeric: tabular-nums; color: var(--gold); }
+.tablectl .tbside span { display: block; font-size: 10px; color: rgba(255,255,255,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tablectl .tbclock { flex: none; min-width: 44px; text-align: center; font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffe08a; background: rgba(255,255,255,.08); border-radius: 10px; padding: 4px 6px; }
+/* the aim-direction arrow between the two turn buttons: a plain visual read of which way you are pointed */
+.taimdir { display: inline-flex; align-items: center; justify-content: center; width: 26px; font-size: 16px; transition: transform .05s linear; }
+/* quick power presets sitting right under the slider they set */
+.tablectl .presets { justify-content: center; gap: 6px; }
+.tablectl .presets button { flex: 1; max-width: 90px; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: 11px; font-weight: 600; padding: 6px 0; cursor: pointer; touch-action: none; }
+.tablectl .presets button:active { background: #f2c31b; color: #111; }
+@media (max-width: 720px) {
+  .tablectl .tbside b { font-size: 16px; }
+  .tablectl .tbside span { display: none; }
+  .tablectl .tbclock { font-size: 11px; min-width: 36px; }
+  .taimdir { width: 20px; font-size: 13px; }
+  .tablectl .presets button { font-size: 10px; padding: 5px 0; }
+}
 
 .meet .mrow.games a.gamelink { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 

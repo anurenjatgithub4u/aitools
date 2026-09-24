@@ -111,11 +111,12 @@ export const PLAY_PAGES: PlayPage[] = [
     slug: '8-ball-pool-online', start: 'pool', icon: '🎱',
     title: '8 Ball Pool Online Free — Real 3D Table, No Login, No Download',
     h1: 'Play 8-ball pool online free — a real 3D table at the Neon Palace',
-    description: 'Free 8 ball pool online with real rules on a 3D table: aim, set power, shoot; solids and stripes, ball in hand on a scratch, sink the 8 last. No login, no download.',
+    description: 'Free 8 ball pool online with real rules on a 3D table: aim, set power, shoot, an optional shot clock, a live scoreboard and a choice of camera angles. No login, no download.',
     keywords: ['8 ball pool online free', 'play 8 ball pool without login', 'pool game online browser', '8 ball pool no download', 'billiards game online free', '3d pool game in browser', 'pool game to play with friends online'],
     intro: 'Play 8 ball pool online free inside the Neon Palace — the casino and club in FindurAI City has two real 3D tables. Walk up to one and press E, or pick 8-ball on the start screen.',
     sections: [
-      ['How to play', 'Hold ◀ ▶ to aim (Shift for fine adjustment on a keyboard), set the Power slider and press Shoot. Real rules: the first pot decides solids or stripes, a scratch gives your opponent ball in hand, and you must sink the 8 last. The camera sits high over your shoulder so the whole table is in view.'],
+      ['How to play', 'Hold ◀ ▶ to aim (Shift for fine adjustment on a keyboard), set the Power slider or tap Soft, Medium or Full, and press Shoot. Real rules: the first pot decides solids or stripes, a scratch gives your opponent ball in hand, and you must sink the 8 last. A scoreboard above the controls tracks both sides from the first shot, and the View button cycles between a high angle over your shoulder, a low rail-level look down the table, and a bird’s-eye view.'],
+      ['An optional shot clock', 'Before the balls are racked you can set a shot clock — no timer, or 15 or 30 seconds a turn. Run out of time and you play whatever shot you had lined up.'],
       ['The Neon Palace', 'A dance floor with chasing tiles, a DJ, a bar, slot machines, a roulette table and lasers inside and over the roof. Dance with whoever came with you, then rack up.'],
       ['With friends', 'Meet a friend at the Palace — you see each other at the table and can chat while you play. Carrom, chess and Ludo are here too.'],
     ],
@@ -140,8 +141,9 @@ export const PLAY_PAGES: PlayPage[] = [
     ],
     intro: 'The carrom game online in FindurAI is a proper board — striker, nine white and nine black coins, the red queen and four pockets — seen straight from above, the way you would sit over a real board. Press E at the board by the Neon Palace bar, or pick Carrom on the start screen.',
     sections: [
-      ['How to play', 'The Striker slider places your striker along the baseline, ◀ ▶ aims, the Power slider sets the flick and Flick sends it. White coins are yours, black are your rival\'s, the queen counts three and must be covered. Pocket all nine to win.'],
-      ['Why it feels right', 'Coins slide, bounce off the frame and cannon into each other with real physics; the board is lit flat with no shadows, and the camera never moves while you play.'],
+      ['How to play', 'The Striker slider places your striker along the baseline, ◀ ▶ aims, the Power slider (or the Soft, Medium, Full presets) sets the flick and Flick sends it. White coins are yours, black are your rival’s, the queen counts three and must be covered. Pocket all nine to win. A scoreboard tracks both sides from the first coin, and the View button switches between a straight top-down look, an angled view and a close-up.'],
+      ['An optional shot clock', 'Before the coins are set you can choose a shot clock — no timer, or 15 or 30 seconds a turn — and if it runs out you flick whatever you had lined up.'],
+      ['Why it feels right', 'Coins slide, bounce off the frame and cannon into each other with real physics; the board is lit flat with no shadows.'],
       ['A carrom board in a Kerala-style city', 'FindurAI City is a low-poly city with chai shops, tuk-tuks and a beach — carrom belongs here. Play a frame, then walk out to the dance floor or the pool tables.'],
     ],
     faq: [

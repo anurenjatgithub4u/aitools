@@ -72,14 +72,14 @@ interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 // An in-world circuit race on the FindurAI Speedway: your car plus three AI cars, three laps.
 interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean; nitroUntil: number; nitroAt: number }
 // Football at City Stadium: you + a team-mate against two rivals, one ball, two goals, 90 seconds.
-interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; slot: [number, number]; gk: boolean; kicked: number; bib: THREE.Mesh }
-interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mates: string; rivals: string; started: number; lastKick: Footballer | null; cheer: { team: 0 | 1; until: number } | null }
+interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; slot: [number, number]; gk: boolean; front: boolean; kicked: number; bib: THREE.Mesh }
+interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mates: string; rivals: string; started: number; lastKick: Footballer | null; cheer: { team: 0 | 1; until: number } | null; kickTeam: 0 | 1 }
 // formation slots relative to the centre spot for the side attacking +x (mirrored for the other side): captain, keeper, two backs, a winger
 const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
 const MATCH_SECONDS = 90;
 // Cricket: the bowler runs in, you time the shot. 12 balls, 3 wickets, beat the target.
 type CricketPhase = 'ready' | 'runup' | 'flight' | 'hit' | 'result' | 'over';
-interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3 }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2; batFirst: boolean; firstWkts: number; firstBalls: number;
+interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3; spd: number }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2; batFirst: boolean; firstWkts: number; firstBalls: number; saveRoll: boolean;
   go: boolean; pickShown?: boolean;                                       // bowler: speed and line chosen, run in
   nonStriker: Avatar; bat2: THREE.Group;                                  // the batter at the other end
   run: { u: number; done: number; more: boolean; plan: number; moving: boolean } | null;   // batters running between the wickets
@@ -1090,6 +1090,9 @@ export class World {
   private wasAirborne = false;
   private knock: THREE.Vector3 | null = null;   // sent flying by a bus
   private lastHit = -10;
+  private playerSpeed = 0;                 // real ground speed, on foot or in any vehicle — what the patrol has to match
+  private speedPos = new THREE.Vector3();
+  private haveSpeedPos = false;
   toggleDrive() { this.wantToggleDrive = true; }
   lift() { this.wantLift = true; }
   attachMinimap(canvas: HTMLCanvasElement) { this.minimap = { canvas, base: this.drawMinimapBase(canvas.width, false), ctx: canvas.getContext('2d')!, last: 0 }; }
@@ -1701,6 +1704,9 @@ export class World {
     if (this.carrom) this.tickCarrom(dt, t);
     if (this.wheel) { this.wheel.rotation.z = (this.rideTime() * Math.PI * 2 / 40) % (Math.PI * 2); for (const c of this.wheel.children) if (c.name.startsWith('gondola')) c.rotation.z = -this.wheel.rotation.z; }
     this.tickRides(dt, t);
+    { const sp = this.driving ? this.driving.group.position : this.player.group.position;
+      const raw = this.haveSpeedPos ? Math.min(50, Math.hypot(sp.x - this.speedPos.x, sp.z - this.speedPos.z) / Math.max(dt, 1e-3)) : 0;
+      this.playerSpeed += (raw - this.playerSpeed) * Math.min(1, dt * 4); this.speedPos.copy(sp); this.haveSpeedPos = true; }
     this.tickPolice(dt, t);
     if (this.date) this.tickDate(dt, t);
     this.sunsetK = Math.max(0, Math.min(1, this.sunsetK + ((this.date?.spot.kind === 'sunset') ? dt / 4 : -dt / 4)));
@@ -1963,12 +1969,12 @@ export class World {
     const bib = (team: 0 | 1, av: Avatar) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.62, 0.56), new THREE.MeshStandardMaterial({ color: team === 0 ? 0x3f8fd6 : 0xd94a3d, transparent: true, opacity: 0.6, roughness: 0.9 })); m.position.set(0, 0.45, 0); av.body.add(m); return m; };
     const mk = (bot: Bot | null, team: 0 | 1, i: number): Footballer => {
       const [sx, sz] = FORMATION[i], x = team === 0 ? sx : -sx;
-      return { bot, team, home: new THREE.Vector3(pt.x + x, y, pt.z + sz), slot: [x, sz], gk: i === 1, kicked: -1, bib: bib(team, bot ? bot.av : this.player) };
+      return { bot, team, home: new THREE.Vector3(pt.x + x, y, pt.z + sz), slot: [x, sz], gk: i === 1, front: i === 0, kicked: -1, bib: bib(team, bot ? bot.av : this.player) };
     };
     const side: Footballer[] = [mk(null, 0, 0), ...mates.map((b, i) => mk(b, 0, i + 1)), ...rivals.map((b, i) => mk(b, 1, i))];
     for (const f of side) if (f.bot) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; f.bot.label.visible = true; }
     if (this.hangout) this.endHangout();
-    this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rivals[0].name, mates: mates.map((b) => b.name).join(', '), rivals: rivals.map((b) => b.name).join(', '), started: this.elapsed, lastKick: null, cheer: null };
+    this.match = { side, ball, vel: new THREE.Vector3(), score: [0, 0], endAt: this.elapsed + MATCH_SECONDS + 3, pause: 3, over: false, opp: rivals[0].name, mates: mates.map((b) => b.name).join(', '), rivals: rivals.map((b) => b.name).join(', '), started: this.elapsed, lastKick: null, cheer: null, kickTeam: Math.random() < 0.5 ? 0 : 1 };
     this.resetKickoff();
     this.ev.onMode({ icon: '⚽', label: 'Kick', run: true });
     this.ev.onBanner('KICK-OFF', 'Five-a-side · 90 seconds · first to five', 'neutral');
@@ -1981,12 +1987,22 @@ export class World {
     this.botSays(mates[0], "Blue bibs are with you — pass it! ⚽", 1.2);
   }
 
+  /** Where a kickoff sends a player: the restart team's front player stands over the ball, the other side's
+   *  front player is held back outside the circle — so a restart is never a free run at an empty net. */
+  private kickoffTarget(f: Footballer, m: MatchState): [number, number] {
+    const pt = this.field!;
+    if (!f.front) return [f.home.x, f.home.z];
+    const s = f.team === 0 ? -1 : 1;
+    return [pt.x + s * (f.team === m.kickTeam ? 1.1 : 10), pt.z];
+  }
+
   private resetKickoff() {
     const m = this.match!, pt = this.field!;
     m.ball.position.set(pt.x, this.terrain.h(pt.x, pt.z) + 0.52, pt.z); m.vel.set(0, 0, 0); m.lastKick = null;
     for (const f of m.side) {
       const g = f.bot ? f.bot.av.group : this.player.group;
-      g.position.set(f.home.x, this.groundAt(f.home.x, f.home.z, f.home.y), f.home.z);
+      const [tx, tz] = this.kickoffTarget(f, m);
+      g.position.set(tx, this.groundAt(tx, tz, f.home.y), tz);
       g.rotation.y = f.team === 0 ? Math.PI / 2 : -Math.PI / 2;
     }
     this.airY = 0; this.vy = 0;
@@ -2038,6 +2054,7 @@ export class World {
       if (inGoal && live) {
         const scorer: 0 | 1 = ball.x > pt.x ? 0 : 1;   // the +x goal belongs to the rivals
         m.score[scorer]++;
+        m.kickTeam = scorer === 0 ? 1 : 0;   // the side that conceded restarts — never a second free run for the scorer
         m.pause = 2.8; m.cheer = { team: scorer, until: t + 2.4 };
         this.sfx.questDone();
         const own = m.lastKick && m.lastKick.team !== scorer;
@@ -2072,8 +2089,23 @@ export class World {
       const nx = dx / d, nz = dz / d, dot = v.x * nx + v.z * nz;
       if (dot < 0) { v.x -= 1.5 * dot * nx; v.z -= 1.5 * dot * nz; v.x *= 0.5; v.z *= 0.5; m.lastKick = who; this.sfx.bump(); }
     };
+    // a defender who closes right down on you while you are on the ball has a real chance to win it back
+    const tackle = (f: Footballer) => {
+      const b = f.bot!, bp = b.av.group.position, d = Math.hypot(ball.x - bp.x, ball.z - bp.z);
+      if (d > 1.05 || ball.y > gy + 0.6 || t - f.kicked < 0.4) return;
+      f.kicked = t;
+      if (Math.random() > 0.4) return;
+      const ang = Math.random() * Math.PI * 2;
+      v.set(Math.cos(ang) * 4, 0.7, Math.sin(ang) * 4);
+      m.lastKick = f;
+      this.sfx.bump();
+      if (Math.random() < 0.5) this.botSays(b, ['Tackle! 💥', 'Mine now! 😤', 'Off you go! 😏'][Math.floor(Math.random() * 3)], 0.2);
+    };
     const me = m.side[0];
-    if (live) { block(this.player.group, me); control(this.player.group, this.moveAmount > 1 ? WALK_SPEED * 1.8 : WALK_SPEED, me, this.moveAmount > 0); }
+    if (live) {
+      block(this.player.group, me); control(this.player.group, this.moveAmount > 1 ? WALK_SPEED * 1.8 : WALK_SPEED, me, this.moveAmount > 0);
+      if (m.lastKick === me) for (const f of m.side) if (f.team === 1 && f.bot) tackle(f);   // marked closely, the ball is never quite safe
+    }
 
     // --- AI: keeper holds the line, the closest outfielder chases, the rest keep their formation shape around the ball
     for (const team of [0, 1] as const) {
@@ -2085,13 +2117,13 @@ export class World {
       for (const f of fs) {
         const b = f.bot!, bp = b.av.group.position;
         let tx: number, tz: number;
-        if (!live) { tx = f.home.x; tz = f.home.z; }
+        if (!live) { const kt = this.kickoffTarget(f, m); tx = kt[0]; tz = kt[1]; }
         else if (f.gk) { tx = ownGoalX + (team === 0 ? 2.5 : -2.5); tz = pt.z + Math.max(-pt.goal - 0.5, Math.min(pt.goal + 0.5, (ball.z - pt.z) * 0.8)); }
         else if (f === chaser) { tx = ball.x - Math.sign(goalX - ball.x) * 0.9; tz = ball.z; }
-        else { tx = pt.x + f.slot[0] + (ball.x - pt.x) * 0.45; tz = pt.z + f.slot[1] + (ball.z - pt.z) * 0.35; }
+        else { const shape = team === 1 ? 0.58 : 0.45; tx = pt.x + f.slot[0] + (ball.x - pt.x) * shape; tz = pt.z + f.slot[1] + (ball.z - pt.z) * 0.35; }
         tx = Math.max(pt.x - hw + 1, Math.min(pt.x + hw - 1, tx)); tz = Math.max(pt.z - hd + 1, Math.min(pt.z + hd - 1, tz));
         const dx = tx - bp.x, dz = tz - bp.z, d = Math.hypot(dx, dz);
-        const speed = f === chaser ? (team === 1 ? 7.4 : 6.8) : f.gk ? 6 : 5.5;
+        const speed = f === chaser ? (team === 1 ? 8.6 : 6.8) : f.gk ? 6.8 : 5.8;   // the side marking you closes down harder than your own support
         if (d > 0.4) { const sd = Math.min(d, speed * dt); bp.x += (dx / d) * sd; bp.z += (dz / d) * sd; b.av.group.rotation.y += wrapAngle(Math.atan2(dx, dz) - b.av.group.rotation.y) * Math.min(1, dt * 8); b.walking = Math.min(1, b.walking + dt * 4); }
         else b.walking = Math.max(0, b.walking - dt * 4);
         // spread out: never stand inside a team-mate
@@ -2250,7 +2282,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (!rival) return;
     const fielders = pool.slice(0, 6).map((bot, i) => {
       const a = [-2.2, -1.2, -0.5, 0.5, 1.2, 2.2][i], r = i === 2 || i === 3 ? 22 : 27;   // a ring around the batting end
-      return { bot, home: new THREE.Vector3(o.x - 10 + Math.cos(a) * r, 0, o.z + Math.sin(a) * r) };
+      return { bot, home: new THREE.Vector3(o.x - 10 + Math.cos(a) * r, 0, o.z + Math.sin(a) * r), spd: 5.7 + (i % 6) * 0.3 };   // a bit of pace and arm to each of them
     });
     for (const f of [{ bot: rival }, ...fielders]) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; }
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshStandardMaterial({ color: 0xe0392b, emissive: 0x5a0a0a, roughness: 0.5 }));
@@ -2258,7 +2290,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
     const nonStriker = makeAvatar({ ...OUTFITS[3 % OUTFITS.length], skin: SKINS[2 % SKINS.length] }); this.scene.add(nonStriker.group);
     const bat2 = this.makeBat(); nonStriker.armR.add(bat2); nonStriker.armR.rotation.x = -0.6;
-    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, batFirst, firstWkts: 0, firstBalls: 0, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, batFirst, firstWkts: 0, firstBalls: 0, saveRoll: false, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
     for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
     this.setCreases();
     this.clearQuest();
@@ -2345,7 +2377,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const side = early ? 1 : -1, ang = (1 - q) * 0.9 * side + (Math.random() - 0.5) * 0.3;   // early pulls to leg, late squirts to off
     c.vel.set(Math.cos(ang) * Math.cos(lift) * power, Math.sin(lift) * power, Math.sin(ang) * Math.cos(lift) * power);
     ball.set(o.x - 10 + 0.6, this.terrain.h(ball.x, ball.z) + 0.8, (you ? this.player.group.position.z - 0.55 : o.z + 0.3));
-    c.airborne = lift > 0.3; c.bounced = false; c.phase = 'hit'; c.t0 = this.elapsed;
+    c.airborne = lift > 0.3; c.bounced = false; c.saveRoll = false; c.phase = 'hit'; c.t0 = this.elapsed;
     c.note = q > 0.85 ? 'Sweet timing!' : early ? 'Pulled high…' : 'Squeezed away';
     c.chaser = null;
     this.sfx.bump();
@@ -2426,15 +2458,36 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       const gy = this.terrain.h(ball.x, ball.z) + 0.16;
       if (ball.y < gy) {
         ball.y = gy;
-        if (!c.bounced && c.airborne) {   // first bounce: was anyone under it?
-          const catcher = c.fielders.find((f) => f.bot.av.group.position.distanceTo(ball) < 2.6);
-          if (catcher) { c.note = `Caught by ${catcher.bot.name}!`; this.botSays(catcher.bot, 'Got it! 🙌', 0.2); this.wicket(); c.ball.visible = false; return; }
+        if (!c.bounced && c.airborne) {   // first bounce: was anyone under it, and did they hold on?
+          const near = c.fielders.reduce((a, b) => (a.bot.av.group.position.distanceTo(ball) < b.bot.av.group.position.distanceTo(ball) ? a : b));
+          const nd = near.bot.av.group.position.distanceTo(ball);
+          if (nd < 2.8) {
+            const chance = Math.max(0.3, 1 - nd / 2.8);   // dead easy underneath it, a real stretch at the edge of reach
+            if (Math.random() < chance) { c.note = `Caught by ${near.bot.name}!`; this.botSays(near.bot, 'Got it! 🙌', 0.2); this.wicket(); c.ball.visible = false; return; }
+            if (nd < 1.7) {   // a genuine chance, put down: the ball squirms away rather than dying in the hands
+              c.note = 'DROPPED!';
+              this.ev.onBanner('DROPPED!', `${near.bot.name} puts it down — the danger is still there`, batting ? 'good' : 'bad');
+              this.botSays(near.bot, ['Oh no! 😱', 'Put it down! 😫', 'Straight through the hands!'][Math.floor(Math.random() * 3)], 0.3);
+              c.vel.x *= 0.4; c.vel.z *= 0.4; c.vel.y = Math.abs(c.vel.y) * 0.25;
+            }
+          }
         }
         c.bounced = true; c.vel.y = Math.abs(c.vel.y) < 2 ? 0 : -c.vel.y * 0.45; c.vel.x *= 0.85; c.vel.z *= 0.85;
       }
       if (ball.y <= gy + 0.02) { c.vel.x -= c.vel.x * Math.min(1, 0.7 * dt); c.vel.z -= c.vel.z * Math.min(1, 0.7 * dt); }
       c.ball.rotation.x += c.vel.z * dt / 0.16; c.ball.rotation.z -= c.vel.x * dt / 0.16;
       const dist = Math.hypot(ball.x - o.x, ball.z - o.z);
+      if (dist >= o.r - 3 && dist < o.r && c.bounced && !c.saveRoll) {   // closing on the rope, still on the carpet: one shot at a diving save
+        c.saveRoll = true;
+        const near = c.fielders.reduce((a, b) => (a.bot.av.group.position.distanceTo(ball) < b.bot.av.group.position.distanceTo(ball) ? a : b));
+        const nd = near.bot.av.group.position.distanceTo(ball);
+        if (nd < 3.4 && Math.random() < 0.4) {
+          c.vel.set(0, 0, 0); c.chaser = near.bot;
+          near.bot.av.group.position.set(ball.x, this.terrain.h(ball.x, ball.z), ball.z);
+          this.botSays(near.bot, ['What a stop! 🤽', 'Saved it! 👏'][Math.floor(Math.random() * 2)], 0.3);
+          this.ev.onCollect({ name: `${near.bot.name} dives and cuts it off on the rope!`, points: 0, color: 0x2fa66a, shape: 'gem' });
+        }
+      }
       if (dist >= o.r) {   // over the rope
         const six = !c.bounced;
         c.runs += six ? 6 : 4; c.last = six ? 'SIX!' : 'FOUR!'; c.phase = 'result'; c.t0 = t;
@@ -2446,6 +2499,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       }
       // nearest fielder chases; when they get there the ball is dead and runs are counted by how far it went
       if (!c.chaser) c.chaser = c.fielders.reduce((a, b) => (a.bot.av.group.position.distanceTo(ball) < b.bot.av.group.position.distanceTo(ball) ? a : b)).bot;
+      const chaserSpd = c.fielders.find((f) => f.bot === c.chaser)?.spd ?? 6.5;
       const fp = c.chaser.av.group.position, fdx = ball.x - fp.x, fdz = ball.z - fp.z, fd = Math.hypot(fdx, fdz);
       if (c.throw) {   // the return throw: the ball flies from the fielder to the striker's stumps
         const u = Math.min(1, (t - c.throw.t0) / c.throw.dur), sx = c.throw.from, tx = batX - 0.6;
@@ -2462,12 +2516,13 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           }
         }
       }
-      else if (fd > 1 && ball.y - gy < 3) { const s = Math.min(fd, 6.5 * dt); fp.x += (fdx / fd) * s; fp.z += (fdz / fd) * s; c.chaser.av.group.rotation.y = Math.atan2(fdx, fdz); animateWalk(c.chaser.av, t * 2.2, 1); }
+      else if (fd > 1 && ball.y - gy < 3) { const s = Math.min(fd, chaserSpd * dt); fp.x += (fdx / fd) * s; fp.z += (fdz / fd) * s; c.chaser.av.group.rotation.y = Math.atan2(fdx, fdz); animateWalk(c.chaser.av, t * 2.2, 1); }
       else if (fd <= 1) {
         c.chaser.av.group.position.set(fp.x, this.terrain.h(fp.x, fp.z), fp.z);
         if (batting) {   // you decide the runs: the fielder throws at the stumps — be home before it lands
-          const far = Math.hypot(fp.x - batX, fp.z - o.z);
-          c.throw = { from: fp.clone(), t0: t, dur: 0.35 + far / 26 };
+          const far = Math.hypot(fp.x - batX, fp.z - o.z), fumble = Math.random() < 0.14;   // a rushed pickup sometimes costs half a second
+          c.throw = { from: fp.clone(), t0: t, dur: 0.35 + far / 26 + (fumble ? 0.35 + Math.random() * 0.35 : 0) };
+          if (fumble) { this.botSays(c.chaser, 'Fumbled it! 😬', 0.15); this.ev.onCollect({ name: `${c.chaser.name} fumbles the pickup!`, points: 0, color: 0xf2c31b, shape: 'box' }); }
           c.chaser.av.group.rotation.y = Math.atan2(batX - fp.x, o.z - fp.z);
         } else {
           const far = Math.hypot(ball.x - batX, ball.z - o.z), runs = far < 12 ? (Math.random() < 0.5 ? 1 : 0) : far < 22 ? 1 : far < 30 ? 2 : 3;
@@ -3316,7 +3371,12 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (!c || this.heat <= 0) { this.wantedHud(''); return; }
     const p = this.player.group.position, g = c.road.t.group, jp = g.position;
     const d = Math.hypot(p.x - jp.x, p.z - jp.z);
-    const speed = 9 + this.heat * 2.4, step = Math.min(speed * dt, Math.max(0, d - 3));
+    // relentless: it is always a shade faster than whatever you are doing right now — on foot, on a bike, or nitro-boosting a
+    // jeep — with more edge at higher heat, and it pushes harder still when it has fallen well behind, so no vehicle is a
+    // free pass and standing still is not a safe place to hide either.
+    const catchUp = Math.min(14, Math.max(0, d - 40) * 0.09);
+    const speed = Math.min(42, Math.max(10 + this.heat * 2, this.playerSpeed * (1.1 + this.heat * 0.08)) + catchUp);
+    const step = Math.min(speed * dt, Math.max(0, d - 3));
     g.rotation.y += wrapAngle(Math.atan2(p.x - jp.x, p.z - jp.z) - g.rotation.y) * Math.min(1, dt * 2.4);
     const roomFor = (h: number, nx: number, nz: number) => {   // its own bonnet and three corners: buildings stop it, parked cars do not
       const fx = Math.sin(h), fz = Math.cos(h);
@@ -3336,9 +3396,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (t > this.sirenAt && d < 100) { this.sirenAt = t + 3.2; this.sfx.siren(); }
     const slow = !this.driving || Math.abs(this.driving.speed) < 5;
     if (d < 6 && slow && t > this.bustCool) { this.bust(); return; }
-    if (d > 130) {
+    if (d > 170) {   // shaking a determined patrol takes real distance, held for a while
       this.escapeT += dt;
-      if (this.escapeT > 12) {
+      if (this.escapeT > 16) {
         this.heat = 0; this.escapeT = 0; this.wantedHud('');
         this.ev.onBanner('LOST THEM', 'The patrol is back on its beat', 'good');
         this.ev.onCollect({ name: 'You lost the police', points: 0, color: 0x2fa66a, shape: 'gem' });

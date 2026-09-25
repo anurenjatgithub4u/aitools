@@ -93,8 +93,11 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
 
       {phase === "profile" && (
         <div className="profile">
-          <p className="eyebrow">{returning ? 'Welcome back' : 'Create your explorer'}</p>
-          <h1>{returning ? `Good to see you, ${name}.` : 'Who are you in the city?'}</h1>
+          <div className="brandmark"><span className="bm-logo">FINDURAI</span><span className="bm-tag">one city · countless stories</span></div>
+          <div className="welcome-sign">
+            <p className="eyebrow">{returning ? 'Welcome back' : 'Create your explorer'}</p>
+            <h1>{returning ? `Good to see you, ${name}.` : 'Who are you in the city?'}</h1>
+          </div>
           <label className="pname">
             <span>Your name</span>
             <input value={name} maxLength={18} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && save()} autoFocus />
@@ -105,7 +108,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
           </div>
           <p className="qhead">Where to?</p>
           <div className="quick">
-            {QUICK.map(([k, icon, label]) => <button key={k} type="button" className={(k === 'explore' ? 'qbtn main' : 'qbtn') + (k === urlStart && k !== 'explore' ? ' hot' : '')} disabled={!gender} onClick={() => save(k)}><span>{icon}</span>{label}</button>)}
+            {QUICK.map(([k, icon, label]) => <button key={k} type="button" className={`qbtn qtile-${k}` + (k === 'explore' ? ' main' : '') + (k === urlStart && k !== 'explore' ? ' hot' : '')} disabled={!gender} onClick={() => save(k)}><span>{icon}</span>{label}{k === 'explore' && <em>›</em>}</button>)}
           </div>
           <p className="pnote">{returning ? 'Change your name or avatar above any time.' : 'Real people see your name and avatar. You can change both later.'}</p>
         </div>
@@ -176,7 +179,19 @@ function Clouds() {
   return <div className="clouds"><i style={{ top: '5%', animationDuration: '46s' }} /><i style={{ top: '13%', animationDuration: '62s', animationDelay: '-20s', transform: 'scale(.7)' }} /><i style={{ top: '19%', animationDuration: '54s', animationDelay: '-38s', transform: 'scale(1.3)' }} /></div>;
 }
 function Wheel() {
-  return <div className="wheel"><div className="rim" /><div className="hub" /><div className="leg l" /><div className="leg r" /></div>;
+  const N = 10;
+  return (
+    <div className="wheel">
+      <div className="wheel-rotor">
+        <div className="rim" />
+        {Array.from({ length: N }, (_, i) => {
+          const a = (i / N) * Math.PI * 2;
+          return <i key={i} className="cabin" style={{ left: `${(50 + 42 * Math.cos(a)).toFixed(2)}%`, top: `${(50 + 42 * Math.sin(a)).toFixed(2)}%` }} />;
+        })}
+      </div>
+      <div className="hub" /><div className="leg l" /><div className="leg r" />
+    </div>
+  );
 }
 
 function Skyline() {

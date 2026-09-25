@@ -486,6 +486,15 @@ export class World {
 
   private removePeer(b: Bot) {
     const r = b.remote!;
+    // if they were mid-something with you, that something cannot carry on without them — end it cleanly rather
+    // than leave the game holding a reference to a bot whose avatar is about to vanish from the scene (a fielder
+    // that never visibly throws the ball back, a name tag with nobody under it, and so on)
+    if (this.cricket && (this.cricket.opp === b || this.cricket.fielders.some((f) => f.bot === b))) { this.endCricket(); this.ev.onCollect({ name: `${b.name} left mid-match — the game is abandoned`, points: 0, color: 0x999999, shape: 'box' }); }
+    if (this.match && this.match.side.some((f) => f.bot === b)) { this.endFootball(); this.ev.onCollect({ name: `${b.name} left mid-match — the game is abandoned`, points: 0, color: 0x999999, shape: 'box' }); }
+    if (this.pool?.opp === b) this.endPool();
+    if (this.carrom?.opp === b) this.endCarrom();
+    if (this.dancing?.partner === b) this.stopDancing();
+    if (this.date?.partner === b) this.endDate();
     if (this.ridingWith?.bot === b) this.leaveRide(false);
     if (b.riding) this.detachPassenger(b);
     if (r.car) { this.scene.remove(r.car.group); } else this.scene.remove(b.av.group);
@@ -2592,13 +2601,13 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         c.chaser.av.group.position.set(fp.x, this.terrain.h(fp.x, fp.z), fp.z);
         if (batting) {   // you decide the runs: the fielder throws at the stumps — be home before it lands
           const far = Math.hypot(fp.x - batX, fp.z - o.z), fumble = Math.random() < 0.14;   // a rushed pickup sometimes costs half a second
-          c.throw = { from: fp.clone(), t0: t, dur: 0.35 + far / 26 + (fumble ? 0.35 + Math.random() * 0.35 : 0), toBowler: false };
+          c.throw = { from: fp.clone(), t0: t, dur: Math.max(0.45, 0.35 + far / 26) + (fumble ? 0.35 + Math.random() * 0.35 : 0), toBowler: false };   // never shorter than the throwing motion itself takes to play out
           if (fumble) { this.botSays(c.chaser, 'Fumbled it! 😬', 0.15); this.ev.onCollect({ name: `${c.chaser.name} fumbles the pickup!`, points: 0, color: 0xf2c31b, shape: 'box' }); }
           c.chaser.av.group.rotation.y = Math.atan2(batX - fp.x, o.z - fp.z);
         } else {   // gathered: thrown back to the bowler's end rather than left lying in the outfield
           const far = Math.hypot(ball.x - batX, ball.z - o.z), runs = far < 12 ? (Math.random() < 0.5 ? 1 : 0) : far < 22 ? 1 : far < 30 ? 2 : 3;
           const backFar = Math.hypot(fp.x - (o.x + 26), fp.z - o.z);
-          c.throw = { from: fp.clone(), t0: t, dur: 0.3 + backFar / 30, toBowler: true, runs };
+          c.throw = { from: fp.clone(), t0: t, dur: Math.max(0.45, 0.3 + backFar / 30), toBowler: true, runs };   // never shorter than the throwing motion itself takes to play out
           c.chaser.av.group.rotation.y = Math.atan2((o.x + 26) - fp.x, o.z - fp.z);
         }
       }
@@ -2741,7 +2750,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   }
 
   // ---------- zombie night ----------
-  private zombieAt = 8 * 60;   // seconds of play until the first night; later ones every 12 minutes after a night ends
+  private zombieAt = 5 * 60;   // seconds of play until the first night; later ones every 5 minutes after a night ends
   private lastZombieClock = -1;
   /** Zombie night comes on its own: a countdown in the chip, then the night when you are free to fight it. */
   private tickZombieClock(t: number) {
@@ -3037,7 +3046,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     z.list = [];
     for (const b of z.blasts) this.scene.remove(b.mesh);
     z.blasts = [];
-    this.zombieAt = this.elapsed + 12 * 60;
+    this.zombieAt = this.elapsed + 5 * 60;
     if (this.hangout && this.hangout.until - this.elapsed > 300) this.endHangout();
     if (died && !z.revived && adsEnabled()) {   // one rewarded revive per night
       z.ending = false; this.ev.onMode({ icon: '🥊', label: 'Punch', run: true });

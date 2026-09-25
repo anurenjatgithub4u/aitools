@@ -303,7 +303,31 @@ export const PLAY_PAGES: PlayPage[] = [
       ['Does it work on mobile?', 'Yes. The board scales down for phones and all controls are tap-friendly.'],
     ],
   },
-
+  {
+    slug: 'virtual-world', start: 'explore', icon: '🌍',
+    title: 'Virtual World Game Online Free — A Real 3D City, No Download, No Sign-Up',
+    h1: 'A free virtual world game — one 3D city, real people, no download',
+    description: 'FindurAI is a free virtual world game: one 3D city with real people online, driving, ten fairground rides, day and night, zombie nights and eight built-in mini-games. No download, no sign-up.',
+    keywords: [
+      'virtual world game online free', 'free virtual world no download', '3d virtual world browser game',
+      'online virtual world for free', 'virtual world like second life free', 'virtual world game no sign up',
+      'browser based virtual world', 'free avatar world online', '3d city game online free',
+      'virtual city simulator online', 'online city game with real people', 'multiplayer virtual world free',
+      'findurai city', 'virtual world for pc browser', 'virtual world game for android browser',
+      'free social 3d world', 'meet people online 3d world', 'virtual world with mini games',
+    ],
+    intro: 'FindurAI is a free virtual world game — not one activity but a whole 3D city, open in your browser right now with nothing to install and no account to create. Pick an avatar, walk out of the plaza, and the city is full of other real people doing the same thing: driving, chatting, meeting up, and dropping into whatever game is nearby.',
+    sections: [
+      ['One city, not one game', 'Most free browser games give you a single activity. FindurAI gives you a city: Downtown Plaza, Neon Lane at night, a college and a school, Central Park, Sunset Beach with a pier and a fairground, a stadium, a cricket ground, a harbour bridge to an island, and a police station that means driving badly has consequences. Walking between them is the point as much as any one game.'],
+      ['Real people, not just bots', 'Everyone in the city who is not clearly labelled a bot is a real player, sharing the same 3D space in real time. Send a friend request, chat with anyone nearby, invite someone for a coffee, a sunset bench or a boat ride, or just hang out and walk together for a while.'],
+      ['Ten rides, day and night, and eight mini-games', 'The beach fairground alone has ten rides — a Ferris wheel, a carousel, a drop tower, teacups, bumper cars, a swinging Sky Flyer, a full roller coaster and a ghost train among them. The city cycles from day to a lit-up night, and every so often a zombie night arrives on its own countdown. When you want a proper game, cricket, football, a 960 m race, 8-ball, carrom, chess, Ludo and Monopoly are all built in and reachable on foot.'],
+    ],
+    faq: [
+      ['Is this like Second Life or IMVU?', 'The idea is similar — a persistent 3D world with real people and your own avatar — but FindurAI is free, needs no account, and loads straight in a browser tab on a phone or a laptop.'],
+      ['Do I need to download anything?', 'No. It runs entirely in the browser, including on phones, with a joystick and on-screen buttons.'],
+      ['Is it actually multiplayer?', 'Yes — other players share the same city in real time. The built-in mini-games (cricket, football, pool and so on) are played against the city’s AI characters; meeting and hanging out with real people happens everywhere else in the city.'],
+    ],
+  },
 ];
 
 /**

@@ -77,7 +77,7 @@ function house(g: THREE.Group, x: number, y: number, z: number, ry: number, wall
 
 export interface Clear { x: number; z: number; r: number }
 
-export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship' | 'drop' | 'cups' | 'coaster' | 'bumper' | 'flyer'; label: string; x: number; z: number; y: number; icon: string; seconds?: number; cam?: number }
+export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship' | 'drop' | 'cups' | 'coaster' | 'bumper' | 'flyer' | 'loop'; label: string; x: number; z: number; y: number; icon: string; seconds?: number; cam?: number }
 
 // Every road segment in the city (x0, z0, x1, z1). Declared up front so the ground can be smoothed under
 // all of them before a single building is placed; road() below draws them and checks it is on this list.
@@ -697,7 +697,18 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
   // ================= RIDES — walk up to the gate and press E =================
   // Each ride is one animated group (never baked) with `userData.ride`; seat nodes are named seat0..N.
   const rides: RideDef[] = (g.userData.rides = []);
-  const ride = (grp: THREE.Group, def: RideDef) => { grp.name = `ride:${def.id}`; grp.userData.animated = true; grp.userData.ride = def; grp.traverse((o) => { o.userData.noCollide = true; }); rides.push(def); g.add(grp); };   // moving parts never block; the base slabs do
+  // a glowing pad + signpost exactly where `nearestRide()` checks distance from, so "walk up to the gate" has an actual gate to walk up to
+  const ridePad = (def: RideDef) => {
+    const gy = h(def.x, def.z), pad = new THREE.Group();
+    pad.name = `ridepad:${def.id}`; pad.position.set(def.x, gy, def.z);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.65, 28), new THREE.MeshBasicMaterial({ color: 0xf2c31b, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
+    ring.rotation.x = -Math.PI / 2; ring.position.y = 0.05; pad.add(ring);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.35, 3, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xf2c31b, transparent: true, opacity: 0.3, side: THREE.DoubleSide }));
+    beam.position.y = 1.5; pad.add(beam);
+    pad.traverse((o) => { o.userData.noCollide = true; });
+    g.add(pad);
+  };
+  const ride = (grp: THREE.Group, def: RideDef) => { grp.name = `ride:${def.id}`; grp.userData.animated = true; grp.userData.ride = def; grp.traverse((o) => { o.userData.noCollide = true; }); rides.push(def); g.add(grp); ridePad(def); };   // moving parts never block; the base slabs do
   const seat = (parent: THREE.Object3D, name: string, x: number, y: number, z: number) => { const s = new THREE.Object3D(); s.name = name; s.position.set(x, y, z); parent.add(s); };
   const bulbs = [0xff7ab8, 0x7ad7ff, 0xfff2a8, 0xa6ff7a];
   // Sky Wheel between Neon Lane and the beach — bigger than the Sunset Wheel, twelve cabins
@@ -928,6 +939,24 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     }
     ride(train, { id: 'spooky', kind: 'coaster', label: 'Ride the Spooky Express', x: sx2 - 4.5, z: sz2 + 1, y: h(sx2 - 4.5, sz2 + 1), icon: '👻', seconds: 42, cam: 0.32 });
     place('Spooky Express', cx, 9, cz, 200);
+  }
+  // The Vortex — a ring of pods on a fork mount on the hill past Windmill Hill: spins fast and slowly tilts from flat to upright and back
+  { const lx = 460, lz = 50, ly = h(lx, lz), R = 4.6, MOUNT = 7.4;   // MOUNT clears R with margin: the ring must never dip into the ground when it swings upright
+    g.add(at(cyl(5.2, 5.6, 0.5, 0x555555, 20), lx, ly + 0.25, lz)); keep(lx, lz, 13);
+    for (const sd of [-1, 1]) g.add(rot(at(box(0.7, MOUNT * 1.05, 0.7, 0x2c3e6b), lx + sd * 1.8, ly + MOUNT * 0.5, lz), 'z', sd * 0.16));
+    for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; g.add(at(glow(0.24, 0.24, 0.24, bulbs[k % 4]), lx + Math.cos(a) * 5.4, ly + 0.5, lz + Math.sin(a) * 5.4)); }
+    const grp = new THREE.Group(); grp.position.set(lx, ly + MOUNT, lz);
+    grp.add(rot(at(cyl(0.35, 0.35, 3.0, 0x333333, 10), 0, 0, 0), 'x', Math.PI / 2));
+    grp.add(mesh(new THREE.TorusGeometry(R, 0.16, 8, 36), 0xff7ab8));
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2, pod = new THREE.Group(), c = bulbs[k % 4];
+      pod.name = `pod${k}`; pod.position.set(Math.cos(a) * R, Math.sin(a) * R, 0); grp.add(pod);
+      pod.add(at(cyl(0.8, 0.65, 0.9, c, 12), 0, -0.25, 0)); pod.add(at(cyl(0.85, 0.85, 0.12, 0xffffff, 12), 0, 0.22, 0));
+      pod.add(at(box(0.75, 0.4, 0.1, 0x333333), 0, -0.05, -0.45));
+      seat(pod, `seat${k}`, 0, -0.15, 0.1);
+    }
+    ride(grp, { id: 'vortex', kind: 'loop', label: 'Ride the Vortex', x: lx + 9, z: lz, y: ly, icon: '🌀', seconds: 45 });
+    place('The Vortex', lx, MOUNT + 4, lz, 190);
   }
   // ================= CITY POLICE STATION (east of downtown) =================
   // Drive like an idiot and the patrol jeep comes for you; if you cannot pay the fine you spend it in this cell.

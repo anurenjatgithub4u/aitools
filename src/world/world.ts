@@ -3651,6 +3651,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           c.rotation.y = Math.atan2(x1 - x0, z1 - z0);
         } break;
         case 'flyer': grp.rotation.x = Math.sin(T * 0.62) * 1.15; for (const c of grp.children) if (c.name === 'gondola') c.rotation.y = spin(1.7); break;
+        case 'loop': grp.rotation.x = Math.max(0, Math.sin(T * 0.12)) * 1.4; grp.rotation.z = spin(TAU / 9); break;   // spins fast while slowly tilting from upright to flat and back
         case 'cups': grp.rotation.y = spin(0.55); for (const c of grp.children) if (c.name.startsWith('cup')) c.rotation.y = spin(1.3 + Number(c.name.slice(3)) * 0.22); break;
         case 'coaster': {
           const curve = grp.userData.curve as THREE.CatmullRomCurve3;

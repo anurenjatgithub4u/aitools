@@ -20,7 +20,7 @@
   --shadow-lg: 0 24px 60px rgba(23, 51, 43, .18);
   --shadow-md: 0 8px 24px rgba(23, 51, 43, .12);
   --radius: 16px;
-  --board-size: min(92vw, 600px);
+  --board-size: min(92vw, calc(100vh - 210px), 600px);
   --corner: calc(var(--board-size) * 0.143);
   --cell: calc((var(--board-size) - 12px - 2 * var(--corner)) / 9);   /* one street square along an edge */
   font-family: var(--font-inter), Inter, system-ui, sans-serif;
@@ -65,11 +65,13 @@
   box-shadow: 0 30px 50px -20px rgba(23,51,43,.4), 0 0 0 1px rgba(255,255,255,.4) inset;
   position: relative;
 }
-.mono-board-center { grid-column: 2 / 11; grid-row: 2 / 11; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding-bottom: 6%; background: radial-gradient(60% 60% at 50% 45%, #dceed3, var(--board) 70%); overflow: hidden; }
-.mono-city { position: absolute; inset: 0; transform: translateZ(1px); }
-.mono-board-center-title { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: clamp(1rem, 3vw, 1.7rem); letter-spacing: .28em; color: var(--green); position: relative; text-shadow: 0 1px 0 #fff; transform: translateZ(6px); }
-.mono-board-center-dice { margin-top: 8px; position: relative; transform: translateZ(10px); }
-.mono-pot { margin-top: 6px; color: var(--green); font-weight: 700; font-size: .85rem; background: rgba(255,255,255,.7); padding: 3px 10px; border-radius: 999px; position: relative; }
+.mono-board-center { grid-column: 2 / 11; grid-row: 2 / 11; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: radial-gradient(60% 60% at 50% 45%, #dceed3, var(--board) 70%); overflow: hidden; }
+.mono-board-center-rings { position: absolute; inset: 8%; border-radius: 50%; border: 1px dashed rgba(30,77,58,.25); pointer-events: none; }
+.mono-board-center-rings::before { content: ''; position: absolute; inset: 14%; border-radius: 50%; border: 1px dashed rgba(30,77,58,.16); }
+.mono-board-center-title { font-family: var(--font-playfair), 'Playfair Display', Georgia, serif; font-size: clamp(1rem, 3vw, 1.7rem); letter-spacing: .28em; color: var(--green); position: relative; text-shadow: 0 1px 0 #fff; }
+.mono-board-center-stats { display: flex; gap: 14px; position: relative; font-size: clamp(.62rem, 1.1vw, .78rem); font-weight: 600; color: var(--text-muted); background: rgba(255,255,255,.6); padding: 3px 12px; border-radius: 999px; }
+.mono-board-center-dice { margin-top: 4px; position: relative; }
+.mono-pot { margin-top: 2px; color: var(--green); font-weight: 700; font-size: .85rem; background: rgba(255,255,255,.7); padding: 3px 10px; border-radius: 999px; position: relative; }
 
 /* ── Squares ──────────────────────────────────────────────── */
 .mono-sq { border: 1px solid rgba(23,51,43,.18); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; padding: 2px; font-size: clamp(5px, .85vw, 9px); position: relative; overflow: hidden; cursor: default; background: #f7f3e6; width: 100%; height: 100%; transition: background .15s; }
@@ -170,6 +172,14 @@
 .mono-buy-row span:last-child { color: var(--green); font-weight: 700; }
 .mono-buy-btns { display: flex; gap: 12px; }
 .mono-buy-btns .mono-btn { flex: 1; }
+
+/* ── Event alerts: what just happened, top-right ─────────── */
+.mono-alerts { position: fixed; top: 84px; right: 18px; z-index: 150; display: flex; flex-direction: column; gap: 8px; pointer-events: none; max-width: 300px; }
+.mono-alert { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 8px 14px; box-shadow: var(--shadow-md); font-size: .82rem; color: var(--text); animation: alertIn .35s cubic-bezier(.2,.8,.2,1), alertOut .4s ease forwards 3.8s; }
+.mono-alert-icon { font-size: 1.05rem; flex-shrink: 0; }
+@keyframes alertIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes alertOut { to { transform: translateX(40px); opacity: 0; } }
+@media (max-width: 900px) { .mono-alerts { top: auto; bottom: 82px; right: 10px; left: 10px; max-width: none; } }
 
 /* ── Floating money ───────────────────────────────────────── */
 .mono-floats { position: fixed; top: 46%; left: 50%; transform: translate(-50%,-50%); pointer-events: none; z-index: 200; }

@@ -4,8 +4,6 @@ import './monopoly.css';
 import { BOARD, COLOR_GROUP_SIZES } from './engine/board';
 import { buildInitialState, useGameState } from './engine/useGameState';
 import type { GameState, Player, Square } from './engine/types';
-import dynamic from 'next/dynamic';
-const MonoCity = dynamic(() => import('./MonoCity'), { ssr: false });
 
 // ─── Color map ────────────────────────────────────────────────────────────────
 const COLOR_CSS: Record<string, string> = {
@@ -326,6 +324,49 @@ function TokenLayer({ state, shown, hopping }: { state: GameState; shown: Record
   );
 }
 
+// ─── Event alerts ───────────────────────────────────────────────────────────────
+// A small toast per notable thing that just happened — anyone's purchase, rent, tax, build,
+// mortgage, jackpot — not just yours. Dice-roll/movement lines are noise, so those are skipped.
+function alertIcon(text: string): string {
+  if (text.includes('buys ')) return '🏙️';
+  if (text.includes('pays') && text.includes('rent')) return '💸';
+  if (text.includes('tax')) return '🧾';
+  if (text.includes('collects $')) return '💰';
+  if (text.includes('unmortgages')) return '🔓';
+  if (text.includes('mortgages')) return '🏦';
+  if (text.includes('builds')) return '🏠';
+  if (text.includes('sells a house')) return '🏚️';
+  if (text.includes('Free Parking jackpot')) return '🅿️';
+  if (text.includes('bankrupt') || text.includes('cannot afford')) return '💀';
+  if (text.includes('Jail')) return '🚔';
+  if (text.includes('Get Out of Jail')) return '🃏';
+  return '📋';
+}
+function EventToasts({ log }: { log: string[] }) {
+  const [toasts, setToasts] = useState<{ id: number; text: string; icon: string }[]>([]);
+  const seen = useRef(log[0]);
+  const nextId = useRef(0);
+  useEffect(() => {
+    const top = log[0];
+    if (top === undefined || top === seen.current || top.includes('rolled')) { seen.current = top; return; }
+    seen.current = top;
+    const id = nextId.current++;
+    setToasts((ts) => [...ts.slice(-3), { id, text: top, icon: alertIcon(top) }]);
+    const t = setTimeout(() => setToasts((ts) => ts.filter((x) => x.id !== id)), 4200);
+    return () => clearTimeout(t);
+  }, [log]);
+  return (
+    <div className="mono-alerts">
+      {toasts.map((t) => (
+        <div key={t.id} className="mono-alert">
+          <span className="mono-alert-icon">{t.icon}</span>
+          <span className="mono-alert-text">{t.text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── Game Log ─────────────────────────────────────────────────────────────────
 function GameLog({ log }: { log: string[] }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -469,6 +510,9 @@ export default function MonopolyGame() {
       {/* Buy Modal */}
       {state.phase === 'buying' && state.players[state.currentPlayerIndex]?.id === 'p0' && <BuyModal state={state} onBuy={buyProperty} onDecline={declineProperty} />}
 
+      {/* Event alerts: what just happened, for every player */}
+      <EventToasts log={state.log} />
+
       {/* Floating messages */}
       <div className="mono-floats">
         {state.floatingMsgs.map((msg, i) => (
@@ -529,10 +573,14 @@ export default function MonopolyGame() {
               return <div key={sq.id} style={{ gridColumn: col, gridRow: row }}><BoardSquare sq={sq} state={state} /></div>;
             })}
 
-            {/* Center: the city grows as the board fills up */}
+            {/* Center: title, dice and a running tally — no 3D scene, so it never blocks the board */}
             <div className="mono-board-center">
-              <MonoCity owned={ownedCount} houses={houseCount} active={state.phase !== 'card' && state.phase !== 'buying'} />
+              <div className="mono-board-center-rings" aria-hidden="true" />
               <div className="mono-board-center-title">MONOPOLY</div>
+              <div className="mono-board-center-stats">
+                <span>🏙️ {ownedCount}/28 owned</span>
+                <span>🏠 {houseCount} built</span>
+              </div>
               <div className="mono-board-center-dice">
                 <Dice dice={state.dice} rolling={diceRolling} doubles={state.doubles > 0} />
               </div>

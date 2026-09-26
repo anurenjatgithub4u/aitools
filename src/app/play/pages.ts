@@ -62,7 +62,7 @@ export const PLAY_PAGES: PlayPage[] = [
       'how to play football online free', 'online football no app', 'five a side soccer game browser',
       'football game india free online', 'football kick game online', 'penalty kick game online free',
     ],
-    intro: 'The free football game online in FindurAI is a five-a-side match on a full 56 × 36 m pitch at City Stadium, with goals, keepers, stands and floodlights. Walk onto the pitch and press E, or pick Football from the start screen, and the match kicks off.',
+    intro: 'The free football game online in FindurAI is a five-a-side match on a full 60 × 38 m pitch at City Stadium, with goals, keepers, stands and floodlights. Walk onto the pitch and press E, or pick Football from the start screen, and the match kicks off.',
     sections: [
       ['How to play', 'Run into the ball to dribble — it sticks to your feet. Press Kick (Space on a keyboard) to shoot: harder while sprinting, and aimed toward the goal when you face it. Your four blue-bib team-mates pass and defend; the red team has a keeper and counters. Matches are 90 seconds, first to five wins, and the scoreboard sits at the top of the screen.'],
       ['Tips', 'Sprint before you shoot for power. Face the goal — shots are aim-assisted when you do. Do not dribble into the keeper; pass wide and let a team-mate finish. The camera starts high and wide so you can see the whole pitch.'],

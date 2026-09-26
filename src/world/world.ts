@@ -75,7 +75,7 @@ interface Road { t: Traffic; route: THREE.Vector3[]; i: number; dir: number }
 // An in-world circuit race on the FindurAI Speedway: your car plus three AI cars, three laps.
 interface RaceCar { car: Vehicle; bot: Bot | null; name: string; idx: number; lap: number; prog: number; done: number; skill: number; lane: number; you: boolean; nitroUntil: number; nitroAt: number }
 // Football at City Stadium: you + a team-mate against two rivals, one ball, two goals, 90 seconds.
-interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; slot: [number, number]; gk: boolean; front: boolean; kicked: number; bib: THREE.Mesh }
+interface Footballer { bot: Bot | null; team: 0 | 1; home: THREE.Vector3; slot: [number, number]; gk: boolean; front: boolean; kicked: number; bib: THREE.Mesh; cap: THREE.Object3D | null }
 interface MatchState { side: Footballer[]; ball: THREE.Mesh; vel: THREE.Vector3; score: [number, number]; endAt: number; pause: number; over: boolean; opp: string; mates: string; rivals: string; started: number; lastKick: Footballer | null; cheer: { team: 0 | 1; until: number } | null; kickTeam: 0 | 1 }
 // formation slots relative to the centre spot for the side attacking +x (mirrored for the other side): captain, keeper, two backs, a winger
 const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [-6, 12]];
@@ -2004,9 +2004,11 @@ export class World {
     ball.castShadow = true;
     this.scene.add(ball);
     const bib = (team: 0 | 1, av: Avatar) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.62, 0.56), new THREE.MeshStandardMaterial({ color: team === 0 ? 0x3f8fd6 : 0xd94a3d, transparent: true, opacity: 0.6, roughness: 0.9 })); m.position.set(0, 0.45, 0); av.body.add(m); return m; };
+    // a floating team-colour arrow over every AI player's head — a bib is easy to miss at a sprint, this is not
+    const cap = (team: 0 | 1, av: Avatar) => { const c = team === 0 ? 0x3f8fd6 : 0xd94a3d, m = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.28, 4), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.5 })); m.rotation.x = Math.PI; m.position.y = 2.15; av.group.add(m); return m; };
     const mk = (bot: Bot | null, team: 0 | 1, i: number): Footballer => {
-      const [sx, sz] = FORMATION[i], x = team === 0 ? sx : -sx;
-      return { bot, team, home: new THREE.Vector3(pt.x + x, y, pt.z + sz), slot: [x, sz], gk: i === 1, front: i === 0, kicked: -1, bib: bib(team, bot ? bot.av : this.player) };
+      const [sx, sz] = FORMATION[i], x = team === 0 ? sx : -sx, av = bot ? bot.av : this.player;
+      return { bot, team, home: new THREE.Vector3(pt.x + x, y, pt.z + sz), slot: [x, sz], gk: i === 1, front: i === 0, kicked: -1, bib: bib(team, av), cap: bot ? cap(team, av) : null };
     };
     const side: Footballer[] = [mk(null, 0, 0), ...mates.map((b, i) => mk(b, 0, i + 1)), ...rivals.map((b, i) => mk(b, 1, i))];
     for (const f of side) if (f.bot) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; f.bot.label.visible = true; }
@@ -2120,9 +2122,9 @@ export class World {
       } else if (m.lastKick === who || d < 1.0) { const sp = Math.hypot(v.x, v.z); if (sp > 3) { v.x *= 3 / sp; v.z *= 3 / sp; } v.x *= Math.max(0, 1 - 8 * dt); v.z *= Math.max(0, 1 - 8 * dt); }   // trap it at the feet
       m.lastKick = who;
     };
-    const block = (g: THREE.Object3D, who: Footballer) => {
+    const block = (g: THREE.Object3D, who: Footballer, reach = 0.75) => {
       const dx = ball.x - g.position.x, dz = ball.z - g.position.z, d = Math.hypot(dx, dz), sp = Math.hypot(v.x, v.z);
-      if (d > 0.75 || d === 0 || sp < 7 || ball.y > gy + 1.5 || m.lastKick === who) return;
+      if (d > reach || d === 0 || sp < 7 || ball.y > gy + 1.5 || m.lastKick === who) return;
       const nx = dx / d, nz = dz / d, dot = v.x * nx + v.z * nz;
       if (dot < 0) { v.x -= 1.5 * dot * nx; v.z -= 1.5 * dot * nz; v.x *= 0.5; v.z *= 0.5; m.lastKick = who; this.sfx.bump(); }
     };
@@ -2155,12 +2157,16 @@ export class World {
         const b = f.bot!, bp = b.av.group.position;
         let tx: number, tz: number;
         if (!live) { const kt = this.kickoffTarget(f, m); tx = kt[0]; tz = kt[1]; }
-        else if (f.gk) { tx = ownGoalX + (team === 0 ? 2.5 : -2.5); tz = pt.z + Math.max(-pt.goal - 0.5, Math.min(pt.goal + 0.5, (ball.z - pt.z) * 0.8)); }
+        else if (f.gk) {
+          tx = ownGoalX + (team === 0 ? 2.5 : -2.5);
+          const track = team === 1 ? 1 : 0.8, lead = team === 1 ? v.z * 0.14 : 0;   // the rival keeper reads the shot's line, not just where the ball is right now
+          tz = pt.z + Math.max(-pt.goal - 0.5, Math.min(pt.goal + 0.5, (ball.z - pt.z) * track + lead));
+        }
         else if (f === chaser) { tx = ball.x - Math.sign(goalX - ball.x) * 0.9; tz = ball.z; }
         else { const shape = team === 1 ? 0.58 : 0.45; tx = pt.x + f.slot[0] + (ball.x - pt.x) * shape; tz = pt.z + f.slot[1] + (ball.z - pt.z) * 0.35; }
         tx = Math.max(pt.x - hw + 1, Math.min(pt.x + hw - 1, tx)); tz = Math.max(pt.z - hd + 1, Math.min(pt.z + hd - 1, tz));
         const dx = tx - bp.x, dz = tz - bp.z, d = Math.hypot(dx, dz);
-        const speed = f === chaser ? (team === 1 ? 8.6 : 6.8) : f.gk ? 6.8 : 5.8;   // the side marking you closes down harder than your own support
+        const speed = f === chaser ? (team === 1 ? 8.6 : 6.8) : f.gk ? (team === 1 ? 7.8 : 6.8) : 5.8;   // the side marking you closes down harder than your own support; the rival keeper is quicker off his line too
         if (d > 0.4) { const sd = Math.min(d, speed * dt); bp.x += (dx / d) * sd; bp.z += (dz / d) * sd; b.av.group.rotation.y += wrapAngle(Math.atan2(dx, dz) - b.av.group.rotation.y) * Math.min(1, dt * 8); b.walking = Math.min(1, b.walking + dt * 4); }
         else b.walking = Math.max(0, b.walking - dt * 4);
         // spread out: never stand inside a team-mate
@@ -2172,7 +2178,7 @@ export class World {
         } else { b.av.body.rotation.x = 0; animateWalk(b.av, t * 2.2, b.walking); }
         b.label.visible = false;   // bibs tell the teams apart; no name tags on the pitch
         if (!live) continue;
-        block(b.av.group, f);
+        block(b.av.group, f, f.gk && team === 1 ? 1.15 : 0.75);   // the rival keeper gets a proper diving reach, not just a body in the way
         const bd = Math.hypot(ball.x - bp.x, ball.z - bp.z);
         if (bd < 1.3 && t - f.kicked > 0.7) {
           const toGoal = Math.abs(goalX - ball.x);
@@ -2214,7 +2220,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.match = null;
     this.ev.onMode(null);
     this.scene.remove(m.ball);
-    for (const f of m.side) { f.bib.removeFromParent(); if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.wanderFrom(f.bot.av.group.position); f.bot.speed = rand(1.8, 3.4); } }
+    for (const f of m.side) { f.bib.removeFromParent(); f.cap?.removeFromParent(); if (f.bot) { f.bot.playing = false; f.bot.wait = rand(1, 3); f.bot.target = this.wanderFrom(f.bot.av.group.position); f.bot.speed = rand(1.8, 3.4); } }
     this.ev.onQuest(null);
     this.questCooldown = 10;
   }

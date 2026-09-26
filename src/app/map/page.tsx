@@ -20,7 +20,7 @@ const AREAS: [string, string, string][] = [
   ["Sunset Beach", "east coast", "Sand, shacks, a volleyball net, the pier with its bench, boats, a lifeguard tower, a candle-lit table on the sand and the Sunset Wheel — the beach's own Ferris wheel and a classic date."],
   ["Beach fairground", "north of the beach", "The pirate ship swings here; the Chair Swing spins beside the Skate Park a little inland."],
   ["Central Park", "west", "A lake with an islet, a bandstand, benches, an ice-cream cart and the carousel — eight bobbing horses under a lit canopy."],
-  ["City Stadium", "south", "A full 56 × 36 m pitch with goals, stands and floodlights. Walk on and press E for five-a-side."],
+  ["City Stadium", "south", "A full 60 × 38 m pitch with goals, stands and floodlights. Walk on and press E for five-a-side."],
   ["FindurAI Speedway", "the valley, south", "A 960 m GP-style circuit with a grandstand, pit garages, boost pads and pines along the Valley straight. Big Bend is the far end."],
   ["Palm Grove Homes, Sunrise High School, FindurAI College, City Mall, Starlight Cinema", "around the city", "The rest of town — worth a walk, and where cash-hunt bundles tend to hide."],
   ["Harbour Bridge", "east", "A suspension bridge over the strait to Eastside, with a road, walkways and towers. Buses and the Coast line cross it."],

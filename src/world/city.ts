@@ -359,7 +359,7 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
 
   // ================= STADIUM + SKATE PARK (south) =================
   const stx = 70, stz = 200, sty = h(stx, stz);
-  const PW = 56, PD = 36, GOAL = 4.4;   // pitch size + half goal width; exported for the football match
+  const PW = 60, PD = 38, GOAL = 4.4;   // pitch size + half goal width; exported for the football match (still clear of the 37-radius turf disc at the corners)
   // open cylinders must be seen from inside too, so they stay out of the bake (which is single-sided)
   const shell = (radius: number, hgt: number, y: number, c: number) => { const m = at(mesh(new THREE.CylinderGeometry(radius, radius, hgt, 48, 1, true), c, { side: THREE.DoubleSide }), stx, y, stz); m.userData.animated = true; g.add(m); };
   shell(40, 9, sty + 4.5, 0xd9d4c8);

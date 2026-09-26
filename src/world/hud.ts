@@ -266,6 +266,7 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     meetMain.hidden = false; meetGames.hidden = true; iceRow.hidden = false;
     if (a === 'chat') { chatEl.hidden = false; cinput.focus(); }
     actions.interact(a as MeetAction);
+    if (a === 'hangout') { dismissed = meetName.textContent ?? ''; meetEl.hidden = true; }   // they're following you now — the card would only be in the way
   });
   // friend requests from real players
   const freq = root.querySelector<HTMLElement>('#freq')!, freqName = root.querySelector<HTMLElement>('#freqname')!;

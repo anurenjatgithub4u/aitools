@@ -940,8 +940,8 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     ride(train, { id: 'spooky', kind: 'coaster', label: 'Ride the Spooky Express', x: sx2 - 4.5, z: sz2 + 1, y: h(sx2 - 4.5, sz2 + 1), icon: '👻', seconds: 42, cam: 0.32 });
     place('Spooky Express', cx, 9, cz, 200);
   }
-  // The Vortex — a ring of pods on a fork mount on the hill past Windmill Hill: spins fast and slowly tilts from flat to upright and back
-  { const lx = 460, lz = 50, ly = h(lx, lz), R = 4.6, MOUNT = 7.4;   // MOUNT clears R with margin: the ring must never dip into the ground when it swings upright
+  // The Vortex — a ring of pods on a fork mount on the green by Central Park: spins fast and slowly tilts from flat to upright and back
+  { const lx = -68, lz = 34, ly = h(lx, lz), R = 4.6, MOUNT = 7.4;   // MOUNT clears R with margin: the ring must never dip into the ground when it swings upright
     g.add(at(cyl(5.2, 5.6, 0.5, 0x555555, 20), lx, ly + 0.25, lz)); keep(lx, lz, 13);
     for (const sd of [-1, 1]) g.add(rot(at(box(0.7, MOUNT * 1.05, 0.7, 0x2c3e6b), lx + sd * 1.8, ly + MOUNT * 0.5, lz), 'z', sd * 0.16));
     for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; g.add(at(glow(0.24, 0.24, 0.24, bulbs[k % 4]), lx + Math.cos(a) * 5.4, ly + 0.5, lz + Math.sin(a) * 5.4)); }

@@ -2342,9 +2342,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && !x.playing && x !== opp && this.hangout?.bot !== x);
     const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
     if (!rival) return;
-    const fielders = pool.slice(0, 6).map((bot, i) => {
-      const a = [-2.2, -1.2, -0.5, 0.5, 1.2, 2.2][i], r = i === 2 || i === 3 ? 22 : 27;   // a ring around the batting end
-      return { bot, home: new THREE.Vector3(o.x - 10 + Math.cos(a) * r, 0, o.z + Math.sin(a) * r), spd: 5.7 + (i % 6) * 0.3 };   // a bit of pace and arm to each of them
+    const fielders = pool.slice(0, 8).map((bot, i) => {
+      const a = [-2.4, -1.7, -1.0, -0.35, 0.35, 1.0, 1.7, 2.4][i], r = i === 3 || i === 4 ? 22 : 27;   // a fuller ring around the batting end
+      return { bot, home: new THREE.Vector3(o.x - 10 + Math.cos(a) * r, 0, o.z + Math.sin(a) * r), spd: 5.7 + i * 0.21 };   // a bit of pace and arm to each of them
     });
     for (const f of [{ bot: rival }, ...fielders]) { f.bot.playing = true; f.bot.wait = 0; f.bot.knocked = null; }
     const ball = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), new THREE.MeshStandardMaterial({ color: 0xe0392b, emissive: 0x5a0a0a, roughness: 0.5 }));

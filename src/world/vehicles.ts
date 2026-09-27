@@ -99,7 +99,7 @@ export function makeVehicle(kind: VehicleKind, color: number): Vehicle {
     g.add(at(box(0.05, 0.6, 0.05, 0x333333), 0, 1.65, 0.85));
     g.add(rot(at(new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.08, 10), mat(0xfff2a8, { emissive: 0xfff2a8, emissiveIntensity: 0.6 })), 0, 1.5, 1.35), 'x', Math.PI / 2));
     const front = wheel(0.38, 0.25); front.position.set(0, 0.38, 1.2); g.add(front); wheels.push(front);
-    for (const x of [-0.7, 0.7]) { const w = wheel(0.38, 0.25); w.position.set(x, 0.38, -0.9); g.add(w); wheels.push(w); }
+    for (const x of [-0.86, 0.86]) { const w = wheel(0.38, 0.25); w.position.set(x, 0.38, -0.9); g.add(w); wheels.push(w); }   // clear of the 1.5-wide body so the tyre isn't half-buried in it
     seat = new THREE.Vector3(0, 1.15, 0.3);
   } else if (kind === 'bike') {
     const dark = 0x2a2a2a;

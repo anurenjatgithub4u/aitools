@@ -77,7 +77,7 @@ function house(g: THREE.Group, x: number, y: number, z: number, ry: number, wall
 
 export interface Clear { x: number; z: number; r: number }
 
-export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship' | 'drop' | 'cups' | 'coaster' | 'bumper' | 'flyer' | 'loop' | 'haunted'; label: string; x: number; z: number; y: number; icon: string; seconds?: number; cam?: number }
+export interface RideDef { id: string; kind: 'wheel' | 'carousel' | 'swing' | 'ship' | 'drop' | 'cups' | 'coaster' | 'bumper' | 'flyer' | 'loop'; label: string; x: number; z: number; y: number; icon: string; seconds?: number; cam?: number }
 
 // Every road segment in the city (x0, z0, x1, z1). Declared up front so the ground can be smoothed under
 // all of them before a single building is placed; road() below draws them and checks it is on this list.
@@ -959,7 +959,7 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     place('The Vortex', lx, MOUNT + 4, lz, 190);
   }
   // The Zip Line — glide down the cable from the tall launch tower to the short one by Neon Lane, then a slow tow hauls the seat back up to go again
-  { const zx = -80, zAz = -20, zBz = 49, zHA = 30, zHB = 10, SIDE = 1.6, gA = h(zx, zAz), gB = h(zx, zBz);
+  { const zx = -188, zAz = -222, zBz = -84, zHA = 30, zHB = 10, SIDE = 1.6, gA = h(zx, zAz), gB = h(zx, zBz);
     g.add(at(cyl(2.3, 2.6, 0.5, 0x555555, 16), zx, gA + 0.25, zAz)); keep(zx, zAz, 9);        // launch tower
     g.add(at(cyl(0.4, 0.5, zHA, 0x2c3e6b, 10), zx, gA + zHA / 2, zAz));
     g.add(at(box(3.2, 0.3, 3.2, 0x8a6a4a), zx, gA + zHA, zAz));
@@ -984,57 +984,8 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     pod.add(at(box(1.3, 0.12, 0.35, 0x8a5a2b), 0, -1.15, 0));                                  // seat bar
     for (const sx of [-0.32, 0.32]) pod.add(at(box(0.4, 0.1, 0.3, 0xd94a3d), sx, -1.05, 0));
     seat(pod, 'seat0', -0.32, -0.95, 0); seat(pod, 'seat1', 0.32, -0.95, 0);
-    ride(pod, { id: 'zipline', kind: 'coaster', label: 'Ride the Zip Line', x: zx + SIDE, z: zAz + 3, y: gA, icon: '🚡', seconds: 58, cam: 0.3 });
+    ride(pod, { id: 'zipline', kind: 'coaster', label: 'Ride the Zip Line', x: zx + SIDE, z: zAz + 3, y: gA, icon: '🚡', seconds: 116, cam: 0.3 });
     place('Zip Line', zx, zHA + 4, (zAz + zBz) / 2, 230);
-  }
-  // The Haunted Manor — a dark-ride train loops through a walled-in house; a ghost rises out of the dark as you pass each one, then sinks back
-  { const hx = -110, hz = 0, hy = h(hx, hz), HW = 30, HD = 20, WH = 10;
-    const wall = (w: number, d: number, dx: number, dz: number) => g.add(at(box(w, WH, d, 0x241a33), hx + dx, hy + WH / 2, hz + dz));
-    wall(HW, 0.6, 0, -HD / 2); wall(HW, 0.6, 0, HD / 2); wall(0.6, HD, -HW / 2, 0); wall(0.6, HD, HW / 2, 0);
-    g.add(at(box(HW + 1, 0.6, HD + 1, 0x1a1224), hx, hy + WH + 0.3, hz));                     // flat dark roof
-    for (const [tx, tz] of [[-HW / 2, -HD / 2], [HW / 2, -HD / 2], [-HW / 2, HD / 2], [HW / 2, HD / 2]] as const) {
-      g.add(at(cyl(1.6, 1.8, WH + 3, 0x2c1f3f, 10), hx + tx, hy + (WH + 3) / 2, hz + tz));
-      g.add(at(cone(2.2, 2.4, 0x120c1c, 10), hx + tx, hy + WH + 4.2, hz + tz));
-    }
-    const doorX = hx, doorZ = hz + HD / 2;                                                    // the entrance, on the south wall
-    g.add(at(box(4, 5, 0.4, 0x0d0812), doorX, hy + 2.5, doorZ));
-    g.add(at(glow(3.6, 0.3, 0.1, 0x9a4aff), doorX, hy + 4.7, doorZ + 0.25));
-    g.add(at(sph(0.5, 0xf4f4f4, 10), doorX, hy + 5.3, doorZ));                                 // a skull over the door
-    for (let k = 0; k < 6; k++) { const a = (k / 6) * Math.PI * 2; g.add(at(glow(0.3, 0.3, 0.3, k % 2 ? 0x9a4aff : 0x4ade80), hx + Math.cos(a) * (HW / 2 - 1.2), hy + WH - 1, hz + Math.sin(a) * (HD / 2 - 1.2))); }   // eerie window glows
-    keep(hx, hz, Math.max(HW, HD) / 2 + 6);
-    const ring: THREE.Vector3[] = [];
-    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; ring.push(V(hx + Math.cos(a) * 10, hy + 1.3, hz + Math.sin(a) * 6)); }
-    const spine = new THREE.CatmullRomCurve3(ring, true, 'catmullrom', 0.5);
-    const track = new THREE.Group(), N = 100, side = new THREE.Vector3(), railL: THREE.Vector3[] = [], railR: THREE.Vector3[] = [];
-    for (let i = 0; i < N; i++) {
-      const pt = spine.getPointAt(i / N), tg = spine.getTangentAt(i / N);
-      side.copy(tg).cross(V(0, 1, 0)).normalize().multiplyScalar(0.5);
-      railL.push(pt.clone().add(side)); railR.push(pt.clone().sub(side));
-      if (i % 6 === 0) track.add(bar(pt.clone().add(side), pt.clone().sub(side), 0.06, 0x3a2418));
-    }
-    for (const r of [railL, railR]) track.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(r, true, 'catmullrom', 0.5), N, 0.08, 5, true), 0x6a3fb0));
-    track.traverse((o) => { o.userData.noCollide = true; }); g.add(track);
-    // four ghosts, sunk below the floor until the train comes round — then they rise, and sink back once it passes
-    const ghosts: { obj: THREE.Object3D; wx: number; wz: number; restY: number; popY: number }[] = [];
-    for (const k of [1, 3, 5, 7]) {   // one of the ring's own 8 control angles, so the ghost sits exactly on the curve the train follows
-      const a = (k / 8) * Math.PI * 2, gx = hx + Math.cos(a) * 10, gz = hz + Math.sin(a) * 6;
-      const gg = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.6, 8), new THREE.MeshStandardMaterial({ color: 0xeaf6ff, transparent: true, opacity: 0.85, emissive: 0xaad4ff, emissiveIntensity: 0.4 }));
-      body.rotation.x = Math.PI; gg.add(body);
-      for (const ex of [-0.22, 0.22]) gg.add(at(sph(0.09, 0x1a1a2a, 6), ex, 0.55, 0.6));
-      gg.position.set(gx, hy - 1.5, gz); gg.traverse((o) => { o.userData.noCollide = true; }); g.add(gg);
-      ghosts.push({ obj: gg, wx: gx, wz: gz, restY: hy - 1.5, popY: hy + 1.6 });
-    }
-    const train = new THREE.Group();
-    train.userData.curve = spine; train.userData.len = spine.getLength(); train.userData.u = 0; train.userData.top = hy + 1.3; train.userData.ghosts = ghosts;
-    for (let k = 0; k < 2; k++) {
-      const c = k ? 0x6a3fb0 : 0x2a2a3a, car = new THREE.Group();
-      car.position.z = k * 2.2; train.add(car);
-      car.add(at(box(1.5, 0.7, 2.0, c), 0, 0.35, 0)); car.add(at(box(1.6, 0.35, 0.15, 0x1a1a1a), 0, 0.75, -0.9));
-      seat(car, `seat${k * 2}`, -0.35, 0.6, 0.2); seat(car, `seat${k * 2 + 1}`, 0.35, 0.6, 0.2);
-    }
-    ride(train, { id: 'haunted', kind: 'haunted', label: 'Ride the Haunted Manor', x: hx, z: hz + HD / 2 + 3, y: hy, icon: '🏚️', seconds: 36, cam: 0.3 });
-    place('Haunted Manor', hx, WH + 6, hz, 210);
   }
   // ================= CITY POLICE STATION (east of downtown) =================
   // Drive like an idiot and the patrol jeep comes for you; if you cannot pay the fine you spend it in this cell.

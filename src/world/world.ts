@@ -2370,10 +2370,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.startCricket(opp, 6, undefined, 'superover');
   }
 
-  /** They bat first and set a target in 3 overs; you chase it. Your best-ever successful chase is saved. */
+  /** A target is set instantly — no bowling, you only ever bat. Your best-ever successful chase is saved. */
   private startChaseChallenge(opp?: Bot) {
-    const best = store.cricketChaseBest();
-    this.ev.onCollect({ name: `📈 BEAT THE HIGH SCORE — they set a target in 3 overs, then you chase it!${best ? ` Best so far: ${best}` : ''}`, points: 0, color: 0xf2c31b, shape: 'gem' });
     this.startCricket(opp, 18, false, 'chase');
   }
 
@@ -2406,10 +2404,21 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.clearQuest();
     this.questCooldown = 8;
     this.sfx.questStart();
-    this.ev.onMode({ icon: '🏏', label: batFirst ? 'Bat' : 'Bowl', arrows: true, run: batFirst, stick: false });
-    this.showShot(this.cricket);
-    this.ev.onCollect({ name: `You ${batFirst ? 'bat' : 'bowl'} first · ${balls / 6} over${balls > 6 ? 's' : ''}, ${this.cricket.maxWkts} wickets · ${batFirst ? `then ${rival.name} chases` : `then you chase them`}`, points: 0, color: 0x2fa66a, shape: 'gem' });
-    this.botSays(rival, batFirst ? 'Watch the ball, not me 😏' : 'Right then — bowl it 🏏', 1.5);
+    if (mode === 'chase') {   // no bowling here: their innings is set instantly, you only ever bat
+      const c = this.cricket;
+      const target = (store.cricketChaseBest() || 24) + 4 + Math.floor(Math.random() * 12);
+      c.innings = 2; c.first = target; c.target = target + 1; c.firstWkts = Math.floor(Math.random() * Math.max(1, c.maxWkts - 1)); c.firstBalls = balls;
+      this.ev.onMode({ icon: '🏏', label: 'Bat', arrows: true, run: true, stick: false });
+      this.showShot(c);
+      this.ev.onBanner('BEAT THE HIGH SCORE', `${rival.name} scored ${target} off ${balls} balls — chase it down!`, 'neutral');
+      this.ev.onCollect({ name: `📈 Target: ${target} off ${balls} balls · pick a shot and go!`, points: 0, color: 0xf2c31b, shape: 'gem' });
+      this.botSays(rival, `${target}? Good luck beating that 😏`, 1);
+    } else {
+      this.ev.onMode({ icon: '🏏', label: batFirst ? 'Bat' : 'Bowl', arrows: true, run: batFirst, stick: false });
+      this.showShot(this.cricket);
+      this.ev.onCollect({ name: `You ${batFirst ? 'bat' : 'bowl'} first · ${balls / 6} over${balls > 6 ? 's' : ''}, ${this.cricket.maxWkts} wickets · ${batFirst ? `then ${rival.name} chases` : `then you chase them`}`, points: 0, color: 0x2fa66a, shape: 'gem' });
+      this.botSays(rival, batFirst ? 'Watch the ball, not me 😏' : 'Right then — bowl it 🏏', 1.5);
+    }
   }
 
   /** Batting animation: side-on stance with the bat tapped down, backlift as the ball comes, downswing, follow-through, recover. */

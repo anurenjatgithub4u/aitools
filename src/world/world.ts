@@ -3659,7 +3659,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         case 'flyer': grp.rotation.x = Math.sin(T * 0.62) * 1.15; for (const c of grp.children) if (c.name === 'gondola') c.rotation.y = spin(1.7); break;
         case 'loop': grp.rotation.x = Math.max(0, Math.sin(T * 0.12)) * 1.4; grp.rotation.z = spin(TAU / 9); break;   // spins fast while slowly tilting from upright to flat and back
         case 'cups': grp.rotation.y = spin(0.55); for (const c of grp.children) if (c.name.startsWith('cup')) c.rotation.y = spin(1.3 + Number(c.name.slice(3)) * 0.22); break;
-        case 'coaster': {
+        case 'coaster': case 'haunted': {
           const curve = grp.userData.curve as THREE.CatmullRomCurve3;
           const u = this.lapU(r, T), soon = this.lapU(r, T + 0.12);
           const at = curve.getPointAt(u), tg = curve.getTangentAt(u), tg2 = curve.getTangentAt(soon);
@@ -3669,6 +3669,13 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           grp.quaternion.setFromRotationMatrix(RIDE_M4);
           const turn = wrapAngle(Math.atan2(tg2.x, tg2.z) - Math.atan2(tg.x, tg.z));
           grp.quaternion.multiply(RIDE_Q.setFromAxisAngle(RIDE_FWD, Math.max(-0.7, Math.min(0.7, (turn / 0.12) * 0.18))));   // lean into the corner
+          if (def.kind === 'haunted') {   // wake whichever ghost the train is passing, let the rest settle back into the dark
+            const ghosts = grp.userData.ghosts as { obj: THREE.Object3D; wx: number; wz: number; restY: number; popY: number }[] | undefined;
+            if (ghosts) for (const gh of ghosts) {
+              const near = Math.hypot(grp.position.x - gh.wx, grp.position.z - gh.wz) < 4;
+              gh.obj.position.y += ((near ? gh.popY : gh.restY) - gh.obj.position.y) * Math.min(1, dt * 5);
+            }
+          }
           break;
         }
       }

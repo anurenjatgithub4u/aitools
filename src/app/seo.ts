@@ -126,8 +126,8 @@ export const FEATURES = {
   places: [
     ["Downtown Plaza", "fountain, big screen and the spawn point — where everyone meets"],
     ["Café Row & Food-truck Park", "Chai Corner, Waffle Wonders, taco and biryani trucks"],
-    ["Neon Lane", "Tipsy Turtle Pub, Whiskey & Wings, Bass Drop Club, Karaoke Kingdom, Skyline Rooftop Bar, Mojito Shack"],
-    ["Neon Palace casino & club", "dance floor, DJ, bar, slots, roulette, lasers inside and out, two real 8-ball tables and a carrom board"],
+    ["Neon Lane", "Turtle Bay Lounge, Firefly Wings, Bass Drop Club, Karaoke Kingdom, Skyline Rooftop Lounge, Sunset Shack"],
+    ["Neon Palace lounge & games club", "dance floor, DJ, bar, arcade games, lasers inside and out, two real 8-ball tables and a carrom board (free play)"],
     ["Sunset Beach", "sand, shacks, volleyball net, a pier, boats and a lifeguard tower"],
     ["Central Park", "a lake, benches and a bandstand"],
     ["City Stadium", "a full 60 × 38 m football pitch with goals, stands and floodlights"],

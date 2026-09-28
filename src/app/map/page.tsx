@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE } from "../seo";
 import { AdScript, AdSlot } from "../ads";
+import { Footer } from "../_components/Footer";
 
 export const metadata: Metadata = {
   title: "FindurAI City map — every place in the city and what to do there",
@@ -14,8 +15,8 @@ export const metadata: Metadata = {
 const AREAS: [string, string, string][] = [
   ["Downtown Plaza", "the centre", "Fountain, big screen and the spawn point — everyone arrives here. The leaderboard sign, the first jeeps and tuk-tuks, and the road north to Neon Lane or south to Café Row."],
   ["Café Row", "just south of the plaza", "Bean There Café, Chai Corner, Waffle Wonders, Gelato Bar and Pizza Point along the road, with terraces out front. Chai Corner's table is the coffee-date spot; snack-run tasks send you along here."],
-  ["Neon Lane", "north", "The nightlife strip: The Tipsy Turtle Pub, Whiskey & Wings, Bass Drop Club, Karaoke Kingdom, Skyline Rooftop Bar and the Mojito Shack, all under neon."],
-  ["Neon Palace", "end of Neon Lane", "The casino and club: a dance floor with chasing tiles, a DJ, a bar, slot machines, a roulette table, lasers inside and over the roof, two real 8-ball tables and a carrom board."],
+  ["Neon Lane", "north", "The nightlife strip: Turtle Bay Lounge, Firefly Wings, Bass Drop Club, Karaoke Kingdom, Skyline Rooftop Lounge and the Sunset Shack, all under neon."],
+  ["Neon Palace", "end of Neon Lane", "The neon lounge and entertainment club: a dance floor with chasing tiles, a DJ, a bar, retro arcade games, lasers inside and over the roof, two real 8-ball tables and a carrom board (free play, purely virtual entertainment)."],
   ["Sky Wheel", "between Neon Lane and the beach", "The big wheel — twelve lit cabins, a slow minute-long turn with a view over the whole city. Press E at the gate; it seats two."],
   ["Sunset Beach", "east coast", "Sand, shacks, a volleyball net, the pier with its bench, boats, a lifeguard tower, a candle-lit table on the sand and the Sunset Wheel — the beach's own Ferris wheel and a classic date."],
   ["Beach fairground", "north of the beach", "The pirate ship swings here; the Chair Swing spins beside the Skate Park a little inland."],
@@ -55,6 +56,8 @@ export default function CityMap() {
       <AdSlot />
 
       <p className="lede"><Link href="/" className="cta">Play free now →</Link> · <Link href="/how-to-play/">How to play</Link> · <Link href="/games/">All games</Link></p>
+
+      <Footer />
     </main>
   );
 }

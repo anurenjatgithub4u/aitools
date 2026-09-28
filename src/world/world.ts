@@ -1881,7 +1881,7 @@ export class World {
       ctx.fillStyle = '#fff';
       for (const x of st) { const [e, f] = P(x, this.train.z); ctx.beginPath(); ctx.arc(e, f, 2, 0, 7); ctx.fill(); }
     }
-    if (this.casino) { const [a, b] = P(this.casino.x, this.casino.z); ctx.fillStyle = '#ff4fd8'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🎰', a, b + (labels ? 3.5 : 2)); }
+    if (this.casino) { const [a, b] = P(this.casino.x, this.casino.z); ctx.fillStyle = '#ff4fd8'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText('🪩', a, b + (labels ? 3.5 : 2)); }
     for (const [wx, wz, icon] of [...(this.wheel ? [[this.wheel.position.x, this.wheel.position.z, '🎡'] as const] : []), ...this.rides.map((r) => [r.def.x, r.def.z, r.def.icon] as const)]) { const [a, b] = P(wx, wz); ctx.fillStyle = '#f2c31b'; ctx.beginPath(); ctx.arc(a, b, labels ? 7 : 4, 0, 7); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${labels ? 10 : 6}px Inter, sans-serif`; ctx.textAlign = 'center'; ctx.fillText(icon, a, b + (labels ? 3.5 : 2)); }
     if (this.pumpPos) { const [a, b] = P(this.pumpPos.x, this.pumpPos.z); ctx.fillStyle = '#d94a3d'; ctx.beginPath(); ctx.arc(a, b, labels ? 6 : 3, 0, 7); ctx.fill(); if (labels) { ctx.fillStyle = '#fff'; ctx.font = 'bold 9px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('⛽', a, b + 3); } }
     const wp = new THREE.Vector3();
@@ -3114,7 +3114,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const inside = this.insideClub();
     this.clubK = Math.max(0, Math.min(1, this.clubK + (inside ? dt / 1.2 : -dt / 1.2)));
     if (this.clubK > 0 && !(this.zombies && !this.zombies.ending) && this.sunsetK <= 0) this.applyClub(this.clubK);
-    if (inside !== this.inClub) { this.inClub = inside; this.sfx.club(inside); document.body.classList.toggle('indoors', inside); if (inside) this.ev.onCollect({ name: '🎶 Welcome to the Neon Palace — dance floor, bar, slots and real 8-ball', points: 0, color: 0xff4fd8, shape: 'gem' }); }
+    if (inside !== this.inClub) { this.inClub = inside; this.sfx.club(inside); document.body.classList.toggle('indoors', inside); if (inside) this.ev.onCollect({ name: '🎶 Welcome to the Neon Palace — dance floor, bar, arcade games and real 8-ball', points: 0, color: 0xff4fd8, shape: 'gem' }); }
     if (!near) return;
     // outside lasers sweep, inside lasers spin, floor tiles chase colours, the mirror ball turns
     root.traverse((o) => {
@@ -3947,9 +3947,9 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         if (this.driving) this.exitVehicle();
         const ex = c.x, ez = c.z + c.d / 2 + 4;
         this.player.group.position.set(ex - 1, this.terrain.h(ex, ez), ez); this.player.group.rotation.y = Math.PI; this.airY = 0; this.yaw = 0;
-        if (!b.remote) { b.av.group.position.set(ex + 1, this.terrain.h(ex, ez), ez); b.wait = 0; if (this.hangout?.bot !== b) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: t + 300, nextLine: t + 4 }; } this.botSays(b, 'Neon Palace! Dance first or pool first? 🎰', 1); }
+        if (!b.remote) { b.av.group.position.set(ex + 1, this.terrain.h(ex, ez), ez); b.wait = 0; if (this.hangout?.bot !== b) { if (this.hangout) this.endHangout(); this.hangout = { bot: b, until: t + 300, nextLine: t + 4 }; } this.botSays(b, 'Neon Palace! Dance first or pool first? 🎉', 1); }
         else { this.net?.send({ t: 'inv', id: this.selfId, to: b.remote.id, n: this.playerName, kind: 'casino', x: ex + 1, z: ez }); }
-        this.ev.onCollect({ name: '🎰 Neon Palace — the casino & club at the end of Neon Lane', points: 0, color: 0xff4fd8, shape: 'gem' });
+        this.ev.onCollect({ name: '🎉 Neon Palace — the club at the end of Neon Lane', points: 0, color: 0xff4fd8, shape: 'gem' });
         this.sfx.checkpoint();
         break;
       }

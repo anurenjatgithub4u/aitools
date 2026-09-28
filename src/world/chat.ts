@@ -64,7 +64,7 @@ export const ICEBREAKERS: [string, string[]][] = [
   ['Pick a superpower.', ['Teleporting to the beach.', 'Reading minds. Yours first.', 'Flying over the speedway.']],
   ['Best food truck?', ['Taco Truck, no contest.', 'Burger Bus at 2 am.', 'Biryani Box. Always Biryani Box.']],
   ['Are you a good driver?', ['Terrible. Get in.', 'I won the race twice. Ask around.', 'I crash into the pier every time.']],
-  ['Favourite spot in the city?', ['The pier bench at night.', 'Skyline Rooftop Bar.', 'The campfire at Mirror Lake.']],
+  ['Favourite spot in the city?', ['The pier bench at night.', 'Skyline Rooftop Lounge.', 'The campfire at Mirror Lake.']],
   ['Would you survive zombie night?', ['I have survived four waves. You?', 'Absolutely not. I hide in the mall.', 'With you covering me, maybe.']],
 ];
 export function iceReply(text: string): string | null {

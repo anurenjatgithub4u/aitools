@@ -185,8 +185,8 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
 
   // ================= NEON LANE — bars, pubs, club (z = -78) =================
   const bars: [string, number, number, 'pub' | 'bar' | 'club' | 'karaoke' | 'roof'][] = [
-    ['The Tipsy Turtle Pub', -112, 0x8a5a2b, 'pub'], ['Whiskey & Wings', -90, 0xb0308a, 'bar'], ['Bass Drop Club', -66, 0x1a1a3a, 'club'],
-    ['Karaoke Kingdom', -42, 0x6a3fb0, 'karaoke'], ['Skyline Rooftop Bar', -18, 0x2c3e6b, 'roof'], ['Mojito Shack', 2, 0x2fa66a, 'bar'],   // the shack stops short of the x = 15 road
+    ['Turtle Bay Lounge', -112, 0x8a5a2b, 'pub'], ['Firefly Wings', -90, 0xb0308a, 'bar'], ['Bass Drop Club', -66, 0x1a1a3a, 'club'],
+    ['Karaoke Kingdom', -42, 0x6a3fb0, 'karaoke'], ['Skyline Rooftop Lounge', -18, 0x2c3e6b, 'roof'], ['Sunset Shack', 2, 0x2fa66a, 'bar'],   // the shack stops short of the x = 15 road
   ];
   for (const [name, x, c, kind] of bars) {
     const z = -78, y = h(x, z), tall = kind === 'roof' ? 16 : kind === 'club' ? 11 : 8;
@@ -277,7 +277,7 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     // a few high tables for hanging out
     for (const [dx, dz] of [[-12, 8], [-8, 9], [2, 9]]) { g.add(at(cyl(0.45, 0.45, 0.05, 0xe8c46a, 10), cx + dx, cy + 1.05, cz + dz)); g.add(at(cyl(0.05, 0.05, 1.05, 0x555555, 6), cx + dx, cy + 0.52, cz + dz)); }
     g.userData.casino = { x: cx, z: cz, w: CW, d: CD, floor: { x: dfx, z: dfz, w: 12, d: 10 }, tables: poolTables, carrom: carromTables };
-    place('Neon Palace · casino & club', cx, CH + 8, cz, 220);
+    place('Neon Palace · dance & games', cx, CH + 8, cz, 220);
     keep(cx, cz, 24); keep(cx, cz + CD / 2 + 4, 8);
   }
 

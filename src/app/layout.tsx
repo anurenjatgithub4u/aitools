@@ -62,6 +62,7 @@ const JSON_LD = {
 };
 
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const ADSENSE_PUB = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.replace(/^ca-/, "");
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -69,6 +70,33 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+        {/* Google's consent message (Funding Choices) — required for GDPR/UK compliance before ads or
+            analytics cookies run for a visitor there. Site-wide since GA4 below is site-wide too. */}
+        {ADSENSE_PUB && (
+          <>
+            <Script async src={`https://fundingchoicesmessages.google.com/i/${ADSENSE_PUB}?ers=1`} strategy="afterInteractive" />
+            <Script id="googlefc-present" strategy="afterInteractive">
+              {`
+                (function() {
+                  function signalGooglefcPresent() {
+                    if (!window.frames['googlefcPresent']) {
+                      if (document.body) {
+                        var iframe = document.createElement('iframe');
+                        iframe.style = 'width: 0; height: 0; border: none; z-index: -1000; left: -1000px; top: -1000px;';
+                        iframe.style.display = 'none';
+                        iframe.name = 'googlefcPresent';
+                        document.body.appendChild(iframe);
+                      } else {
+                        setTimeout(signalGooglefcPresent, 0);
+                      }
+                    }
+                  }
+                  signalGooglefcPresent();
+                })();
+              `}
+            </Script>
+          </>
+        )}
         {/* Google Analytics 4 */}
         {GA_ID && (
           <>

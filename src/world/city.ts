@@ -959,7 +959,7 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     place('The Vortex', lx, MOUNT + 4, lz, 190);
   }
   // The Zip Line — glide down the cable from the tall launch tower to the short one by Neon Lane, then a slow tow hauls the seat back up to go again
-  { const zx = -80, zAz = -20, zBz = 14, zHA = 20, zHB = 7, SIDE = 1.6, gA = h(zx, zAz), gB = h(zx, zBz);
+  { const zx = -80, zAz = -20, zBz = 49, zHA = 30, zHB = 10, SIDE = 1.6, gA = h(zx, zAz), gB = h(zx, zBz);
     g.add(at(cyl(2.3, 2.6, 0.5, 0x555555, 16), zx, gA + 0.25, zAz)); keep(zx, zAz, 9);        // launch tower
     g.add(at(cyl(0.4, 0.5, zHA, 0x2c3e6b, 10), zx, gA + zHA / 2, zAz));
     g.add(at(box(3.2, 0.3, 3.2, 0x8a6a4a), zx, gA + zHA, zAz));
@@ -972,7 +972,7 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
       V(zx + SIDE, gB + zHB, zBz),                                                            // bottom of the tow (return side) — the lift starts here
       V(zx + SIDE, gA + zHA, zAz),                                                             // hauled to the top, released onto the outbound line
       V(zx - SIDE, gA + zHA, zAz),
-      V(zx - SIDE, (gA + zHA + gB + zHB) / 2 - 3, (zAz + zBz) / 2),                             // the cable sags mid-flight
+      V(zx - SIDE, (gA + zHA + gB + zHB) / 2 - 5, (zAz + zBz) / 2),                             // the cable sags mid-flight
       V(zx - SIDE, gB + zHB, zBz),                                                             // arrival — closes back to the tow
     ], true, 'catmullrom', 0.5);
     g.add(mesh(new THREE.TubeGeometry(spine, 120, 0.055, 6, true), 0x2a2a2a));
@@ -984,8 +984,8 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     pod.add(at(box(1.3, 0.12, 0.35, 0x8a5a2b), 0, -1.15, 0));                                  // seat bar
     for (const sx of [-0.32, 0.32]) pod.add(at(box(0.4, 0.1, 0.3, 0xd94a3d), sx, -1.05, 0));
     seat(pod, 'seat0', -0.32, -0.95, 0); seat(pod, 'seat1', 0.32, -0.95, 0);
-    ride(pod, { id: 'zipline', kind: 'coaster', label: 'Ride the Zip Line', x: zx + SIDE, z: zAz + 3, y: gA, icon: '🚡', seconds: 40, cam: 0.3 });
-    place('Zip Line', zx, zHA + 4, (zAz + zBz) / 2, 190);
+    ride(pod, { id: 'zipline', kind: 'coaster', label: 'Ride the Zip Line', x: zx + SIDE, z: zAz + 3, y: gA, icon: '🚡', seconds: 58, cam: 0.3 });
+    place('Zip Line', zx, zHA + 4, (zAz + zBz) / 2, 230);
   }
   // ================= CITY POLICE STATION (east of downtown) =================
   // Drive like an idiot and the patrol jeep comes for you; if you cannot pay the fine you spend it in this cell.

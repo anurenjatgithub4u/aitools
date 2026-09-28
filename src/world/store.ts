@@ -2,16 +2,17 @@
 const KEY = 'wander.v1';
 
 export interface Gift { from: string; gift: string; at: number }
-interface State { name: string; points: number; visited: string[]; friends: string[]; id: string; gender: 'm' | 'f' | null; gifts: Gift[]; sent: number; dates: string[]; coins: number }
+export interface CricketTour { stage: 'group' | 'qf' | 'sf' | 'final'; groupWins: number; groupPlayed: number }
+interface State { name: string; points: number; visited: string[]; friends: string[]; id: string; gender: 'm' | 'f' | null; gifts: Gift[]; sent: number; dates: string[]; coins: number; cricketTour: CricketTour | null; cricketTitles: number; cricketChaseBest: number }
 
 const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 12);
 
 function load(): State {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) { const st: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: '', gender: null, gifts: [], sent: 0, dates: [], coins: 0, ...JSON.parse(raw) }; if (!st.id) { st.id = newId(); save(st); } return st; }
+    if (raw) { const st: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: '', gender: null, gifts: [], sent: 0, dates: [], coins: 0, cricketTour: null, cricketTitles: 0, cricketChaseBest: 0, ...JSON.parse(raw) }; if (!st.id) { st.id = newId(); save(st); } return st; }
   } catch { /* ignore */ }
-  const fresh: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: newId(), gender: null, gifts: [], sent: 0, dates: [], coins: 0 };
+  const fresh: State = { name: 'Explorer', points: 0, visited: [], friends: [], id: newId(), gender: null, gifts: [], sent: 0, dates: [], coins: 0, cricketTour: null, cricketTitles: 0, cricketChaseBest: 0 };
   save(fresh);
   return fresh;
 }
@@ -43,4 +44,10 @@ export const store = {
   sentGift() { st().sent++; save(st()); },
   dates: () => [...st().dates],
   addDate(kind: string) { if (!st().dates.includes(kind)) { st().dates.push(kind); save(st()); return true; } return false; },
+  cricketTour: () => st().cricketTour,
+  setCricketTour(t: CricketTour | null) { st().cricketTour = t; save(st()); },
+  cricketTitles: () => st().cricketTitles,
+  addCricketTitle() { st().cricketTitles++; save(st()); return st().cricketTitles; },
+  cricketChaseBest: () => st().cricketChaseBest,
+  setCricketChaseBest(n: number) { st().cricketChaseBest = n; save(st()); },
 };

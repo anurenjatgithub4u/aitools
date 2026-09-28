@@ -17,6 +17,7 @@ import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type 
 import type { RideDef } from './city';
 import { loadAds, interstitial, rewarded, adsEnabled } from './ads';
 import { createTransport, type Transport, type NetMsg, type Gender } from './net';
+import type { CricketTour } from './store';
 
 export interface WorldEvents {
   onPoints(total: number): void;
@@ -82,7 +83,13 @@ const FORMATION: [number, number][] = [[-6, 0], [-25, 0], [-16, -9], [-16, 9], [
 const MATCH_SECONDS = 90;
 // Cricket: the bowler runs in, you time the shot. 12 balls, 3 wickets, beat the target.
 type CricketPhase = 'ready' | 'runup' | 'flight' | 'hit' | 'result' | 'over';
-interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3; spd: number }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2; batFirst: boolean; firstWkts: number; firstBalls: number; saveRoll: boolean; shot: number; shotShown: number;
+type CricketMode = 'quick' | 'tournament' | 'superover' | 'chase';
+type CricketTourStage = CricketTour['stage'];
+// Group stage (3 short matches, win 2 of 3 to advance) then single-elimination QF/SF/Final, escalating length and reward.
+const CRICKET_TOUR_OVERS: Record<CricketTourStage, number> = { group: 3, qf: 5, sf: 5, final: 5 };
+const CRICKET_TOUR_LABEL: Record<CricketTourStage, string> = { group: 'Group Match', qf: 'Quarterfinal', sf: 'Semifinal', final: 'Final' };
+const CRICKET_TOUR_BONUS: Record<CricketTourStage, number> = { group: 0, qf: 300, sf: 500, final: 1000 };
+interface CricketState { phase: CricketPhase; t0: number; ball: THREE.Mesh; vel: THREE.Vector3; opp: Bot; fielders: { bot: Bot; home: THREE.Vector3; spd: number }[]; chaser: Bot | null; runs: number; wkts: number; balls: number; total: number; target: number; bat: THREE.Group; swingAt: number; note: string; hit: boolean; airborne: boolean; bounced: boolean; line: number; flightT: number; stumps: THREE.Object3D | null; last: string; innings: 1 | 2; first: number; released: number; quality: number; decided: boolean; maxWkts: number; aim: number; pace: 0 | 1 | 2; batFirst: boolean; firstWkts: number; firstBalls: number; saveRoll: boolean; shot: number; shotShown: number; mode: CricketMode;
   go: boolean; pickShown?: boolean;                                       // bowler: speed and line chosen, run in
   nonStriker: Avatar; bat2: THREE.Group;                                  // the batter at the other end
   run: { u: number; done: number; more: boolean; plan: number; moving: boolean } | null;   // batters running between the wickets
@@ -225,6 +232,7 @@ export class World {
   private match: MatchState | null = null;
   private zombies: ZombieState | null = null;
   private cricket: CricketState | null = null;
+  private cricketTour: CricketTour | null = store.cricketTour();
   private oval: { x: number; z: number; r: number; len: number } | null = null;
   private wantKick = false;
   private batDir = 0;   // ◀ ▶ held: shuffle across the crease (batting) or aim the line (bowling)
@@ -1400,7 +1408,7 @@ export class World {
       else if (this.ride) this.endRide();
       else if (this.pool || this.carrom) { /* use Shoot / Flick */ }
       else if (this.jail) this.sfx.bump();   // the door is locked
-      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); const cb = this.nearestCarrom(); const rd = this.nearestRide(); if (pt) this.startPool(pt); else if (cb) this.startCarrom(cb); else if (this.onDanceFloor()) this.startDancing(); else if (rd) this.startRide(rd); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.startCricket(); }
+      else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); const cb = this.nearestCarrom(); const rd = this.nearestRide(); if (pt) this.startPool(pt); else if (cb) this.startCarrom(cb); else if (this.onDanceFloor()) this.startDancing(); else if (rd) this.startRide(rd); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.openCricket(); }
     }
 
     let focus: THREE.Vector3;       // what the camera looks at / what collects pickups
@@ -2247,7 +2255,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const tp = (x: number, z: number) => { if (this.driving) this.exitVehicle(); this.player.group.position.set(x, this.groundAt(x, z, this.terrain.h(x, z)), z); this.airY = 0; this.vy = 0; };
     const partner = () => this.bots.find((b) => !b.remote && !b.riding && !b.knocked && !b.playing) ?? null;
     switch (kind) {
-      case 'cricket': if (this.oval) { tp(this.oval.x - 8, this.oval.z); this.startCricket(); } break;
+      case 'cricket': if (this.oval) { tp(this.oval.x - 8, this.oval.z); this.openCricket(); } break;
       case 'football': if (this.field) { tp(this.field.x, this.field.z + 3); this.startFootball(); } break;
       case 'race': this.startCircuitRace(); break;
       case 'zombies': if (!this.zombies) this.toggleZombies(); break;
@@ -2318,32 +2326,66 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   }
 
   /** The toss: call it in the air, and whoever wins it chooses to bat or to bowl. */
-  private cricketToss(opp: Bot | undefined, balls: number) {
+  private cricketToss(opp: Bot | undefined, balls: number, mode: CricketMode = 'quick') {
     const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : this.bots.find((x) => !x.remote && !x.riding && !x.knocked && !x.playing) ?? null;
     const name = rival?.name ?? 'The captain';
     this.ev.onPick({ title: '🪙 The toss', sub: `${name} spins the coin — call it in the air.`, options: ['Heads', 'Tails'] }, (call) => {
       const coin = Math.random() < 0.5 ? 0 : 1, face = coin === 0 ? 'Heads' : 'Tails';
       this.sfx.checkpoint();
       if (coin === call) {
-        this.ev.onPick({ title: `${face} — you win the toss!`, sub: 'Bat first and set them a target, or bowl first and know exactly what you are chasing.', options: ['🏏 Bat first', '🎯 Bowl first'] }, (j) => this.startCricket(opp, balls, j === 0));
+        this.ev.onPick({ title: `${face} — you win the toss!`, sub: 'Bat first and set them a target, or bowl first and know exactly what you are chasing.', options: ['🏏 Bat first', '🎯 Bowl first'] }, (j) => this.startCricket(opp, balls, j === 0, mode));
       } else {
         const theyBat = Math.random() < 0.55;
         this.ev.onBanner(`${face} — ${name} wins the toss`, theyBat ? `${name} will have a bat` : `${name} puts you in to bat`, 'neutral');
         if (rival) this.botSays(rival, theyBat ? 'We will bat first 🏏' : 'You bat — we will chase it down 😏', 0.6);
-        this.startCricket(opp, balls, !theyBat);
+        this.startCricket(opp, balls, !theyBat, mode);
       }
     });
   }
 
+  /** Cricket entry point: pick quick match, the tournament, Super Over or the high-score chase before the toss. */
+  openCricket(opp?: Bot) {
+    if (!this.oval || this.cricket || this.match || this.race) return;
+    const tour = this.cricketTour;
+    const tourOpt = tour ? `🏆 Continue: ${CRICKET_TOUR_LABEL[tour.stage]}` : '🏆 Start Tournament';
+    this.ev.onPick({ title: '🏏 Cricket', sub: 'How do you want to play?', options: ['⚡ Quick match', tourOpt, '🎯 Super Over Showdown', '📈 Beat the High Score'] }, (i) => {
+      if (i === 0) this.startCricket(opp);
+      else if (i === 1) this.startCricketTournamentMatch(opp);
+      else if (i === 2) this.startSuperOver(opp);
+      else this.startChaseChallenge(opp);
+    });
+  }
+
+  /** Group stage (3 matches, win 2 to advance) then single-elimination QF/SF/Final — progress is saved between visits. */
+  private startCricketTournamentMatch(opp?: Bot) {
+    if (!this.cricketTour) this.cricketTour = { stage: 'group', groupWins: 0, groupPlayed: 0 };
+    const stage = this.cricketTour.stage;
+    this.ev.onCollect({ name: `🏆 ${CRICKET_TOUR_LABEL[stage]}${stage === 'group' ? ` · win ${2 - this.cricketTour.groupWins} more of ${3 - this.cricketTour.groupPlayed} to advance` : ' — win to advance!'}`, points: 0, color: 0xf2c31b, shape: 'gem' });
+    this.startCricket(opp, CRICKET_TOUR_OVERS[stage] * 6, undefined, 'tournament');
+  }
+
+  /** A fast one-over-each showdown. */
+  private startSuperOver(opp?: Bot) {
+    this.ev.onCollect({ name: '🎯 SUPER OVER SHOWDOWN — one over each, no mercy!', points: 0, color: 0xf2c31b, shape: 'gem' });
+    this.startCricket(opp, 6, undefined, 'superover');
+  }
+
+  /** They bat first and set a target in 3 overs; you chase it. Your best-ever successful chase is saved. */
+  private startChaseChallenge(opp?: Bot) {
+    const best = store.cricketChaseBest();
+    this.ev.onCollect({ name: `📈 BEAT THE HIGH SCORE — they set a target in 3 overs, then you chase it!${best ? ` Best so far: ${best}` : ''}`, points: 0, color: 0xf2c31b, shape: 'gem' });
+    this.startCricket(opp, 18, false, 'chase');
+  }
+
   /** A two-innings match at the cricket ground: the toss picks who bats first, then the other side chases. */
-  startCricket(opp?: Bot, balls?: number, batFirst?: boolean) {
+  startCricket(opp?: Bot, balls?: number, batFirst?: boolean, mode: CricketMode = 'quick') {
     const o = this.oval;
     if (!o || this.cricket || this.match || this.race) return;
     if (balls === undefined) {   // ask how long a match first
-      this.ev.onPick({ title: 'How many overs?', sub: 'Each side bats the same. Wickets: 2 for a single over, 3 up to two, 5 beyond that.', options: ['1 over', '2 overs', '3 overs', '5 overs'] }, (i) => this.startCricket(opp, [6, 12, 18, 30][i]));
+      this.ev.onPick({ title: 'How many overs?', sub: 'Each side bats the same. Wickets: 2 for a single over, 3 up to two, 5 beyond that.', options: ['1 over', '2 overs', '3 overs', '5 overs'] }, (i) => this.startCricket(opp, [6, 12, 18, 30][i], undefined, mode));
       return;
     }
-    if (batFirst === undefined) { this.cricketToss(opp, balls); return; }   // then spin the coin
+    if (batFirst === undefined) { this.cricketToss(opp, balls, mode); return; }   // then spin the coin
     if (this.driving) this.exitVehicle();
     const pool = this.bots.filter((x) => !x.remote && !x.riding && !x.knocked && !x.playing && x !== opp && this.hangout?.bot !== x);
     const rival = opp && !opp.remote && !opp.riding && !opp.knocked ? opp : pool.shift();
@@ -2358,7 +2400,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const stumps = this.scene.getObjectByName('stumps-bat') ?? null;
     const nonStriker = makeAvatar({ ...OUTFITS[3 % OUTFITS.length], skin: SKINS[2 % SKINS.length] }); this.scene.add(nonStriker.group);
     const bat2 = this.makeBat(); nonStriker.armR.add(bat2); nonStriker.armR.rotation.x = -0.6;
-    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, batFirst, firstWkts: 0, firstBalls: 0, saveRoll: false, shot: 1, shotShown: -2, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1 };
+    this.cricket = { phase: 'ready', t0: this.elapsed + 1, ball, vel: new THREE.Vector3(), opp: rival, fielders, chaser: null, runs: 0, wkts: 0, balls: 0, total: balls, target: 0, bat: this.makeBat(), swingAt: -1, note: '', hit: false, airborne: false, bounced: false, line: 0, flightT: 1, stumps, last: '', innings: 1, first: 0, released: -1, quality: 0.5, decided: false, maxWkts: balls <= 6 ? 2 : balls <= 12 ? 3 : 5, aim: 0, pace: 1, batFirst, firstWkts: 0, firstBalls: 0, saveRoll: false, shot: 1, shotShown: -2, go: false, nonStriker, bat2, run: null, throw: null, overLog: [], cheerUntil: -1, mode };
     for (const f of fielders) { f.home.y = this.terrain.h(f.home.x, f.home.z); f.bot.av.group.position.copy(f.home); f.bot.av.group.rotation.y = Math.atan2(o.x - 10 - f.home.x, o.z - f.home.z); }
     this.setCreases();
     this.clearQuest();
@@ -2648,6 +2690,8 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           this.ev.onBanner(win ? 'YOU WIN!' : `${c.opp.name.toUpperCase()} WINS`, win ? `${by} · +200` : lost, win ? 'good' : 'bad');
           this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win ${by}!` : batting ? `You finished ${lost}` : `${c.opp.name} chased it down`, board: { icon: win ? '🏆' : '🏏', a: { name: 'You', score: mine, on: win }, b: { name: c.opp.name, score: theirs, on: !win }, line: win ? `You win ${by}! +200` : batting ? `${c.opp.name} defends ${c.first} — you finished ${lost}` : `${c.opp.name} chased it down` }, desc: `You ${mine} · ${c.opp.name} ${theirs}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
           this.gameResult('cricket', win, c.opp.name);
+          if (c.mode === 'tournament') this.advanceCricketTournament(win);
+          else if (c.mode === 'chase' && win) this.recordChaseBest(c.first);
         }
       } else { c.phase = 'ready'; c.t0 = t + 1.2; this.setCreases(); }
     }
@@ -2753,6 +2797,48 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.ev.onMode(null);
     this.ev.onQuest(null);
     this.questCooldown = 10;
+  }
+
+  /** Group stage: win at least 2 of 3 to reach the knockout rounds; lose a knockout match and the run is over. */
+  private advanceCricketTournament(win: boolean) {
+    const tour = this.cricketTour; if (!tour) return;
+    if (tour.stage === 'group') {
+      tour.groupPlayed++; if (win) tour.groupWins++;
+      if (tour.groupPlayed >= 3) {
+        if (tour.groupWins >= 2) {
+          tour.stage = 'qf'; tour.groupPlayed = 0; tour.groupWins = 0;
+          this.points += 150; this.ev.onPoints(this.points);
+          this.ev.onBanner('QUALIFIED!', 'You topped your group — the Quarterfinal awaits · +150', 'good');
+        } else {
+          this.ev.onBanner('ELIMINATED', "You didn't win enough group matches — try the tournament again anytime", 'bad');
+          this.cricketTour = null;
+        }
+      } else {
+        this.ev.onCollect({ name: `🏆 Group stage: ${tour.groupWins} win${tour.groupWins === 1 ? '' : 's'} from ${tour.groupPlayed}/3`, points: 0, color: 0x3fb7d9, shape: 'gem' });
+      }
+    } else if (!win) {
+      this.ev.onBanner('TOURNAMENT OVER', `Knocked out in the ${CRICKET_TOUR_LABEL[tour.stage]} — try again anytime`, 'bad');
+      this.cricketTour = null;
+    } else {
+      const bonus = CRICKET_TOUR_BONUS[tour.stage]; this.points += bonus; this.ev.onPoints(this.points);
+      if (tour.stage === 'final') {
+        const titles = store.addCricketTitle();
+        this.ev.onBanner('🏆 CHAMPIONS!', `You won the FindurAI Cricket Tournament! +${bonus} · Title #${titles}`, 'good');
+        this.cricketTour = null;
+      } else {
+        tour.stage = tour.stage === 'qf' ? 'sf' : 'final';
+        this.ev.onBanner('THROUGH!', `On to the ${CRICKET_TOUR_LABEL[tour.stage]} · +${bonus}`, 'good');
+      }
+    }
+    store.setCricketTour(this.cricketTour);
+  }
+
+  /** Beat the High Score mode: keep the toughest target you have successfully chased down. */
+  private recordChaseBest(target: number) {
+    if (target > store.cricketChaseBest()) {
+      store.setCricketChaseBest(target);
+      this.ev.onBanner('NEW HIGH SCORE!', `You chased down ${target} — your best yet!`, 'good');
+    }
   }
 
   // ---------- zombie night ----------

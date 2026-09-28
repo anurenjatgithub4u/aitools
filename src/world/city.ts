@@ -780,7 +780,7 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     place('Pirate Ship', px, TOP + 4, pz, 160);
   }
   // Sky Drop — the drop tower behind the beach fairground: hauled to the top, a long pause, then let go
-  { const dx = 116, dz = 168, dy = h(dx, dz), H = 24;
+  { const dx = 116, dz = 168, dy = h(dx, dz), H = 44;
     g.add(at(box(9, 0.8, 9, 0x555555), dx, dy + 0.4, dz)); keep(dx, dz, 14);
     for (const [ox, oz] of [[-1.7, -1.7], [1.7, -1.7], [-1.7, 1.7], [1.7, 1.7]] as const) g.add(at(box(0.5, H, 0.5, 0x2c3e6b), dx + ox, dy + H / 2, dz + oz));
     for (let k = 1; k * 3 < H; k++) g.add(at(box(3.9, 0.22, 3.9, 0x3fb7d9), dx, dy + k * 3, dz));

@@ -958,6 +958,35 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     ride(grp, { id: 'vortex', kind: 'loop', label: 'Ride the Vortex', x: lx + 9, z: lz, y: ly, icon: '🌀', seconds: 45 });
     place('The Vortex', lx, MOUNT + 4, lz, 190);
   }
+  // The Zip Line — glide down the cable from the tall launch tower to the short one by Neon Lane, then a slow tow hauls the seat back up to go again
+  { const zx = -80, zAz = -20, zBz = 14, zHA = 20, zHB = 7, SIDE = 1.6, gA = h(zx, zAz), gB = h(zx, zBz);
+    g.add(at(cyl(2.3, 2.6, 0.5, 0x555555, 16), zx, gA + 0.25, zAz)); keep(zx, zAz, 9);        // launch tower
+    g.add(at(cyl(0.4, 0.5, zHA, 0x2c3e6b, 10), zx, gA + zHA / 2, zAz));
+    g.add(at(box(3.2, 0.3, 3.2, 0x8a6a4a), zx, gA + zHA, zAz));
+    for (let i = 0; i < 4; i++) { const a = (i / 4) * Math.PI * 2; g.add(at(cyl(0.06, 0.06, 1.2, 0x8a6a4a, 6), zx + Math.cos(a) * 1.5, gA + zHA + 0.6, zAz + Math.sin(a) * 1.5)); }
+    g.add(at(glow(0.3, 1.6, 0.3, 0xf2c31b), zx, gA + zHA + 1.2, zAz));
+    g.add(at(cyl(1.8, 2.0, 0.4, 0x555555, 16), zx, gB + 0.2, zBz)); keep(zx, zBz, 8);          // landing tower
+    g.add(at(cyl(0.35, 0.4, zHB, 0x2c3e6b, 10), zx, gB + zHB / 2, zBz));
+    g.add(at(box(2.6, 0.25, 2.6, 0x8a6a4a), zx, gB + zHB, zBz));
+    const spine = new THREE.CatmullRomCurve3([
+      V(zx + SIDE, gB + zHB, zBz),                                                            // bottom of the tow (return side) — the lift starts here
+      V(zx + SIDE, gA + zHA, zAz),                                                             // hauled to the top, released onto the outbound line
+      V(zx - SIDE, gA + zHA, zAz),
+      V(zx - SIDE, (gA + zHA + gB + zHB) / 2 - 3, (zAz + zBz) / 2),                             // the cable sags mid-flight
+      V(zx - SIDE, gB + zHB, zBz),                                                             // arrival — closes back to the tow
+    ], true, 'catmullrom', 0.5);
+    g.add(mesh(new THREE.TubeGeometry(spine, 120, 0.055, 6, true), 0x2a2a2a));
+    for (const [sx, sz, sy] of [[zx + SIDE, zAz, gA + zHA], [zx - SIDE, zAz, gA + zHA], [zx + SIDE, zBz, gB + zHB], [zx - SIDE, zBz, gB + zHB]] as const) g.add(at(cyl(0.12, 0.12, 0.3, 0x333333, 8), sx, sy, sz));
+    const pod = new THREE.Group();
+    pod.userData.curve = spine; pod.userData.len = spine.getLength(); pod.userData.u = 0; pod.userData.top = gA + zHA;
+    pod.add(at(cyl(0.12, 0.12, 0.22, 0xdddddd, 8), 0, 0, 0));                                  // trolley wheel on the cable
+    pod.add(at(box(0.06, 1.1, 0.06, 0x333333), 0, -0.6, 0));                                   // hanging strap
+    pod.add(at(box(1.3, 0.12, 0.35, 0x8a5a2b), 0, -1.15, 0));                                  // seat bar
+    for (const sx of [-0.32, 0.32]) pod.add(at(box(0.4, 0.1, 0.3, 0xd94a3d), sx, -1.05, 0));
+    seat(pod, 'seat0', -0.32, -0.95, 0); seat(pod, 'seat1', 0.32, -0.95, 0);
+    ride(pod, { id: 'zipline', kind: 'coaster', label: 'Ride the Zip Line', x: zx + SIDE, z: zAz + 3, y: gA, icon: '🚡', seconds: 40, cam: 0.3 });
+    place('Zip Line', zx, zHA + 4, (zAz + zBz) / 2, 190);
+  }
   // ================= CITY POLICE STATION (east of downtown) =================
   // Drive like an idiot and the patrol jeep comes for you; if you cannot pay the fine you spend it in this cell.
   { const px = 58, pz = 18, py = h(px, pz);

@@ -12,7 +12,7 @@ import { reply as chatReply, HELLO_WHEN_NEAR, HANGOUT_LINES, RACE_TRASH, RACE_GG
 import { createPool, POOL, POOL_COLORS, POOL_POCKETS, isStripe, type PoolGame } from './poolEngine';
 import { createCarrom, CARROM, type CarromGame } from './carromEngine';
 import { bakeStatic } from './bake';
-import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, type QuestKind, type QuestState } from './quests';
+import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, dailyCricketTarget, type QuestKind, type QuestState } from './quests';
 import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
 import type { RideDef } from './city';
 import { loadAds, interstitial, rewarded, adsEnabled } from './ads';
@@ -1382,11 +1382,8 @@ export class World {
 
   /** A small nudge toward the Cricket Ground's Beat the High Score mode, once, a few seconds after arriving. */
   private announceCricketChase() {
-    const best = store.cricketChaseBest();
     this.ev.onCollect({
-      name: best
-        ? `🏏 Your Beat the High Score record at the Cricket Ground is ${best} — think you can top it?`
-        : `🏏 New at the Cricket Ground: Beat the High Score — no bowling, just chase down a target. Give it a try!`,
+      name: `🏏 Today's Cricket Ground high score is ${dailyCricketTarget()} — head over and chase it down!`,
       points: 0, color: 0xf2c31b, shape: 'gem',
     });
   }
@@ -2390,6 +2387,15 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.startCricket(opp, 18, false, 'chase');
   }
 
+  /** The HUD's "Play Cricket" promo button: jump straight to the pitch and into today's high-score chase. */
+  startChaseFromHud() {
+    if (!this.oval || this.cricket || this.match || this.race) return;
+    if (this.driving) this.exitVehicle();
+    this.player.group.position.set(this.oval.x - 8, this.groundAt(this.oval.x - 8, this.oval.z, this.terrain.h(this.oval.x - 8, this.oval.z)), this.oval.z);
+    this.airY = 0; this.vy = 0;
+    this.startChaseChallenge();
+  }
+
   /** A two-innings match at the cricket ground: the toss picks who bats first, then the other side chases. */
   startCricket(opp?: Bot, balls?: number, batFirst?: boolean, mode: CricketMode = 'quick') {
     const o = this.oval;
@@ -2421,7 +2427,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.sfx.questStart();
     if (mode === 'chase') {   // no bowling here: their innings is set instantly, you only ever bat
       const c = this.cricket;
-      const target = (store.cricketChaseBest() || 24) + 4 + Math.floor(Math.random() * 12);
+      const target = dailyCricketTarget();
       c.innings = 2; c.first = target; c.target = target + 1; c.firstWkts = Math.floor(Math.random() * Math.max(1, c.maxWkts - 1)); c.firstBalls = balls;
       this.ev.onMode({ icon: '🏏', label: 'Bat', arrows: true, run: true, stick: false });
       this.showShot(c);

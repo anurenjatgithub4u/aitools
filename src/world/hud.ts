@@ -1,5 +1,5 @@
 import { type Collectible, type Destination } from './destinations';
-import type { QuestState } from './quests';
+import { dailyCricketTarget, type QuestState } from './quests';
 import type { MeetAction } from './world';
 import { store } from './store';
 import { adsReady } from './ads';
@@ -43,7 +43,7 @@ export interface Hud {
   onMapToggle(fn: (open: boolean) => void): void;
 }
 
-export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void; kick(): void; batMove(dir: number): void; pace(): void; setPower(v: number): void; setPos(v: number): void; exitMode(): void; setPace(i: number): void; setLine(i: number): void; setShot(i: number): void; cycleCam(): void }
+export interface HudActions { jump(): void; drive(): void; lift(): void; run(): void; zoom(delta: number): void; boost(held: boolean): void; refuel(): void; horn(): void; mute(): void; task(): void; befriend(): void; interact(a: MeetAction): void; say(text: string): void; answerRequest(id: string, yes: boolean): void; zombies(): void; kick(): void; batMove(dir: number): void; pace(): void; setPower(v: number): void; setPos(v: number): void; exitMode(): void; setPace(i: number): void; setLine(i: number): void; setShot(i: number): void; cycleCam(): void; cricketChase(): void }
 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
@@ -60,6 +60,11 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
       <p id="qdesc">Explore while we line one up. Press T for a task right away.</p>
       <div class="qbar"><i id="qfill"></i></div>
       <div class="qfoot"><span id="qprog"></span><span id="qhint"></span><button id="qbtn">Start task</button></div>
+    </div>
+    <div class="quest cricketpromo" id="cricketpromo" hidden>
+      <div class="qhead"><span class="qicon">🏏</span><div><small>DAILY CHALLENGE</small><b>Today's High Score</b></div><em id="cpscore"></em></div>
+      <p>Beat today's score in a 3-over chase — no bowling, just batting.</p>
+      <div class="qfoot"><button id="cpbtn">▶ Play Cricket</button></div>
     </div>
     <div class="top-center">
       <div class="chip big" id="coinchip" title="Coins: pick them up around the city, spend them on rides">🏆 <b id="pts">${points}</b> points <span class="coins">🪙 <b id="coins">${store.coins()}</b></span></div>
@@ -307,6 +312,17 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
   const qBoard = root.querySelector<HTMLElement>('#qboard')!, qLine = root.querySelector<HTMLElement>('#qline')!, qbIcon = root.querySelector<HTMLElement>('#qbicon')!, qbTime = root.querySelector<HTMLElement>('#qbtime')!;
   const qSide = (id: string, s: { name: string; score: string; sub?: string; on?: boolean }) => { const el = root.querySelector<HTMLElement>(id)!; el.classList.toggle('on', !!s.on); el.querySelector('small')!.textContent = s.name; el.querySelector('b')!.textContent = s.score; el.querySelector('span')!.textContent = s.sub ?? ''; };
   qBtn.addEventListener('click', actions.task);
+  // Cricket promo: alternates with the task card, every 5s, whenever that card isn't showing a live match scoreboard.
+  const cpEl = root.querySelector<HTMLElement>('#cricketpromo')!, cpBtn = root.querySelector<HTMLButtonElement>('#cpbtn')!;
+  root.querySelector<HTMLElement>('#cpscore')!.textContent = String(dailyCricketTarget());
+  cpBtn.addEventListener('click', actions.cricketChase);
+  let questHasBoard = false, promoOn = false;
+  setInterval(() => {
+    if (questHasBoard) { promoOn = false; cpEl.hidden = true; questEl.hidden = false; return; }
+    promoOn = !promoOn;
+    cpEl.hidden = !promoOn;
+    questEl.hidden = promoOn;
+  }, 5000);
   const zombieBtn = root.querySelector<HTMLElement>('#zombiebtn')!, hurtEl = root.querySelector<HTMLElement>('#hurt')!;
   let bannerT = 0;
   // bowling picker
@@ -372,6 +388,8 @@ export function renderHud(root: HTMLElement, d: Destination, points: number, act
     },
     muted(m) { muteBtn.textContent = m ? '🔇' : '🔊'; },
     quest(q) {
+      questHasBoard = !!q?.board;
+      if (questHasBoard && promoOn) { promoOn = false; cpEl.hidden = true; questEl.hidden = false; }
       const wasMini = questEl.classList.contains('mini');
       questEl.className = `quest ${q?.status ?? 'idle'}${q?.board ? ' scorecard' : ''}${wasMini ? ' mini' : ''}`;
       const key = q ? `${q.status}|${q.title}` : 'idle';

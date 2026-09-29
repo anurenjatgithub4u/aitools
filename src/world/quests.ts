@@ -46,6 +46,14 @@ export function makeQuestDef(kind: QuestKind, ctx: { item?: string; count?: numb
 
 export const GIFT_TOTAL = GIFT_COUNT;
 
+/** A shared, date-seeded target for the Cricket Ground's daily "Beat the High Score" challenge —
+ *  the same number for every player until midnight, with no backend needed to keep it in sync. */
+export function dailyCricketTarget(): number {
+  const day = new Date().toISOString().slice(0, 10);
+  let h = 0; for (let i = 0; i < day.length; i++) h = (h * 31 + day.charCodeAt(i)) >>> 0;
+  return 28 + (h % 40);
+}
+
 // ---------- props ----------
 const mat = (c: number, extra: Partial<THREE.MeshStandardMaterialParameters> = {}) =>
   new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, ...extra });

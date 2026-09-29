@@ -66,6 +66,7 @@ export function WorldView({ id }: { id: string }) {
       setLine: (i) => world?.setLine(i),
       setShot: (i) => world?.setShot(i),
       cycleCam: () => world?.cycleTableCam(),
+      cricketChase: () => world?.startChaseFromHud(),
     });
 
     loading.then(async (mod) => {

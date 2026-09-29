@@ -233,6 +233,7 @@ export class World {
   private zombies: ZombieState | null = null;
   private cricket: CricketState | null = null;
   private cricketTour: CricketTour | null = store.cricketTour();
+  private confetti: { mesh: THREE.Mesh; vel: THREE.Vector3; t0: number }[] = [];
   private oval: { x: number; z: number; r: number; len: number } | null = null;
   private wantKick = false;
   private batDir = 0;   // ◀ ▶ held: shuffle across the crease (batting) or aim the line (bowling)
@@ -1750,6 +1751,7 @@ export class World {
     if (this.cricket) this.tickCricket(dt, t);
     if (this.zombies) { this.tickZombies(dt, t); this.tickBats(dt, t); }
     this.tickZombieClock(t);
+    if (this.confetti.length) this.tickConfetti(dt, t);
 
     // --- world labels + metro train
     const wp = new THREE.Vector3();
@@ -2620,7 +2622,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
         const six = !c.bounced;
         c.runs += six ? 6 : 4; c.last = six ? 'SIX!' : 'FOUR!'; c.phase = 'result'; c.t0 = t;
         this.ev.onBanner(six ? 'SIX!' : 'FOUR!', batting ? (six ? 'Over the rope on the full' : 'Along the carpet') : `${c.opp.name} · ${c.runs}/${c.wkts}`, batting ? 'good' : 'bad');
-        if (batting) { this.points += six ? 30 : 20; this.ev.onPoints(this.points); this.sfx.questDone(); }
+        if (batting) { this.points += six ? 30 : 20; this.ev.onPoints(this.points); this.sfx.questDone(); if (six) { const p = this.player.group.position; this.spawnConfetti(p.x, p.y + 1.8, p.z, 22); } }
         else this.botSays(c.opp, six ? 'Into the crowd! 💥' : 'Too easy 😎', 0.3);
         this.ev.onCollect({ name: six ? (batting ? 'SIX! Over the rope on the full' : `${c.opp.name} launches it for SIX`) : batting ? 'FOUR! Along the carpet' : `${c.opp.name} finds the rope · FOUR`, points: batting ? (six ? 30 : 20) : 0, color: batting ? 0x2fa66a : 0xd94a3d, shape: 'gem' });
         return;
@@ -2697,6 +2699,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
           const lost = batting ? `${c.target - c.runs} run${c.target - c.runs === 1 ? '' : 's'} short` : 'They chased it down';
           const mine = batting ? `${c.runs}/${c.wkts}` : `${c.first}/${c.firstWkts}`, theirs = batting ? `${c.first}/${c.firstWkts}` : `${c.runs}/${c.wkts}`;
           this.ev.onBanner(win ? 'YOU WIN!' : `${c.opp.name.toUpperCase()} WINS`, win ? `${by} · +200` : lost, win ? 'good' : 'bad');
+          if (win) { const p = this.player.group.position; this.spawnConfetti(p.x, p.y + 2, p.z, 40); }
           this.ev.onQuest({ status: win ? 'done' : 'failed', title: win ? `You win ${by}!` : batting ? `You finished ${lost}` : `${c.opp.name} chased it down`, board: { icon: win ? '🏆' : '🏏', a: { name: 'You', score: mine, on: win }, b: { name: c.opp.name, score: theirs, on: !win }, line: win ? `You win ${by}! +200` : batting ? `${c.opp.name} defends ${c.first} — you finished ${lost}` : `${c.opp.name} chased it down` }, desc: `You ${mine} · ${c.opp.name} ${theirs}`, progress: '', remaining: 0, total: 1, reward: 200, hint: null, fill: 1, timeText: win ? '🏆' : '🏏' });
           this.gameResult('cricket', win, c.opp.name);
           if (c.mode === 'tournament') this.advanceCricketTournament(win);
@@ -2714,14 +2717,16 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       const who = batting ? 'You' : c.opp.name, verb = batting ? 'need' : 'needs', need = Math.max(0, c.target - c.runs), left = c.total - c.balls;
       const live = { score: `${c.runs}/${c.wkts}`, sub: `${overs(c.balls)} ov · batting`, on: true };
       const done = c.innings === 2 ? { score: `${c.first}/${c.firstWkts}`, sub: `${overs(c.firstBalls)} ov · done` } : { score: '—', sub: 'to bat' };
+      const tour = c.mode === 'tournament' ? this.cricketTour : null;
+      const tourTag = tour ? (tour.stage === 'group' ? `🏆 Group ${tour.groupPlayed + 1}/3 · ` : `🏆 ${CRICKET_TOUR_LABEL[tour.stage]} · `) : '';
       this.ev.onQuest({
         status: 'active',
-        title: c.innings === 1 ? `🏏 ${who} ${c.runs} / ${c.wkts}` : `🏏 ${who} ${c.runs} / ${c.wkts} · ${verb} ${need} off ${left}`,
+        title: tourTag + (c.innings === 1 ? `🏏 ${who} ${c.runs} / ${c.wkts}` : `🏏 ${who} ${c.runs} / ${c.wkts} · ${verb} ${need} off ${left}`),
         board: {
           icon: '🏏',
           a: batting ? { name: 'You', ...live } : { name: 'You', ...done },
           b: batting ? { name: c.opp.name, ...done } : { name: c.opp.name, ...live },
-          line: (c.innings === 1 ? `${left} ball${left === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${who} ${verb} ${need} off ${left} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`) + (c.overLog.length ? `  ·  this over ${c.overLog.join(' ')}` : ''),
+          line: (c.innings === 1 ? `${left} ball${left === 1 ? '' : 's'} left · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} in hand` : `${who} ${verb} ${need} off ${left} · ${c.maxWkts - c.wkts} wkt${c.maxWkts - c.wkts === 1 ? '' : 's'} left`) + (c.overLog.length ? `  ·  this over ${c.overLog.join(' ')}` : '') + (tour && tour.stage === 'group' ? `  ·  ${tour.groupWins} win${tour.groupWins === 1 ? '' : 's'} so far` : ''),
         },
         desc: batting ? (this.mobile ? `${c.opp.name} bowling · ◀ ▶ shuffle, Bat / Space as the ball arrives, then Run / W to take runs — be home before the throw.` : `${c.opp.name} bowling · pick a shot (1‑8 or the panel), ◀ ▶ shuffle, Bat / Space as the ball arrives, then Run / W to take runs.`) : `Pick speed and line, tap Bowl to run in, Bowl again at the top of your action. Wickets +25, dots +5.`,
         progress: c.run && batting ? `Running… ${c.run.done} so far${c.throw ? ' · THROW COMING' : ' · Run again for another'}` : c.phase === 'hit' && batting && !c.throw ? 'Run / W to take a run' : batting && !this.mobile ? `${S.key} ${S.name} — ${S.hint}` : c.phase === 'ready' && !batting && !c.go ? 'Pick speed & line, then Bowl' : runupU !== null ? (c.released >= 0 ? 'Released!' : runupU > 0.85 ? 'NOW!' : `Running in… ${pace} · ${c.aim < -0.3 ? 'leg side' : c.aim > 0.3 ? 'off side' : 'at the stumps'}`) : c.last ? `Last ball: ${c.last} · ${pace}` : 'First ball coming up',
@@ -2793,6 +2798,30 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     if (batting) this.moveAmount = 1;
   }
 
+  /** A burst of colored confetti for a big moment — a six, a match win, a tournament milestone. */
+  private spawnConfetti(x: number, y: number, z: number, n = 26) {
+    const colors = [0xf2c31b, 0x2fa66a, 0x3fb7d9, 0xd94a3d, 0xff4fd8, 0xffffff];
+    for (let i = 0; i < n; i++) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.02), new THREE.MeshStandardMaterial({ color: colors[i % colors.length], transparent: true, opacity: 1 }));
+      mesh.position.set(x + (Math.random() - 0.5) * 0.6, y, z + (Math.random() - 0.5) * 0.6);
+      mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+      const ang = Math.random() * Math.PI * 2, spd = 2 + Math.random() * 3.5;
+      this.scene.add(mesh);
+      this.confetti.push({ mesh, vel: new THREE.Vector3(Math.cos(ang) * spd, 5.5 + Math.random() * 4, Math.sin(ang) * spd), t0: this.elapsed });
+    }
+  }
+
+  private tickConfetti(dt: number, t: number) {
+    for (let i = this.confetti.length - 1; i >= 0; i--) {
+      const c = this.confetti[i], u = (t - c.t0) / 1.6;
+      if (u >= 1) { this.scene.remove(c.mesh); c.mesh.geometry.dispose(); (c.mesh.material as THREE.MeshStandardMaterial).dispose(); this.confetti.splice(i, 1); continue; }
+      c.vel.y -= GRAVITY * 0.6 * dt;
+      c.mesh.position.addScaledVector(c.vel, dt);
+      c.mesh.rotation.x += dt * 6; c.mesh.rotation.y += dt * 4;
+      (c.mesh.material as THREE.MeshStandardMaterial).opacity = 1 - Math.max(0, (u - 0.6) / 0.4);
+    }
+  }
+
   private endCricket() {
     const c = this.cricket; if (!c) return;
     this.cricket = null;
@@ -2806,6 +2835,11 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.ev.onMode(null);
     this.ev.onQuest(null);
     this.questCooldown = 10;
+    if (c.mode === 'tournament' && this.cricketTour) {
+      const tour = this.cricketTour;
+      const sub = tour.stage === 'group' ? `Group stage: ${tour.groupWins} win${tour.groupWins === 1 ? '' : 's'} from ${tour.groupPlayed}/3 · win to advance` : `${CRICKET_TOUR_LABEL[tour.stage]} · win to advance`;
+      this.ev.onPick({ title: `🏆 Next up: ${tour.stage === 'group' ? `Group Match ${tour.groupPlayed + 1}/3` : CRICKET_TOUR_LABEL[tour.stage]}`, sub, options: ['▶ Play now', 'Not now'] }, (i) => { if (i === 0) this.startCricketTournamentMatch(); });
+    }
   }
 
   /** Group stage: win at least 2 of 3 to reach the knockout rounds; lose a knockout match and the run is over. */
@@ -2833,6 +2867,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
       if (tour.stage === 'final') {
         const titles = store.addCricketTitle();
         this.ev.onBanner('🏆 CHAMPIONS!', `You won the FindurAI Cricket Tournament! +${bonus} · Title #${titles}`, 'good');
+        const p = this.player.group.position; this.spawnConfetti(p.x, p.y + 2.4, p.z, 70);
         this.cricketTour = null;
       } else {
         tour.stage = tour.stage === 'qf' ? 'sf' : 'final';

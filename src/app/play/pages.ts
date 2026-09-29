@@ -18,9 +18,9 @@ export interface PlayPage {
 export const PLAY_PAGES: PlayPage[] = [
   {
     slug: 'cricket-game-online', start: 'cricket', icon: '🏏',
-    title: 'Cricket Game Online Free — Play in Browser, No Download (Bat & Bowl)',
-    h1: 'Play a free cricket game online — bat and bowl in your browser',
-    description: 'Free online cricket game with a toss, a shot picker on desktop, real fielding that gathers and throws the ball back, running between the wickets and a speed-and-line bowling panel. No download, works on phone.',
+    title: 'Cricket Game Online Free India — Tournament, Super Over, No Download',
+    h1: 'Play a free cricket game online — bat, bowl and win the tournament',
+    description: 'Free cricket game online, made for India: bat, bowl, a toss, real fielding, plus a Cricket Tournament (group stage to Final), Super Over Showdown and a high-score chase. No download, works on phone.',
     keywords: [
       'cricket game online free', 'play cricket online without download', 'cricket game in browser',
       'online cricket game for mobile', 'cricket batting game online', 'cricket bowling game online',
@@ -31,13 +31,21 @@ export const PLAY_PAGES: PlayPage[] = [
       'cricket game 1 over 5 over online', 'kerala cricket game online', 'quick cricket game online',
       'cricket game with toss online', 'bat or bowl first cricket game', 'cricket timing game online',
       'cricket game choose your shot', 'aim your shots cricket game', 'cricket game with fielding',
+      'cricket game online india', 'best cricket game for indian players', 'gully cricket game online',
+      'desi cricket game online free', 'ipl style cricket game online', 'ipl cricket game online free',
+      't20 cricket game online free', 'real cricket game online free', 'cricket game unblocked online',
+      'cricket game online multiplayer india', 'cricket tournament game online free', 'cricket game with tournament mode',
+      'cricket career mode game online', 'super over cricket game online', 'super over showdown cricket game',
+      'beat the high score cricket game', 'cricket game quarterfinal semifinal final', 'world cup style cricket game online',
     ],
-    intro: 'FindurAI has a free cricket game online that you play inside a 3D city — walk onto the strip at the FindurAI Cricket Ground, press E, call the toss and choose whether to bat or bowl first. No app to install, no sign-up, and it runs on a phone browser as well as a laptop.',
+    intro: 'FindurAI has a free cricket game online — built with Indian cricket fans in mind — that you play inside a 3D city. Walk onto the strip at the FindurAI Cricket Ground, press E, and pick Quick Match, the Cricket Tournament, Super Over Showdown or Beat the High Score. No app to install, no sign-up, and it runs on a phone browser as well as a laptop.',
     sections: [
       ['The toss, then the match', 'Choose 1, 2, 3 or 5 overs a side and call the toss in the air. Win it and you pick: bat first and set a target, or bowl first and chase a number you can see. Lose it and your rival chooses. Both sides bat the same number of overs, and the side that has not batted fields a full ring.'],
       ['Batting: pick a shot, then time it (desktop)', 'On a computer, choose the stroke before the ball arrives — block, drive, cover, cut, flick, pull, sweep or slog, on a small panel or with keys 1 to 8 — and the ball goes where that stroke sends it. Bigger shots have a smaller timing window, so a mistimed pull or slog goes up in the air instead of over the rope. On a phone, batting is pure timing with nothing to pick: perfect timing sends it for six, early pulls it high where a fielder can catch it, late squeezes it along the ground, and a straight one you miss bowls you. Shuffle across the crease with ◀ ▶, press Bat as the ball arrives, then press Run to take runs with the non-striker — press again for a second, but the fielder throws at your stumps, so a lazy second run gets you run out.'],
       ['Fielding that finishes the job', 'Every fielder who runs a shot down gathers it and throws it back into play — at your stumps while you are batting, or safely to the bowler while you field — rather than jogging up and wandering off. A skied shot gives a real chance of a catch, closer misses can be dropped, a fielder on the rope can dive to save a four, and a rushed pickup can be fumbled.'],
       ['Bowling an over', 'Before every ball you pick the speed (slow, medium, fast) and the line (leg, stumps, off), tap Bowl to run in and press Bowl again at the top of your action. Release it right and the batter is beaten or bowled; release it late and it goes for four. Wickets and dot balls earn points, winning the match earns 200.'],
+      ['Cricket Tournament — group stage to the Final', 'Win your way through a proper knockout: three group matches (win two to qualify), then a Quarterfinal, Semifinal and Final, with bigger rewards and a title at stake in every round. Confetti and a trophy moment mark every win. Your run saves automatically, so you pick up right where you left off — the menu shows exactly which round is next.'],
+      ['Super Over Showdown & Beat the High Score', 'In a hurry? Super Over Showdown is one over each, no mercy. Or try Beat the High Score: the rival\'s total for a 3-over innings is set instantly — no bowling — so you go straight to batting and chasing it down. Your best-ever successful chase is saved, so every visit is a fresh shot at beating your own record.'],
       ['Play with a friend', 'The cricket ground is in a shared multiplayer city. Meet a friend at the ground, watch each other bat, chat between overs, or race there on bikes first. Real players see each other in real time; the opponent in the match itself is an AI batter or bowler for now.'],
     ],
     faq: [
@@ -46,6 +54,9 @@ export const PLAY_PAGES: PlayPage[] = [
       ['How long is a match?', 'A one-over match takes about three minutes; five overs a side takes around fifteen.'],
       ['Can I choose to bat or bowl first?', 'Yes. Every match starts with a toss — call heads or tails, and if you win it you choose to bat first or to bowl first.'],
       ['Can I choose which shot to play?', 'On a computer, yes — pick one of eight shots before the ball arrives, on the panel or with keys 1 to 8. On a phone it is pure timing, with no shot picker to manage on a small screen.'],
+      ['Does this cricket game have a tournament mode?', 'Yes — a group stage of three matches (win two to qualify), then a Quarterfinal, Semifinal and Final. Your progress is saved automatically between visits.'],
+      ['What is Super Over Showdown?', 'A fast, one-over-each match for when you want a quick game instead of a full one.'],
+      ['What is Beat the High Score mode?', 'The rival\'s score for a 3-over innings is set instantly, so you go straight to chasing it — no bowling required. Your best successful chase is saved so you can try to beat it next time.'],
     ],
   },
   {
@@ -66,7 +77,7 @@ export const PLAY_PAGES: PlayPage[] = [
     sections: [
       ['How to play', 'Run into the ball to dribble — it sticks to your feet. Press Kick (Space on a keyboard) to shoot: harder while sprinting, and aimed toward the goal when you face it. Your four blue-bib team-mates pass and defend; the red team has a keeper and counters. Matches are 90 seconds, first to five wins, and the scoreboard sits at the top of the screen.'],
       ['Tips', 'Sprint before you shoot for power. Face the goal — shots are aim-assisted when you do. Do not dribble into the keeper; pass wide and let a team-mate finish. The camera starts high and wide so you can see the whole pitch.'],
-      ['More than football', 'The stadium is one place in a shared 3D city with a cricket ground, a race track, a beach, bars and a casino. Meet real people there, chat and hang out between matches.'],
+      ['More than football', 'The stadium is one place in a shared 3D city with a cricket ground, a race track, a beach, bars and a neon lounge. Meet real people there, chat and hang out between matches.'],
     ],
     faq: [
       ['Is it multiplayer?', 'The city is multiplayer — you see real players and can chat and meet them. The match itself is you plus AI team-mates against an AI team.'],
@@ -113,11 +124,11 @@ export const PLAY_PAGES: PlayPage[] = [
     h1: 'Play 8-ball pool online free — a real 3D table at the Neon Palace',
     description: 'Free 8 ball pool online with real rules on a 3D table: aim, set power, shoot, an optional shot clock, a live scoreboard and a choice of camera angles. No login, no download.',
     keywords: ['8 ball pool online free', 'play 8 ball pool without login', 'pool game online browser', '8 ball pool no download', 'billiards game online free', '3d pool game in browser', 'pool game to play with friends online'],
-    intro: 'Play 8 ball pool online free inside the Neon Palace — the casino and club in FindurAI City has two real 3D tables. Walk up to one and press E, or pick 8-ball on the start screen.',
+    intro: 'Play 8 ball pool online free inside the Neon Palace — the neon lounge and games club in FindurAI City has two real 3D tables. Walk up to one and press E, or pick 8-ball on the start screen.',
     sections: [
       ['How to play', 'Hold ◀ ▶ to aim (Shift for fine adjustment on a keyboard), set the Power slider or tap Soft, Medium or Full, and press Shoot. Real rules: the first pot decides solids or stripes, a scratch gives your opponent ball in hand, and you must sink the 8 last. A scoreboard above the controls tracks both sides from the first shot, and the View button cycles between a high angle over your shoulder, a low rail-level look down the table, and a bird’s-eye view.'],
       ['An optional shot clock', 'Before the balls are racked you can set a shot clock — no timer, or 15 or 30 seconds a turn. Run out of time and you play whatever shot you had lined up.'],
-      ['The Neon Palace', 'A dance floor with chasing tiles, a DJ, a bar, slot machines, a roulette table and lasers inside and over the roof. Dance with whoever came with you, then rack up.'],
+      ['The Neon Palace', 'A dance floor with chasing tiles, a DJ, a bar, retro arcade games and lasers inside and over the roof (free entertainment, zero real money). Dance with whoever came with you, then rack up.'],
       ['With friends', 'Meet a friend at the Palace — you see each other at the table and can chat while you play. Carrom, chess and Ludo are here too.'],
     ],
     faq: [

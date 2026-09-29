@@ -1376,6 +1376,19 @@ export class World {
     this.pushRank();
     const tick = () => { this.raf = requestAnimationFrame(tick); this.update(); };
     tick();
+    const chaseHint = setTimeout(() => this.announceCricketChase(), 7000);
+    this.cleanup.push(() => clearTimeout(chaseHint));
+  }
+
+  /** A small nudge toward the Cricket Ground's Beat the High Score mode, once, a few seconds after arriving. */
+  private announceCricketChase() {
+    const best = store.cricketChaseBest();
+    this.ev.onCollect({
+      name: best
+        ? `🏏 Your Beat the High Score record at the Cricket Ground is ${best} — think you can top it?`
+        : `🏏 New at the Cricket Ground: Beat the High Score — no bowling, just chase down a target. Give it a try!`,
+      points: 0, color: 0xf2c31b, shape: 'gem',
+    });
   }
 
   private update() {

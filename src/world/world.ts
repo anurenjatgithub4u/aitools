@@ -3632,6 +3632,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
   // ---------- the law: heat, the chase, the fine, the cell ----------
   /** Something the city saw you do. Adds heat and puts the patrol on you; `key` stops one prang counting ten times. */
   private crime(name: string, heat: number, key: string, cool: number) {
+    return;   // arrests are switched off: nothing the city sees you do adds heat, so there is no chase, fine or cell
     const t = this.elapsed;
     if (this.jail || !this.cop || (this.crimeCool[key] ?? -99) > t) return;
     this.crimeCool[key] = t + cool;

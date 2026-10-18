@@ -13,7 +13,7 @@ import { createPool, POOL, POOL_COLORS, POOL_POCKETS, isStripe, type PoolGame } 
 import { createCarrom, CARROM, type CarromGame } from './carromEngine';
 import { bakeStatic } from './bake';
 import { makeQuestDef, makeGift, makeBeacon, makeArrow, GIFT_TOTAL, dailyCricketTarget, type QuestKind, type QuestState } from './quests';
-import { makeDog, makeCat, makeBird, makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
+import { makeBus, makePoliceJeep, type Animal, type Bird, type Traffic } from './life';
 import type { RideDef } from './city';
 import { loadAds, interstitial, rewarded, adsEnabled } from './ads';
 import { createTransport, type Transport, type NetMsg, type Gender } from './net';
@@ -884,7 +884,7 @@ export class World {
 
   private spawnPickups() {
     const items = this.dest.collectibles;
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 0; i++) {   // the floating food pickups are gone
       const item = items[i % items.length];
       const mesh = makePickup(item.shape, item.color);
       const el = document.createElement('div');
@@ -905,7 +905,7 @@ export class World {
     const geo = new THREE.CylinderGeometry(0.3, 0.3, 0.07, 18), rim = new THREE.TorusGeometry(0.3, 0.035, 8, 20);
     const gold = new THREE.MeshStandardMaterial({ color: 0xf2c31b, emissive: 0xa87400, emissiveIntensity: 0.35, roughness: 0.3, metalness: 0.6 });
     const dark = new THREE.MeshStandardMaterial({ color: 0xc99a12, roughness: 0.4, metalness: 0.5 });
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 12; i++) {   // a few coins for the fairground rides
       const g = new THREE.Group();
       const disc = new THREE.Mesh(geo, gold); disc.rotation.x = Math.PI / 2; disc.castShadow = true; g.add(disc);
       const ring = new THREE.Mesh(rim, dark); g.add(ring);
@@ -965,24 +965,7 @@ export class World {
   }
 
   private spawnLife() {
-    // a few strays near the spawn
-    const [sx, sz] = this.spawnPoint();
-    const animals: Animal[] = [makeDog(0xc49a5a), makeDog(0xf0e6d8), makeCat(0x555555)];
-    animals.forEach((a, i) => {
-      const home = this.randomLandPoint(6, 30);
-      a.group.position.set(home.x, home.y, home.z);
-      this.scene.add(a.group);
-      this.critters.push({ a, target: this.randomLandPoint(6, 45), wait: i, walking: 0, phase: i * 2 });
-    });
-    // birds circling over the spawn and over the landmark
-    const water = !!this.dest.terrain.water;
-    for (let i = 0; i < 8; i++) {
-      const center = i < 4 ? new THREE.Vector3(sx, 0, sz) : new THREE.Vector3(0, 0, 0);
-      center.y = this.terrain.h(center.x, center.z) + 18 + i * 1.5;
-      const b = makeBird(water ? 0xf4f4f4 : 0x222222, center, 12 + i * 2);
-      this.scene.add(b.group);
-      this.birds.push(b);
-    }
+    // no stray dogs, cats or circling birds: the city is for people and AI tools
     // traffic on the world's roads
     for (const tr of this.dest.traffic ?? []) {
       const route = (this.dest.routes ?? [])[tr.route]?.map(([x, z]) => new THREE.Vector3(x, 0, z));

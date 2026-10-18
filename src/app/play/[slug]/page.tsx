@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SITE, SITE_NAME } from "../../seo";
 import { AdScript, AdSlot } from "../../ads";
 import { PLAY_PAGES, gameMeta } from "../pages";
+import { Footer } from "../../_components/Footer";
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
@@ -89,6 +90,8 @@ export default async function PlayPage({ params }: { params: Promise<{ slug: str
       <AdSlot />
 
       <p className="lede"><Link href={play} className="cta">{p.icon} Play free now →</Link> · <Link href="/how-to-play/">How to play</Link> · <Link href="/map/">City map</Link> · <Link href="/games/">All games</Link></p>
+
+      <Footer />
     </main>
   );
 }

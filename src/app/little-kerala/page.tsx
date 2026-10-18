@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE } from "../seo";
 import { AdScript, AdSlot } from "../ads";
+import { Footer } from "../_components/Footer";
 
 export const metadata: Metadata = {
   title: "Little Kerala / Kerala Dhilber fans — try FindurAI, a free 3D city game in your browser",
@@ -56,6 +57,8 @@ export default function LittleKerala() {
       <AdSlot />
 
       <p className="lede"><Link href="/" className="cta">Enter FindurAI City →</Link> · <Link href="/games/">All the games</Link> · <Link href="/about/">About</Link></p>
+
+      <Footer />
     </main>
   );
 }

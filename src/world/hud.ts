@@ -48,7 +48,7 @@ export interface HudActions { jump(): void; drive(): void; lift(): void; run(): 
 export function renderHud(root: HTMLElement, d: Destination, points: number, actions: HudActions): Hud {
   root.innerHTML = `
   <div class="hud">
-    <a class="brand top-left" href="/"><span class="logo">🌍</span><div><b>FINDURAI</b><small>ONE CITY · COUNTLESS STORIES</small></div></a>
+    <a class="brand top-left" href="/"><span class="logo">🌍</span><div><b>FINDURAI</b><small>ONE CITY · EVERY AI TOOL</small></div></a>
     <div class="quest" id="quest">
       <div class="qhead"><span class="qicon">🎯</span><div><small id="qkicker">TASK</small><b id="qtitle">Looking for a task…</b><span class="qmini" id="qmini"></span></div><em id="qtime"></em></div>
       <div class="qboard" id="qboard" hidden>

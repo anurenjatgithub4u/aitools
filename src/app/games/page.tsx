@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SITE, SITE_NAME } from "../seo";
 import { AdScript, AdSlot } from "../ads";
 import { PLAY_PAGES, gameMeta } from "../play/pages";
+import { Footer } from "../_components/Footer";
 
 export const metadata: Metadata = {
   title: "Games in FindurAI City — race, football, cricket, zombie night, pool, chess, Ludo, carrom",
@@ -64,7 +65,7 @@ export default function Games() {
         <p>Timed tasks appear in the top-left card (or press T): find hidden ₹500 bundles shown roughly on the map, dash through checkpoints, drive a passenger across town, or gather snacks along Café Row. Finish fast for double points and climb the leaderboard.</p></section>
 
       <section><h2>🎱 Real 8-ball at the Neon Palace</h2>
-        <p>The Neon Palace is the casino and club at the end of Neon Lane: a dance floor with chasing tiles, a DJ, a bar, slot machines, a roulette table and laser lights sweeping inside and over the roof. Press E on the dance floor to dance with whoever is with you. Press E at either pool table for real 8-ball on a 3D table — ◀ ▶ to aim, a power slider (or W/S) sets the strength, Shoot to strike. Real rules: first pot decides solids or stripes, scratch is ball in hand, sink the 8 last. There is a carrom board by the bar too: a striker slider places it along your baseline, ◀ ▶ aims, the power slider sets the flick — white for you, black for your rival, the red queen worth three. An Exit button (or Esc) leaves any game. Away from the Palace, 8-ball, chess, Ludo and carrom are still playable from any explorer's card.</p></section>
+        <p>The Neon Palace is the neon lounge and retro games club at the end of Neon Lane (purely virtual entertainment with zero real money): a dance floor with chasing tiles, a DJ, a bar, arcade machines and laser lights sweeping inside and over the roof. Press E on the dance floor to dance with whoever is with you. Press E at either pool table for real 8-ball on a 3D table — ◀ ▶ to aim, a power slider (or W/S) sets the strength, Shoot to strike. Real rules: first pot decides solids or stripes, scratch is ball in hand, sink the 8 last. There is a carrom board by the bar too: a striker slider places it along your baseline, ◀ ▶ aims, the power slider sets the flick — white for you, black for your rival, the red queen worth three. An Exit button (or Esc) leaves any game. Away from the Palace, 8-ball, chess, Ludo and carrom are still playable from any explorer's card.</p></section>
 
       <section><h2>Jump straight into a game</h2>
         <ul className="gamelist">{PLAY_PAGES.map((p) => (
@@ -77,6 +78,8 @@ export default function Games() {
       <AdSlot />
 
       <p className="lede"><Link href="/" className="cta">Play free now →</Link> · <Link href="/about/">About FindurAI</Link></p>
+
+      <Footer />
     </main>
   );
 }

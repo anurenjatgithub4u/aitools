@@ -11,10 +11,9 @@ type Phase = "splash" | "profile" | "building" | "leaving";
 const SPLASH_MIN_MS = 700;
 
 // `ready` flips true once the world has rendered its first frame; only then does the gate fade out.
-export type QuickStart = 'explore' | 'cricket' | 'football' | 'race' | 'zombies' | 'ludo' | 'chess' | 'pool' | 'carrom' | 'monopoly';
+export type QuickStart = 'aitools' | 'explore' | 'cricket' | 'football' | 'race' | 'zombies' | 'ludo' | 'chess' | 'pool' | 'carrom' | 'monopoly';
 const QUICK: [QuickStart, string, string][] = [
-  ['explore', '🌆', 'Explore the city'], ['cricket', '🏏', 'Cricket'], ['football', '⚽', 'Football'], ['race', '🏁', 'Race'],
-  ['zombies', '🧟', 'Zombie night'], ['ludo', '🎲', 'Ludo'], ['chess', '♟️', 'Chess'], ['pool', '🎱', '8-ball'], ['carrom', '🎯', 'Carrom'], ['monopoly', '🎩', 'Monopoly'],
+  ['aitools', '🤖', 'Explore AI Tools Avenue'], ['explore', '🌆', 'Explore the city'], ['cricket', '🏏', 'Cricket'], ['football', '⚽', 'Football'], ['monopoly', '🎩', 'Monopoly'],
 ];
 
 export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promise<unknown>; ready: boolean; build: { f: number; label: string } | null; fatal: string | null; onEnter: (start: QuickStart) => void }) {
@@ -24,7 +23,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
   const [gender, setGender] = useState<"m" | "f" | null>(() => store.gender());
   const [name, setName] = useState(() => store.name() || "Explorer");
   const returning = !!store.gender();
-  const urlStart = ((): QuickStart => { if (typeof location === 'undefined') return 'explore'; const s = new URLSearchParams(location.search).get('start') ?? ''; return (QUICK.some(([k]) => k === s) ? s : 'explore') as QuickStart; })();
+  const urlStart = ((): QuickStart => { if (typeof location === 'undefined') return 'aitools'; const s = new URLSearchParams(location.search).get('start') ?? ''; return (QUICK.some(([k]) => k === s) ? s : 'aitools') as QuickStart; })();
   const [slow, setSlow] = useState(false);
   const [failed, setFailed] = useState(false);
   const startedAt = useRef(Date.now());
@@ -57,16 +56,16 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
     const hold = process.env.NODE_ENV !== 'production' && typeof location !== 'undefined' && new URLSearchParams(location.search).has('splash') ? 20000 : 0;   // dev: ?splash keeps the splash up to look at it
     const wait = Math.max(0, SPLASH_MIN_MS - (Date.now() - startedAt.current)) + hold;
     const t = setTimeout(() => {
-      if (urlStart !== 'explore' && store.gender()) enter(urlStart); else setPhase("profile");   // a landing page sent them to a game: go straight there
+      if (urlStart !== 'aitools' && store.gender()) enter(urlStart); else setPhase("profile");   // a landing page sent them to a game: go straight there
     }, wait + 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, phase]);
 
-  const enter = (start: QuickStart = 'explore') => { setPhase("building"); preroll(() => setTimeout(() => onEnter(start), 80)); };   // a preroll ad (if configured) while the splash paints "Building…", then the heavy work
+  const enter = (start: QuickStart = 'aitools') => { setPhase("building"); preroll(() => setTimeout(() => onEnter(start), 80)); };   // a preroll ad (if configured) while the splash paints "Building…", then the heavy work
   const [tip, setTip] = useState(0);
   useEffect(() => { const t = setInterval(() => setTip((k) => (k + 1) % TIPS.length), 2600); return () => clearInterval(t); }, []);
-  const save = (start: QuickStart = 'explore') => {
+  const save = (start: QuickStart = 'aitools') => {
     if (!gender) return;
     store.setGender(gender);
     store.setName(name.trim() || 'Explorer');
@@ -83,7 +82,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
           <div className="splash-logo">
             {"FINDURAI".split("").map((c, i) => <span key={i} style={{ animationDelay: `${i * 70}ms` }}>{c}</span>)}
           </div>
-          <p className="splash-tag">one city · countless stories</p>
+          <p className="splash-tag">one city · every AI tool</p>
           <div className="splash-bar"><i style={{ width: `${progress}%` }} /><em>{Math.round(progress)}%</em></div>
           <p className="splash-hint" key={fatal ?? (failed ? 'f' : phase === "leaving" || ready ? 'r' : phase === "building" ? build?.label ?? 'b' : 'l')}>{fatal ?? (failed ? "Could not load the city." : phase === "leaving" || ready ? "Ready — see you in there" : phase === "building" ? build?.label ?? "Building the city…" : "Loading the city…")}</p>
           <p className="splash-tip" key={`tip${tip}`}>💡 {TIPS[tip]}</p>
@@ -93,7 +92,7 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
 
       {phase === "profile" && (
         <div className="profile">
-          <div className="brandmark"><span className="bm-logo">FINDURAI</span><span className="bm-tag">one city · countless stories</span></div>
+          <div className="brandmark"><span className="bm-logo">FINDURAI</span><span className="bm-tag">one city · every AI tool</span></div>
           <div className="welcome-sign">
             <p className="eyebrow">{returning ? 'Welcome back' : 'Create your explorer'}</p>
             <h1>{returning ? `Good to see you, ${name}.` : 'Who are you in the city?'}</h1>
@@ -108,9 +107,17 @@ export function Gate({ loading, ready, build, fatal, onEnter }: { loading: Promi
           </div>
           <p className="qhead">Where to?</p>
           <div className="quick">
-            {QUICK.map(([k, icon, label]) => <button key={k} type="button" className={`qbtn qtile-${k}` + (k === 'explore' ? ' main' : '') + (k === urlStart && k !== 'explore' ? ' hot' : '')} disabled={!gender} onClick={() => save(k)}><span>{icon}</span>{label}{k === 'explore' && <em>›</em>}</button>)}
+            {QUICK.map(([k, icon, label]) => <button key={k} type="button" className={`qbtn qtile-${k}` + (k === 'aitools' ? ' main' : '') + (k === urlStart && k !== 'aitools' ? ' hot' : '')} disabled={!gender} onClick={() => save(k)}><span>{icon}</span>{label}{k === 'aitools' && <em>›</em>}</button>)}
           </div>
-          <p className="pnote">{returning ? 'Change your name or avatar above any time.' : 'Real people see your name and avatar. You can change both later.'}</p>
+          <p className="pnote">
+            {returning ? 'Change your name or avatar above any time.' : 'Real people see your name and avatar. You can change both later.'}
+            <br />
+            <a href="/about/" style={{ color: 'inherit', textDecoration: 'underline' }}>About</a> &nbsp;·&nbsp;
+            <a href="/games/" style={{ color: 'inherit', textDecoration: 'underline' }}>Games</a> &nbsp;·&nbsp;
+            <a href="/how-to-play/" style={{ color: 'inherit', textDecoration: 'underline' }}>How to play</a> &nbsp;·&nbsp;
+            <a href="/privacy-policy/" style={{ color: 'inherit', textDecoration: 'underline' }}>Privacy Policy</a> &nbsp;·&nbsp;
+            <a href="/terms/" style={{ color: 'inherit', textDecoration: 'underline' }}>Terms</a>
+          </p>
         </div>
       )}
     </div>
@@ -159,6 +166,7 @@ function AvatarCard({ g, label, sel, onPick }: { g: "m" | "f"; label: string; se
 }
 
 const TIPS = [
+  'Walk up to any booth on AI Tools Avenue and press E — the tool opens straight away.',
   'Walk up to anyone and a card appears — tap an opener to break the ice.',
   'Press E on the Neon Palace dance floor to dance. The lasers are free.',
   'Real 8-ball and carrom are on the tables inside the Neon Palace.',

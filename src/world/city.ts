@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { Terrain } from './terrain';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { AI_TOOLS } from './aiTools';
 
 // FindurAI City — an imaginary hangout city. Downtown plaza + café row, Neon Lane (bars, pubs,
 // a club), Sunrise High + FindurAI College, Central Park with a lake, Sunset Beach with a pier,
@@ -1019,6 +1020,31 @@ export function buildCity(g: THREE.Group, h: H, terrain?: Terrain) {
     spot('boat', 'boat', 'Take the boat out', 403, -150, 2.5, Math.PI, [[0, -0.6], [0, 0.6]]);
   }
   g.userData.spots = spots;
+
+  // ================= AI TOOLS AVENUE (west of spawn) =================
+  // One booth per famous AI tool, each topped with a gift box in the brand colour. Walk up, press E, and the tool opens.
+  { const COLS = 6, X0 = -62, DX = 8, ROWS = [28, 38, 48];
+    const booths: { id: string; name: string; url: string; blurb: string; x: number; z: number; y: number }[] = [];
+    AI_TOOLS.forEach((t, i) => {
+      const x = X0 + (i % COLS) * DX, z = ROWS[Math.floor(i / COLS)], y = h(x, z), c = t.color;
+      const pad = at(box(7, 0.2, 9, 0xe9e6f5), x, y + 0.1, z + 1.4); pad.userData.noCollide = true; g.add(pad);
+      g.add(at(box(5, 3.4, 4.6, 0xf4f1ea), x, y + 1.9, z));                                   // walls
+      g.add(at(box(5.7, 0.5, 5.3, c), x, y + 3.85, z));                                       // brand-colour roof slab
+      g.add(at(glow(4.2, 0.9, 0.2, c), x, y + 3.0, z + 2.4));                                  // glowing sign band
+      g.add(at(box(1.2, 2.2, 0.15, 0x3a2418), x, y + 1.2, z + 2.35));                          // door
+      for (const dx of [-1.8, 1.8]) g.add(at(box(0.9, 1.1, 0.1, glass), x + dx, y + 1.7, z + 2.35));
+      // the gift on the roof: box, ribbon cross and a bow
+      g.add(at(box(1.6, 1.4, 1.6, c), x, y + 4.8, z)); g.add(at(box(1.7, 1.45, 0.3, 0xffffff), x, y + 4.8, z)); g.add(at(box(0.3, 1.45, 1.7, 0xffffff), x, y + 4.8, z));
+      g.add(at(sph(0.38, 0xffffff, 6), x - 0.35, y + 5.7, z)); g.add(at(sph(0.38, 0xffffff, 6), x + 0.35, y + 5.7, z));
+      const ring = at(mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.06, 20), c, { emissive: c, emissiveIntensity: 0.9 }), x, y + 0.26, z + 4.4); ring.userData.noCollide = true; g.add(ring);   // "stand here"
+      g.add(at(label(t.name, 'aitool', 55), x, y + 7.2, z));
+      keep(x, z, 6);
+      booths.push({ id: t.id, name: t.name, url: t.url, blurb: t.blurb, x, z, y });
+    });
+    const cx = X0 + ((COLS - 1) * DX) / 2;
+    g.add(at(label('AI Tools Avenue', 'place', 240), cx, h(cx, 38) + 13, 38));
+    keep(cx, 38, 30);
+    g.userData.aiTools = booths; }
 
   // ================= main roads =================
   road(15, -100, 15, 86); road(15, 60, -60, 60);

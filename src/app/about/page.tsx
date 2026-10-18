@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { FEATURES, SITE, SITE_NAME } from "../seo";
 import { AdScript, AdSlot } from "../ads";
+import { Footer } from "../_components/Footer";
 
 export const metadata: Metadata = {
   title: "About FindurAI — a free 3D city to hang out, date, race and play",
@@ -65,6 +66,8 @@ export default function About() {
       <AdSlot />
 
       <p className="lede"><Link href="/" className="cta">Enter the city →</Link></p>
+
+      <Footer />
     </main>
   );
 }

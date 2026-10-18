@@ -10,7 +10,7 @@ export default function Home() {
     <>
       <WorldView id={CITY.id} />
       <section className="sr-only" aria-label="About FindurAI">
-        <h1>FindurAI — a free 3D city game in your browser to hang out, date, race and play with friends</h1>
+        <h1>FindurAI — explore the best AI tools in a free 3D city: walk up to ChatGPT, Claude, Gemini, Midjourney and more, press Enter, and go</h1>
         <p>
           FindurAI is a free browser-based multiplayer 3D virtual world where players explore, socialize, meet people, and play games together with zero installation or downloads required.
           Walk around FindurAI City with real people: Downtown Plaza, Café Row, the Neon Lane nightlife strip, Sunset Beach, Central Park, City Stadium, and across the Harbour Bridge to Eastside island.
@@ -33,9 +33,9 @@ export default function Home() {
       </section>
       <noscript>
         <div className="landing page">
-          <h1>FindurAI — Free 3D Multiplayer City Game</h1>
+          <h1>FindurAI — Explore AI Tools in a 3D City</h1>
           <p>
-            FindurAI is a free 3D city game that runs directly in your browser. Please enable JavaScript to enter the city and explore in 3D.
+            FindurAI is a free 3D city in your browser where every famous AI tool has its own booth. Please enable JavaScript to enter the city and explore.
           </p>
           <p>
             Explore our site: <a href="/about/">About FindurAI</a> · <a href="/games/">Games Directory</a> · <a href="/how-to-play/">How to Play</a> · <a href="/map/">City Map</a> · <a href="/privacy-policy/">Privacy Policy</a> · <a href="/terms/">Terms of Service</a>

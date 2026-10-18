@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import './monopoly.css';
 import { BOARD, COLOR_GROUP_SIZES } from './engine/board';
@@ -534,9 +534,13 @@ export default function MonopolyGame() {
               {cur.inJail && <span style={{ fontSize: '.7rem', color: 'var(--text-muted)' }}>(In Jail)</span>}
             </div>
           )}
-          <button className="mono-restart-btn" onClick={() => { setNumPlayers(0); setGameKey(k => k + 1); }}>
-            ↺ New Game
-          </button>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginLeft: 'auto' }}>
+            <a href="/privacy-policy/" style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textDecoration: 'underline' }}>Privacy</a>
+            <a href="/terms/" style={{ color: 'var(--text-muted)', fontSize: '0.78rem', textDecoration: 'underline' }}>Terms</a>
+            <button className="mono-restart-btn" onClick={() => { setNumPlayers(0); setGameKey(k => k + 1); }}>
+              ↺ New Game
+            </button>
+          </div>
         </div>
 
         {/* Left players */}

@@ -251,6 +251,7 @@ export class World {
   private lastMeet = '';
   private hangout: { bot: Bot; until: number; nextLine: number } | null = null;
   private spots: Spot[] = [];
+  private aiTools: { id: string; name: string; url: string; blurb: string; x: number; z: number }[] = [];
   private date: DateState | null = null;
   private wheel: THREE.Group | null = null;
   private rides: Ride[] = [];
@@ -660,6 +661,7 @@ export class World {
     this.roadLines = [...(landmark.userData.roads ?? []), ...(this.dest.routes ?? [])];
     this.landmarkData = landmark.userData;
     this.spots = (landmark.userData.spots ?? []) as Spot[];
+    this.aiTools = (landmark.userData.aiTools ?? []) as typeof this.aiTools;
     this.wheel = (landmark.getObjectByName('ferris') as THREE.Group | undefined) ?? null;
     landmark.traverse((o) => { if (o.userData.ride) this.rides.push(this.makeRide(o as THREE.Group)); });
     this.dateBoat = (landmark.getObjectByName('dateboat') as THREE.Group | undefined) ?? null;
@@ -1419,6 +1421,7 @@ export class World {
       else if (this.ride) this.endRide();
       else if (this.pool || this.carrom) { /* use Shoot / Flick */ }
       else if (this.jail) this.sfx.bump();   // the door is locked
+      else if (this.nearestAiTool()) this.openAiTool(this.nearestAiTool()!);
       else { const v = this.nearestVehicle(); const sp = this.nearestSpot(); const pt = this.nearestPoolTable(); const cb = this.nearestCarrom(); const rd = this.nearestRide(); if (pt) this.startPool(pt); else if (cb) this.startCarrom(cb); else if (this.onDanceFloor()) this.startDancing(); else if (rd) this.startRide(rd); else if (sp) this.startDate(sp); else if (v) this.enterVehicle(v); else if (this.onPitch() && !this.match) this.startFootball(); else if (this.onStrip() && !this.cricket) this.openCricket(); }
     }
 
@@ -1587,7 +1590,9 @@ export class World {
       const ptab = this.date || this.dancing || this.pool || this.carrom ? null : this.nearestPoolTable();
       const cboard = this.date || this.dancing || this.pool || this.carrom || ptab ? null : this.nearestCarrom();
       const rd = this.date || this.dancing || this.pool || this.carrom || this.ride ? null : this.nearestRide();
+      const ai = this.date || this.dancing || this.pool || this.carrom || this.ride || this.jail ? null : this.nearestAiTool();
       if (this.pool || this.carrom) this.prompt(null, false);
+      else if (ai && !this.inMode()) this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Enter ${ai.name} — ${ai.blurb} ↗`, false);
       else if (this.ride) this.prompt(`${this.ride.r.def.icon} ${Math.max(0, Math.ceil((this.ride.r.def.seconds ?? RIDE_SECONDS) - (t - this.ride.t0)))} s · ${this.mobile ? 'Jump' : 'E'} to get off early`, false);
       else if (rd && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · ${rd.def.label}${pt ? ` with ${pt.name}` : ''} · ${RIDE_PRICE} 🪙${store.coins() < RIDE_PRICE ? ` (you have ${store.coins()})` : ''}`, false); }
       else if (cboard && !this.inMode()) { const pt = this.datePartner(); this.prompt(`${this.mobile ? 'Tap Drive' : 'Press E'} · Play carrom${pt ? ` with ${pt.name}` : ''}`, false); }
@@ -1769,12 +1774,14 @@ export class World {
     // Only the nearest few of each kind of label show at once — a cluster of rides or shops never turns into a wall
     // of white pills; the ones further off just wait their turn as you get closer and something else drops out.
     const placeCap = this.mobile ? 3 : 4, shopCap = this.mobile ? 2 : 3;
-    const places: { l: CSS2DObject; d2: number }[] = [], shops: { l: CSS2DObject; d2: number }[] = [];
+    const places: { l: CSS2DObject; d2: number }[] = [], shops: { l: CSS2DObject; d2: number }[] = [], tools: { l: CSS2DObject; d2: number }[] = [];
     for (const l of this.worldLabels) {
       const d2 = l.getWorldPosition(wp).distanceToSquared(focus);
       l.visible = false;
-      if (d2 < ((l.userData.range as number) * lr) ** 2) ((l.element as HTMLElement).className === 'shop' ? shops : places).push({ l, d2 });
+      const cls = (l.element as HTMLElement).className;
+      if (d2 < ((l.userData.range as number) * lr) ** 2) (cls === 'shop' ? shops : cls === 'aitool' ? tools : places).push({ l, d2 });
     }
+    tools.sort((a, b) => a.d2 - b.d2); for (const c of tools.slice(0, this.mobile ? 6 : 10)) c.l.visible = true;
     places.sort((a, b) => a.d2 - b.d2); for (const c of places.slice(0, placeCap)) c.l.visible = true;
     shops.sort((a, b) => a.d2 - b.d2); for (const c of shops.slice(0, shopCap)) c.l.visible = true;
     if (this.train) {
@@ -2267,6 +2274,7 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     const tp = (x: number, z: number) => { if (this.driving) this.exitVehicle(); this.player.group.position.set(x, this.groundAt(x, z, this.terrain.h(x, z)), z); this.airY = 0; this.vy = 0; };
     const partner = () => this.bots.find((b) => !b.remote && !b.riding && !b.knocked && !b.playing) ?? null;
     switch (kind) {
+      case 'aitools': tp(-26, 33); this.yaw = 0; break;   // standing on AI Tools Avenue
       case 'cricket': if (this.oval) { tp(this.oval.x - 8, this.oval.z); this.openCricket(); } break;
       case 'football': if (this.field) { tp(this.field.x, this.field.z + 3); this.startFootball(); } break;
       case 'race': this.startCircuitRace(); break;
@@ -3529,6 +3537,22 @@ Red: ${m.rivals}`, progress: this.mobile ? 'Run into the ball · Kick shoots' : 
     this.pitch = 0.3; this.dist = 10; this.camDist = 10;
     this.ev.onMode(null); this.ev.onQuest(null); this.ev.onTableScore(null, null); this.ev.onShotClock(null);
     this.questCooldown = 10;
+  }
+
+  // ---------- AI Tools Avenue: walk up to a booth, press E, and the tool opens ----------
+  private nearestAiTool() {
+    const p = this.player.group.position;
+    let best: (typeof this.aiTools)[number] | null = null, bd = 6.5;
+    for (const t of this.aiTools) { const d = Math.hypot(t.x - p.x, t.z - p.z); if (d < bd) { bd = d; best = t; } }
+    return best;
+  }
+
+  private openAiTool(t: (typeof this.aiTools)[number]) {
+    this.sfx.checkpoint();
+    this.ev.onCollect({ name: `Opening ${t.name}…`, points: 0, color: 0x3fb7d9, shape: 'gem' });
+    // a new tab keeps the city open behind it; if the browser blocks that, go there directly
+    const w = window.open(t.url, '_blank', 'noopener,noreferrer');
+    if (!w) window.location.assign(t.url);
   }
 
   // ---------- dates: sit together, ride the wheel, take the boat out, watch the sunset ----------

@@ -24,7 +24,7 @@ export function WorldView({ id }: { id: string }) {
   // the 3D bundle starts downloading behind the splash; the world is built once the player has an explorer
   const [loading] = useState(() => (typeof window === "undefined" ? Promise.resolve(null) : import("@/world/world")));
   const [entered, setEntered] = useState(false);
-  const startRef = useRef<QuickStart>('explore');
+  const startRef = useRef<QuickStart>('aitools');
   const [ready, setReady] = useState(false);
   const [build, setBuild] = useState<{ f: number; label: string } | null>(null);
   const [fatal, setFatal] = useState<string | null>(null);

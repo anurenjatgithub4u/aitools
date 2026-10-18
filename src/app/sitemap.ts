@@ -14,8 +14,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE}/little-kerala/`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${SITE}/how-to-play/`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE}/map/`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${SITE}/privacy-policy/`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${SITE}/terms/`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
     ...PLAY_PAGES.map((p) => ({ url: `${SITE}/play/${p.slug}/`, lastModified: now, changeFrequency: "monthly" as const, priority: 0.8 })),
     { url: `${SITE}/play/monopoly/`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     ...DESTINATIONS.map((d) => ({ url: `${SITE}/world/${d.id}/`, lastModified: now, changeFrequency: "weekly" as const, priority: 0.9 })),
   ];
 }
+

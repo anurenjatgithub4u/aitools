@@ -1,7 +1,7 @@
 // Shared SEO strings: keep the title, description, keywords and site URL in one place.
 export const SITE = "https://www.findurai.com";
 export const SITE_NAME = "FindurAI";
-export const TAGLINE = "FindurAI · Free 3D city game — Cricket, Football, Ludo, Carrom, Monopoly & more in your browser";
+export const TAGLINE = "FindurAI · Explore the best AI tools in a 3D city — walk up to ChatGPT, Claude, Gemini, Midjourney & more";
 export const DESCRIPTION =
   "FindurAI is a free multiplayer 3D city (a browser metaverse) — no download, works on phone and desktop. Meet real friends and virtual dates at the plaza, bar-hop on Neon Lane, chill at Sunset Beach, drive jeeps, tuk-tuks and bikes across the Harbour Bridge, race a 960 m speedway with boost pads, play 5-a-side football, bat and bowl cricket, survive zombie night, hunt hidden cash and play chess, Ludo, carrom and 8-ball pool together. If you loved Little Kerala (kerala.dhilber.com), this is your next city.";
 

@@ -5,8 +5,8 @@ export function SiteHeader() {
     <header className="sticky top-0 z-10 border-b border-line bg-bg/85 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
         <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-brand-ink">R</span>
-          Reelforge
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-brand-ink">F</span>
+          <span className="leading-tight">FindUrAI<span className="hidden text-[10px] font-normal text-muted sm:block">Find your AI video</span></span>
         </Link>
         <nav className="ml-auto flex items-center gap-1 text-sm">
           <Link href="/#features" className="hidden rounded-lg px-3 py-2 text-muted hover:text-ink sm:block">Features</Link>
@@ -23,7 +23,7 @@ export function SiteFooter() {
   return (
     <footer className="border-t border-line">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-8 text-sm text-muted">
-        <span>© {new Date().getFullYear()} Reelforge</span>
+        <span>© {new Date().getFullYear()} FindUrAI · Find your AI video</span>
         <div className="flex gap-4">
           <Link href="/pricing/" className="hover:text-ink">Pricing</Link>
           <Link href="/studio/" className="hover:text-ink">Studio</Link>

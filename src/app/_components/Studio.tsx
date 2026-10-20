@@ -29,8 +29,8 @@ export function Studio({ initialView = "create" }: { initialView?: View }) {
     <div className="flex min-h-screen flex-col md:flex-row">
       <aside className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-line bg-surface px-3 py-2 md:w-56 md:flex-col md:items-stretch md:overflow-visible md:border-b-0 md:border-r md:p-4">
         <Link href="/" className="mr-3 flex items-center gap-2 md:mb-6 md:mr-0">
-          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-brand-ink">R</span>
-          <span className="font-semibold tracking-tight">Reelforge</span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand text-brand-ink">F</span>
+          <span className="leading-tight font-semibold tracking-tight">FindUrAI<span className="block text-[10px] font-normal text-muted">Find your AI video</span></span>
         </Link>
         <nav className="flex gap-1 md:flex-col">
           {NAV.map((n) => (

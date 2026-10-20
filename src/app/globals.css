@@ -11,18 +11,6 @@
   --accent: #ff5c8a;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0e0d11;
-    --surface: #17161c;
-    --ink: #f3f2f5;
-    --muted: #9a97a6;
-    --line: #2a2832;
-    --brand: #8a6dff;
-    --accent: #ff7aa0;
-  }
-}
-
 @theme inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);

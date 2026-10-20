@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SiteFooter, SiteHeader } from "../_components/Site";
 import { Pricing } from "./Pricing";
 
-export const metadata: Metadata = { title: "Pricing — Reelforge" };
+export const metadata: Metadata = { title: "Pricing — FindUrAI" };
 
 export default function PricingPage() {
   return (

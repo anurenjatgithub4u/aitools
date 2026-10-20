@@ -25,12 +25,12 @@ export default function Home() {
         <section className="mx-auto max-w-6xl px-4 pb-16 pt-14 md:pt-24">
           <div className="grid items-center gap-12 md:grid-cols-[1.1fr_0.9fr]">
             <div>
-              <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">UGC video engine · beta</span>
+              <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-muted">Find your AI video · beta</span>
               <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight md:text-6xl">
                 Turn any product into <span className="text-brand">scroll-stopping</span> UGC videos
               </h1>
               <p className="mt-5 max-w-xl text-lg text-muted">
-                Reelforge writes the hook, casts an AI creator and renders short-form videos for TikTok, Reels and Shorts, in minutes instead of weeks.
+                FindUrAI writes the hook, casts an AI creator and renders short-form videos for TikTok, Reels and Shorts, in minutes instead of weeks.
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/studio/" className="rounded-lg bg-brand px-6 py-3 font-medium text-brand-ink hover:opacity-90">Create your first video</Link>

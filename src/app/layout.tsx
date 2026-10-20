@@ -3,7 +3,7 @@ import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Reelforge — UGC & short-form video engine",
+  title: "FindUrAI — Find your AI video",
   description: "Turn a product link into scroll-stopping UGC-style short videos: hooks, scripts, AI creators and captions in minutes.",
 };
 

@@ -42,7 +42,7 @@ export function Pricing() {
         ))}
       </div>
 
-      <section className="mx-auto mt-20 max-w-2xl">
+      <section id="faq" className="mx-auto mt-20 max-w-2xl scroll-mt-24">
         <h2 className="text-2xl font-semibold tracking-tight">Frequently asked questions</h2>
         <div className="mt-6 divide-y divide-line rounded-2xl border border-line bg-surface">
           {FAQS.map(([q, a]) => (

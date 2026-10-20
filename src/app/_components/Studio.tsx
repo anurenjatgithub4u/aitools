@@ -69,12 +69,14 @@ function Create({ preset }: { preset: Template | null }) {
   const [scenes, setScenes] = useState<Scene[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
+  const [gen, setGen] = useState(0);
 
   const generate = () => {
     setLoading(true);
     setTimeout(() => {
       setScenes(buildScenes(product, problem, length, format));
       setActive(0);
+      setGen((g) => g + 1);
       setLoading(false);
     }, 900);
   };
@@ -120,6 +122,7 @@ function Create({ preset }: { preset: Template | null }) {
             </div>
           </div>
           <button onClick={generate} disabled={loading || !product.trim()} className="w-full rounded-lg bg-brand py-2.5 text-sm font-semibold text-brand-ink transition hover:opacity-90 disabled:opacity-50">
+            {loading && <span className="spinner mr-2 inline-block h-3.5 w-3.5 rounded-full border-2 border-brand-ink/40 border-t-brand-ink align-[-2px]" />}
             {loading ? "Writing script…" : scenes ? "Regenerate script" : "Generate script"}
           </button>
         </section>
@@ -142,7 +145,7 @@ function Create({ preset }: { preset: Template | null }) {
               </div>
               <ol className="space-y-3">
                 {scenes.map((s, i) => (
-                  <li key={s.id} onClick={() => setActive(i)} className={`rounded-xl border p-3 ${i === active ? "border-brand" : "border-line"}`}>
+                  <li key={`${gen}-${s.id}`} style={{ "--d": `${i * 0.08}s` } as React.CSSProperties} onClick={() => setActive(i)} className={`anim-up rounded-xl border p-3 ${i === active ? "border-brand" : "border-line"}`}>
                     <div className="mb-2 flex items-center justify-between text-xs">
                       <span className="font-semibold">{i + 1}. {s.label}</span>
                       <span className="text-muted">{s.seconds}s</span>

@@ -101,3 +101,24 @@ Non-obvious choices, newest last.
 - Effect on stored checks: DE/JP/BR volume +8…+17 and difficulty +6…+15. A few verdicts move from
   Target to Maybe because difficulty crossed 50. Thin phrases (BR "rastreador de sequência", vol 7)
   stay low, as they should.
+
+## Hosting on Vercel (2026-10-29)
+
+findurai.com is a Vercel project auto-deployed from GitHub `main`. Serverless hosting forced
+three changes:
+
+- **Database: libSQL.** The same Drizzle schema runs on a local file (`./data/app.db`, dev) or on
+  Turso (`TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN`, set by Vercel's Turso integration). Migrations
+  still apply on first access; `outputFileTracingIncludes` ships `./drizzle` with the functions.
+  Deletes remove child rows explicitly, because a remote libSQL connection may not enforce
+  `ON DELETE CASCADE`.
+- **Rank checks are browser-driven**, replacing the in-memory job queue from Phase 3 (Vercel
+  freezes functions after they respond, and instances don't share memory). The board queues
+  tasks and POSTs `/api/check` once per keyword × country, 4s apart (`CHECK_SPACING_MS`). A rate
+  limit returns 429 + `retryAfterMs` at once; the browser shows the countdown and retries.
+  Trade-off: checks stop if the tab closes (finished ones are saved). A durable queue (Vercel
+  Queues, QStash) can replace it later behind the same `/api/check` route.
+- **Shared password** (`APP_PASSWORD`) via `src/proxy.ts`: pages redirect to `/login`, API routes
+  401. Without it, anyone with the URL could spend the OpenAI key. Unset locally = no login.
+- Apple rate-limits per IP, and Vercel's outbound IPs are shared with other sites, so 429s may
+  be more frequent there than locally; the retry countdown covers it.

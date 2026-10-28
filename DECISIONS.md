@@ -62,3 +62,15 @@ Non-obvious choices, newest last.
   to the English keyword; other storefronts are skipped (and reported) until localized.
 - **Localization** sends one model call per country per 30 keywords (3 in parallel). US returns
   the keyword unchanged without a call.
+
+## Scoring
+
+- Formulas are documented in `src/lib/scoring/scores.ts`; verdict rules are one ordered array in
+  `src/lib/scoring/verdict.ts` (first match wins, last rule is a catch-all).
+- Spot-check against live US/DE data (2026-10-28): "meditation" vol 89 / diff 71, "habit tracker"
+  74 / 61, "habit tracker for adhd teens" 61 / 44, "gewohnheitstracker" (DE) 57 / 35,
+  "kakeibo budget planner" 26 / 25. The ordering matches intuition.
+- Apple's search is fuzzy and returns ~180–200 results even for niche phrases, so the
+  result-count ("breadth") factor in volume rarely bites; the rating-count term does the work.
+- Scores are computed on read from the stored top-10 snapshot, so retuning a formula re-scores
+  history without a migration.

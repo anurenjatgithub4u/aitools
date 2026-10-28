@@ -88,3 +88,16 @@ Non-obvious choices, newest last.
   instead of the package's jsdelivr default.
 - **App icons** come straight from Apple's CDN with `next/image` `unoptimized` (no image proxy).
 - Home and board pages are `force-dynamic` so `next build` never opens the database.
+
+## Storefront size adjustment (2026-10-28)
+
+- Rating counts are per storefront, so smaller App Stores scored low on volume *and* difficulty
+  even for strong keywords (e.g. DE "habit tracker" 43 vs US 74). Both scores now use
+  US-equivalent ratings: `ratings / ratingShare`, with `ratingShare` per country in
+  `lib/countries.ts`.
+- `ratingShare` = median ratio (store ÷ US) of rating counts for 12 global apps, measured live on
+  2026-10-28: UK 0.13, DE 0.093, FR 0.11, ES 0.065, IT 0.07, JP 0.14, BR 0.20, IN 0.17. Per-app
+  ratios vary 3–10×, so these are rough; re-measure if scores look off for one country.
+- Effect on stored checks: DE/JP/BR volume +8…+17 and difficulty +6…+15. A few verdicts move from
+  Target to Maybe because difficulty crossed 50. Thin phrases (BR "rastreador de sequência", vol 7)
+  stay low, as they should.

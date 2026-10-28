@@ -1,3 +1,4 @@
+import { getCountry } from "@/lib/countries";
 import { rankOf } from "@/lib/itunes/parse";
 import { difficultyScore, verdictFor, volumeScore } from "@/lib/scoring";
 import type { BoardRow, Competitor, Keyword, LocalizedKeyword, Project, RankCheck } from "@/types";
@@ -25,8 +26,9 @@ export function buildBoardRows(
         return { ...base, checkedAt: null, rank: null, competitorRanks: {}, volume: null, difficulty: null, verdict: null, verdictWhy: null, top5: [] };
       }
       const rank = rankOf(check.resultIds, project.itunesId);
-      const volume = volumeScore(check.top, check.resultIds.length);
-      const difficulty = difficultyScore(check.top);
+      const { ratingShare } = getCountry(country);
+      const volume = volumeScore(check.top, check.resultIds.length, ratingShare);
+      const difficulty = difficultyScore(check.top, ratingShare);
       const { verdict, why } = verdictFor({ rank, volume, difficulty });
       return {
         ...base,

@@ -69,6 +69,32 @@ describe("difficultyScore", () => {
   });
 });
 
+describe("storefront size (ratingShare)", () => {
+  // The same search in a store with 10% of the US's ratings: every app has a tenth of the ratings.
+  const us = apps([200_000, 80_000, 30_000, 10_000, 5_000, 2_000, 1_000, 500, 200, 100]);
+  const small = us.map((a) => ({ ...a, ratingCount: a.ratingCount * 0.1 }));
+
+  it("scores a smaller store's results like the equivalent US results", () => {
+    expect(volumeScore(small, 200, 0.1)).toBe(volumeScore(us, 200));
+    expect(difficultyScore(small, 0.1)).toBe(difficultyScore(us));
+  });
+
+  it("without the adjustment, the smaller store is under-scored", () => {
+    expect(volumeScore(small, 200)).toBeLessThan(volumeScore(us, 200) - 10);
+    expect(difficultyScore(small)).toBeLessThan(difficultyScore(us) - 10);
+  });
+
+  it("defaults to the US scale and keeps 0 ratings at 0", () => {
+    expect(volumeScore(us, 200, 1)).toBe(volumeScore(us, 200));
+    expect(difficultyScore(apps([0, 0, 0]), 0.05)).toBe(0);
+  });
+
+  it("every supported country has a share in (0, 1]", async () => {
+    const { COUNTRIES } = await import("@/lib/countries");
+    for (const c of COUNTRIES) expect(c.ratingShare > 0 && c.ratingShare <= 1).toBe(true);
+  });
+});
+
 describe("verdict rules", () => {
   const v = (rank: number | null, volume: number, difficulty: number) => verdictFor({ rank, volume, difficulty }).verdict;
 

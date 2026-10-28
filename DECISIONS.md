@@ -22,3 +22,23 @@ Non-obvious choices, newest last.
   with shadcn's `sonner` component.
 - **Analytics kept as-is**: GA4 via gtag.js in the root layout, enabled only when `NEXT_PUBLIC_GA_ID`
   is set. No custom events yet.
+
+## Phase 1: architecture
+
+- **Extra schema beyond the five tables:** `apps.countries` (the countries a project targets) and an
+  `itunes_cache` table (the iTunes response cache survives restarts, so the rate limit isn't re-spent).
+- **Ranks are derived, not stored.** Each `rank_checks` row keeps the full ordered list of result
+  track ids (≤200) plus a top-10 snapshot. My app's rank and every competitor's rank come from that
+  list, so a competitor added later still gets ranks from older checks, and `apps.itunes_id` can be
+  set after the fact.
+- **Repository layer** (`src/lib/db/repo/*`, exported from `src/lib/db`) is the only code that
+  imports the schema. All functions are async even though better-sqlite3 is sync, so a Postgres
+  port changes `schema.ts` + `client.ts` only.
+- **Migrations** are generated with `npm run db:generate` into `./drizzle` (committed) and applied
+  automatically the first time `getDb()` runs. `DATABASE_PATH` overrides `./data/app.db`.
+- **Env is read lazily** (`src/lib/env.ts`), so builds and pages that don't call OpenAI work
+  without a key. A missing key surfaces as HTTP 503 `missing_openai_key`.
+- **OpenAI:** Responses API with structured outputs (`zodTextFormat`), then re-validated with zod;
+  one retry that tells the model what failed. Default model `gpt-5.4-mini` (`OPENAI_MODEL`).
+- **`server-only`** guards every module that touches keys or the DB; vitest aliases it to an empty
+  module so those modules stay testable.

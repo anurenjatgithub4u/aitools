@@ -1,0 +1,47 @@
+import type { CountryCode } from "@/lib/countries";
+
+export type KeywordKind = "short" | "long";
+export type Verdict = "Target" | "Push" | "Maybe" | "Swap" | "Dead";
+
+/** One app from an iTunes search result, trimmed to what the board shows and scoring needs. */
+export type TopApp = {
+  trackId: number;
+  name: string;
+  icon: string;
+  ratingCount: number;
+  rating: number;
+};
+
+export type Project = {
+  id: number;
+  name: string;
+  niche: string | null;
+  audience: string | null;
+  /** Numeric App Store id of "my app"; null for niche-only projects. */
+  itunesId: number | null;
+  icon: string | null;
+  countries: CountryCode[];
+  createdAt: Date;
+};
+
+export type Competitor = { id: number; appId: number; itunesId: number; name: string; icon: string | null };
+
+export type Keyword = { id: number; appId: number; term: string; kind: KeywordKind; createdAt: Date };
+
+export type LocalizedKeyword = { id: number; keywordId: number; country: CountryCode; phrase: string; note: string | null };
+
+export type RankCheck = {
+  id: number;
+  keywordId: number;
+  country: CountryCode;
+  /** The phrase actually searched (localized phrase, or the English term). */
+  term: string;
+  checkedAt: Date;
+  /** Track ids in result order, up to 200. Ranks for my app and competitors are derived from this. */
+  resultIds: number[];
+  /** Top 10 apps; the board shows 5, difficulty uses 10. */
+  top: TopApp[];
+};
+
+/** A rank of null means "not in the top 200" (shown as "200+"). */
+export type Rank = number | null;

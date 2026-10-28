@@ -1,11 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Static export: the whole site is client-rendered 3D worlds, no server needed.
-  // Vercel serves the `out/` folder; works on any static host.
-  output: "export",
-  trailingSlash: true,
-  images: { unoptimized: true },
+  // Server runtime, not static export: route handlers call OpenAI and iTunes with server-only keys.
+  // better-sqlite3 is a native module; keep it out of the bundle.
+  serverExternalPackages: ["better-sqlite3"],
   // several lockfiles live above this folder; pin the root so Turbopack watches only this app
   turbopack: { root: __dirname },
 };

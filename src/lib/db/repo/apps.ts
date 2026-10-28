@@ -5,7 +5,11 @@ import type { Project } from "@/types";
 import { getDb } from "../client";
 import { apps, keywords } from "../schema";
 
-const toProject = (r: typeof apps.$inferSelect): Project => ({ ...r, countries: r.countries as CountryCode[] });
+const toProject = (r: typeof apps.$inferSelect): Project => ({
+  ...r,
+  countries: r.countries as CountryCode[],
+  createdAt: r.createdAt.getTime(),
+});
 
 export async function listProjects(): Promise<(Project & { keywordCount: number })[]> {
   const rows = await getDb()

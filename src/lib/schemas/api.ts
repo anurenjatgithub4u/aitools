@@ -61,6 +61,13 @@ export const CheckInput = z.object({
 });
 export type CheckInput = z.input<typeof CheckInput>;
 
+export const AddKeywordsInput = z.object({
+  /** One keyword per item; also accepts a single comma/newline separated string from a text box. */
+  terms: z.union([z.array(text(100)).min(1).max(100), text(5000)]).transform((v) =>
+    (Array.isArray(v) ? v : v.split(/[\n,]/)).map((t) => t.trim()).filter(Boolean),
+  ),
+});
+
 export const AddCompetitorInput = z.object({
   /** App name, App Store link, or numeric id. */
   query: text(300),

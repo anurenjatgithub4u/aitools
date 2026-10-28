@@ -4,6 +4,7 @@ import { keywordsRepo, rankChecksRepo } from "@/lib/db";
 import { searchApps } from "@/lib/itunes/client";
 import { rankOf } from "@/lib/itunes/parse";
 import { activeJobForApp, createJob } from "@/lib/jobs/store";
+import { taskKey } from "@/lib/task-key";
 import type { CheckJob, Keyword, Project } from "@/types";
 
 export type CheckTask = { keywordId: number; keyword: string; country: CountryCode; term: string };
@@ -27,24 +28,42 @@ export async function buildTasks(project: Project, keywords: Keyword[], countrie
   return { tasks, skipped };
 }
 
+type QueuedTask = CheckTask & { force: boolean };
+
+// Task queues of running jobs, kept beside the job (the job object itself is sent to the browser).
+const g = globalThis as unknown as { __kpQueues?: Map<string, QueuedTask[]> };
+const queues = (g.__kpQueues ??= new Map());
+
 /**
  * Starts checking in the background and returns immediately. Only one job per project runs at a
- * time; asking again while one runs returns that job. The shared rate limiter paces the requests.
+ * time: asking again while one runs appends the new tasks to it (skipping ones already queued).
+ * The shared rate limiter paces the requests.
  */
 export function startCheckJob(project: Project, tasks: CheckTask[], opts: { force?: boolean } = {}): { job: CheckJob; reused: boolean } {
+  const force = opts.force ?? false;
   const running = activeJobForApp(project.id);
-  if (running) return { job: running, reused: true };
+  if (running) {
+    const queue = queues.get(running.id)!;
+    const fresh = tasks.filter((t) => !running.pending.includes(taskKey(t.keywordId, t.country)));
+    queue.push(...fresh.map((t) => ({ ...t, force })));
+    running.pending.push(...fresh.map((t) => taskKey(t.keywordId, t.country)));
+    running.total += fresh.length;
+    return { job: running, reused: true };
+  }
   const job = createJob(project.id, tasks.length);
-  void runJob(job, project, tasks, opts.force ?? false);
+  job.pending = tasks.map((t) => taskKey(t.keywordId, t.country));
+  queues.set(job.id, tasks.map((t) => ({ ...t, force })));
+  void runJob(job, project);
   return { job, reused: false };
 }
 
-async function runJob(job: CheckJob, project: Project, tasks: CheckTask[], force: boolean) {
-  for (const t of tasks) {
+async function runJob(job: CheckJob, project: Project) {
+  const queue = queues.get(job.id)!;
+  for (let t = queue.shift(); t; t = queue.shift()) {
     job.current = { keywordId: t.keywordId, keyword: t.keyword, country: t.country };
     try {
       const res = await searchApps(t.term, t.country, {
-        force,
+        force: t.force,
         onWait: ({ ms, reason }) => (job.waiting = { until: Date.now() + ms, reason }),
       });
       job.waiting = null;
@@ -75,7 +94,9 @@ async function runJob(job: CheckJob, project: Project, tasks: CheckTask[], force
       job.errors.push({ keywordId: t.keywordId, country: t.country, message: e instanceof Error ? e.message : "Check failed" });
     }
     job.done++;
+    job.pending = job.pending.filter((k) => k !== taskKey(t!.keywordId, t!.country));
   }
+  queues.delete(job.id);
   job.current = null;
   job.status = job.failed === job.total && job.total > 0 ? "error" : "done";
   job.finishedAt = Date.now();

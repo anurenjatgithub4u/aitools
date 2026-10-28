@@ -21,7 +21,8 @@ export type Project = {
   itunesId: number | null;
   icon: string | null;
   countries: CountryCode[];
-  createdAt: Date;
+  /** Epoch ms (a number so server-rendered props and API JSON have the same shape). */
+  createdAt: number;
 };
 
 export type Competitor = { id: number; appId: number; itunesId: number; name: string; icon: string | null };
@@ -87,6 +88,8 @@ export type CheckJob = {
   done: number;
   failed: number;
   current: { keywordId: number; keyword: string; country: CountryCode } | null;
+  /** "keywordId:country" of every task not finished yet (including the current one). */
+  pending: string[];
   /** Set while backing off, e.g. { until, reason: "rate limited" } → "rate limited, retrying in Ns". */
   waiting: { until: number; reason: string } | null;
   results: CheckTaskResult[];

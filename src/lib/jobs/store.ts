@@ -22,6 +22,7 @@ export function createJob(appId: number, total: number): CheckJob {
     done: 0,
     failed: 0,
     current: null,
+    pending: [],
     waiting: null,
     results: [],
     errors: [],

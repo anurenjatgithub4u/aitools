@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildBoardRows } from "./board";
 import type { Project, RankCheck } from "@/types";
 
-const project: Project = { id: 1, name: "P", niche: null, audience: null, itunesId: 42, icon: null, countries: ["US", "DE"], createdAt: new Date() };
+const project: Project = { id: 1, name: "P", niche: null, audience: null, itunesId: 42, icon: null, countries: ["US", "DE"], createdAt: 0 };
 const keywords = [{ id: 10, appId: 1, term: "habit tracker", kind: "short" as const, createdAt: new Date() }];
 const top = Array.from({ length: 10 }, (_, i) => ({ trackId: 100 + i, name: `A${i}`, icon: "", ratingCount: 1000, rating: 4.5 }));
 const check: RankCheck = { id: 1, keywordId: 10, country: "US", term: "habit tracker", checkedAt: new Date(5000), resultIds: [7, 8, 42, 99], top };

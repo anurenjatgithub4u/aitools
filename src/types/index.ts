@@ -56,6 +56,28 @@ export type CheckTaskResult = {
   checkedAt: number;
 };
 
+/** One row of the board: a keyword in one country, with its latest check and scores. */
+export type BoardRow = {
+  keywordId: number;
+  keyword: string;
+  kind: KeywordKind;
+  country: CountryCode;
+  /** The localized phrase searched in this country; null when not localized yet. */
+  phrase: string | null;
+  /** Null until the first check. */
+  checkedAt: number | null;
+  rank: Rank;
+  /** Competitor id → rank (null = 200+). Empty until checked. */
+  competitorRanks: Record<number, Rank>;
+  volume: number | null;
+  difficulty: number | null;
+  verdict: Verdict | null;
+  verdictWhy: string | null;
+  top5: TopApp[];
+};
+
+export type Board = { project: Project; competitors: Competitor[]; rows: BoardRow[] };
+
 /** Progress of a background rank-check job, as polled by the UI. */
 export type CheckJob = {
   id: string;

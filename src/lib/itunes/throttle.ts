@@ -6,6 +6,7 @@ import { sleep } from "@/lib/async";
  */
 export class RateLimiter {
   private nextAt = 0;
+  private pausedUntil = 0;
   private chain: Promise<void> = Promise.resolve();
   readonly intervalMs: number;
 
@@ -28,8 +29,18 @@ export class RateLimiter {
     return turn;
   }
 
+  /**
+   * For interactive requests (a user waiting on a lookup): skips the queue but still honours a
+   * pause and still uses up a slot, so queued jobs slow down slightly instead of the rate going up.
+   */
+  async acquirePriority(): Promise<void> {
+    for (let delay = this.pausedUntil - this.now(); delay > 0; delay = this.pausedUntil - this.now()) await this.wait(delay);
+    this.nextAt = Math.max(this.nextAt, this.now()) + this.intervalMs;
+  }
+
   /** Blocks every caller for at least `ms` from now. */
   pause(ms: number): void {
     this.nextAt = Math.max(this.nextAt, this.now() + ms);
+    this.pausedUntil = Math.max(this.pausedUntil, this.now() + ms);
   }
 }

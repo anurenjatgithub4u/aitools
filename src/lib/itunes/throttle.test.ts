@@ -24,4 +24,17 @@ describe("RateLimiter", () => {
     await rl.acquire();
     expect(c.now()).toBe(30_000);
   });
+
+  it("acquirePriority() skips the queue but uses up a slot and honours pause()", async () => {
+    const c = fakeClock();
+    const rl = new RateLimiter(15, c.now, c.wait);
+    await rl.acquire(); // t=0, next slot 4000
+    await rl.acquirePriority(); // immediate, pushes next slot to 8000
+    expect(c.now()).toBe(0);
+    await rl.acquire();
+    expect(c.now()).toBe(8000);
+    rl.pause(20_000);
+    await rl.acquirePriority();
+    expect(c.now()).toBe(28_000);
+  });
 });

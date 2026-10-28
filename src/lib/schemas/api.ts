@@ -60,3 +60,9 @@ export const CheckInput = z.object({
   force: z.boolean().optional(),
 });
 export type CheckInput = z.input<typeof CheckInput>;
+
+export const AddCompetitorInput = z.object({
+  /** App name, App Store link, or numeric id. */
+  query: text(300),
+});
+export type AddCompetitorInput = z.input<typeof AddCompetitorInput>;

@@ -8,13 +8,13 @@ import { keywords, rankChecks } from "../schema";
 const toCheck = (r: typeof rankChecks.$inferSelect): RankCheck => ({ ...r, country: r.country as CountryCode });
 
 export async function insertRankCheck(c: Omit<RankCheck, "id">): Promise<RankCheck> {
-  const [row] = await getDb().insert(rankChecks).values(c).returning();
+  const [row] = await (await getDb()).insert(rankChecks).values(c).returning();
   return toCheck(row);
 }
 
 /** The most recent check for every keyword × country of a project. */
 export async function latestRankChecks(appId: number): Promise<RankCheck[]> {
-  const db = getDb();
+  const db = await getDb();
   // ids are monotonic, so max(id) per group is the newest check
   const latest = db
     .select({ id: sql<number>`max(${rankChecks.id})` })
@@ -27,7 +27,7 @@ export async function latestRankChecks(appId: number): Promise<RankCheck[]> {
 }
 
 export async function rankHistory(keywordId: number, country: CountryCode, limit = 30): Promise<RankCheck[]> {
-  const rows = await getDb()
+  const rows = await (await getDb())
     .select()
     .from(rankChecks)
     .where(and(eq(rankChecks.keywordId, keywordId), eq(rankChecks.country, country)))

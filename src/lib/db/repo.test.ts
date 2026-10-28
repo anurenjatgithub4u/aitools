@@ -13,7 +13,10 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   (await import("./client")).closeDb();
-  fs.rmSync(dir, { recursive: true, force: true });
+  // Windows can hold the file briefly after close; it is only a temp dir, so retry then give up
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  } catch {}
 });
 
 describe("repository layer", () => {

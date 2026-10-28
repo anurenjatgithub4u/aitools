@@ -38,3 +38,14 @@ export const BrainstormInput = z.object({
   audience: optionalText(200),
 });
 export type BrainstormInput = z.input<typeof BrainstormInput>;
+
+const Ids = z.array(z.number().int().positive()).min(1).max(500);
+
+export const LocalizeInput = z.object({
+  appId: z.number().int().positive(),
+  /** Defaults to every keyword in the project. */
+  keywordIds: Ids.optional(),
+  /** Defaults to the project's countries. */
+  countries: Countries.optional(),
+});
+export type LocalizeInput = z.input<typeof LocalizeInput>;

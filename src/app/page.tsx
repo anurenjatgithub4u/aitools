@@ -1,3 +1,4 @@
+import { Hero } from "@/components/home/hero";
 import { ProjectsView } from "@/components/projects/projects-view";
 import { SiteHeader } from "@/components/site-header";
 import { appsRepo } from "@/lib/db";
@@ -10,7 +11,8 @@ export default async function Home() {
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto max-w-7xl px-4 py-8">
+      <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
+        <Hero hasProjects={projects.length > 0} />
         <ProjectsView initialProjects={projects} />
       </main>
     </>

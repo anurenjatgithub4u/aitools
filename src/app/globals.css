@@ -127,3 +127,53 @@
     @apply font-sans;
     }
 }
+/* Home hero motion. Everything is switched off for prefers-reduced-motion. */
+@keyframes kp-fade-up {
+  from { opacity: 0; transform: translateY(16px); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes kp-shimmer {
+  to { background-position: 200% center; }
+}
+@keyframes kp-blink {
+  50% { opacity: 0; }
+}
+@keyframes kp-pop {
+  from { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes kp-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(4%, 6%) scale(1.08); }
+}
+
+.fade-up { animation: kp-fade-up 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0s); }
+.text-shimmer {
+  background: linear-gradient(90deg, #6366f1, #06b6d4, #10b981, #8b5cf6, #6366f1);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: kp-shimmer 6s linear infinite;
+}
+.caret { animation: kp-blink 1s step-end infinite; }
+.flag-pop { display: inline-block; animation: kp-pop 0.35s cubic-bezier(0.3, 1.5, 0.6, 1) both; }
+.hero-glow {
+  background:
+    radial-gradient(40% 50% at 20% 10%, rgb(99 102 241 / 0.18), transparent 70%),
+    radial-gradient(35% 45% at 85% 20%, rgb(6 182 212 / 0.16), transparent 70%),
+    radial-gradient(40% 40% at 50% 100%, rgb(16 185 129 / 0.12), transparent 70%);
+  animation: kp-drift 14s ease-in-out infinite;
+}
+.hero-grid {
+  background-image:
+    linear-gradient(to right, var(--border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black, transparent);
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up, .text-shimmer, .caret, .flag-pop, .hero-glow { animation: none; }
+}

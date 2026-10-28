@@ -8,7 +8,7 @@ import type { CheckJob } from "@/types";
 export function JobProgress({ job }: { job: CheckJob }) {
   const now = useNow(1000);
   const pct = job.total ? Math.round((job.done / job.total) * 100) : 0;
-  const waitS = job.waiting ? Math.max(0, Math.ceil((job.waiting.until - now) / 1000)) : 0;
+  const waitS = job.waiting && now !== null ? Math.max(0, Math.ceil((job.waiting.until - now) / 1000)) : 0;
 
   return (
     <div className="rounded-lg border bg-card p-3 text-sm" role="status" aria-live="polite">

@@ -87,7 +87,7 @@ export function ProjectsView({ initialProjects }: { initialProjects: ProjectItem
                 </Button>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                <CountryFlags codes={p.countries} /> · {p.keywordCount} keywords · created {timeAgo(p.createdAt, now)}
+                <CountryFlags codes={p.countries} /> · {p.keywordCount} keywords{now !== null && ` · created ${timeAgo(p.createdAt, now)}`}
               </p>
             </li>
           ))}

@@ -148,7 +148,7 @@ export function BoardTable(props: {
                   )}
                 </TableCell>
                 <TableCell className="hidden whitespace-nowrap text-xs text-muted-foreground sm:table-cell">
-                  {r.checkedAt ? timeAgo(r.checkedAt, now) : "never"}
+                  {!r.checkedAt ? "never" : now !== null && timeAgo(r.checkedAt, now)}
                 </TableCell>
                 <TableCell>
                   <div className="flex justify-end gap-0.5">
@@ -225,7 +225,7 @@ function TopIcons({ row }: { row: BoardRow }) {
       {row.top5.map((a, i) => (
         <Tooltip key={a.trackId}>
           <TooltipTrigger asChild>
-            <a href={`https://apps.apple.com/app/id${a.trackId}`} target="_blank" rel="noreferrer" className="rounded-md ring-2 ring-background">
+            <a href={`https://apps.apple.com/app/id${a.trackId}`} target="_blank" rel="noreferrer" className="shrink-0 rounded-md ring-2 ring-background">
               {a.icon ? (
                 <Image src={a.icon} alt={a.name} width={24} height={24} unoptimized className="size-6 rounded-md" />
               ) : (

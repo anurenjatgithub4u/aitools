@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api-client";
 import { getCountry, isEnglish } from "@/lib/countries";
+import { CountryFlag, CountryFlags } from "@/components/country-flag";
 import type { Board, BoardRow } from "@/types";
 
 const ALL = "all";
@@ -66,7 +67,7 @@ export function BoardView({ appId, initialBoard }: { appId: number; initialBoard
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-xl font-semibold">{project.name}</h1>
           <p className="truncate text-sm text-muted-foreground">
-            {project.countries.map((c) => getCountry(c).flag).join(" ")} · {new Set(rows.map((r) => r.keywordId)).size} keywords
+            <CountryFlags codes={project.countries} /> · {new Set(rows.map((r) => r.keywordId)).size} keywords
             {!project.itunesId && " · niche idea (no app linked)"}
           </p>
         </div>
@@ -111,7 +112,7 @@ export function BoardView({ appId, initialBoard }: { appId: number; initialBoard
                 <SelectItem value={ALL}>All countries</SelectItem>
                 {project.countries.map((c) => (
                   <SelectItem key={c} value={c}>
-                    {getCountry(c).flag} {getCountry(c).name}
+                    <CountryFlag code={c} /> {getCountry(c).name}
                   </SelectItem>
                 ))}
               </SelectContent>

@@ -74,3 +74,17 @@ Non-obvious choices, newest last.
   result-count ("breadth") factor in volume rarely bites; the rating-count term does the work.
 - Scores are computed on read from the stored top-10 snapshot, so retuning a formula re-scores
   history without a migration.
+
+## UI
+
+- **Board data** is one request (`GET /api/apps/{id}`) built by a pure `buildBoardRows()`; the page
+  server-renders it as `initialData` for React Query, then refetches each time a job task finishes.
+- **Per-row "Check now"** joins the running job when there is one (its tasks are appended, duplicates
+  skipped), so it is never silently dropped. Rows in the job's `pending` list show a spinner.
+- **Localize** runs inside the request (≈9 model calls, 3 at a time, typically under a minute), not
+  as a job. If that ever gets slow, it can move onto the same job runner.
+- **Flags:** Windows can't draw flag emoji, so `country-flag-emoji-polyfill` loads a flags-only
+  Twemoji font on those systems. The font is self-hosted in `public/fonts` (CC-BY 4.0, Twemoji)
+  instead of the package's jsdelivr default.
+- **App icons** come straight from Apple's CDN with `next/image` `unoptimized` (no image proxy).
+- Home and board pages are `force-dynamic` so `next build` never opens the database.

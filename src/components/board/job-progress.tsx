@@ -2,7 +2,7 @@
 
 import { Loader2Icon, TimerIcon } from "lucide-react";
 import { useNow } from "@/hooks/use-now";
-import { getCountry } from "@/lib/countries";
+import { CountryFlag } from "@/components/country-flag";
 import type { CheckJob } from "@/types";
 
 export function JobProgress({ job }: { job: CheckJob }) {
@@ -19,7 +19,7 @@ export function JobProgress({ job }: { job: CheckJob }) {
         </span>
         {job.current && (
           <span className="min-w-0 truncate text-muted-foreground">
-            {getCountry(job.current.country).flag} {job.current.keyword}
+            <CountryFlag code={job.current.country} /> {job.current.keyword}
           </span>
         )}
         {job.waiting && waitS > 0 && (

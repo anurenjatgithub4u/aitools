@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useNow } from "@/hooks/use-now";
 import { api } from "@/lib/api-client";
-import { getCountry } from "@/lib/countries";
 import { timeAgo } from "@/lib/format";
+import { CountryFlags } from "@/components/country-flag";
 import type { Project } from "@/types";
 
 type ProjectItem = Project & { keywordCount: number };
@@ -87,7 +87,7 @@ export function ProjectsView({ initialProjects }: { initialProjects: ProjectItem
                 </Button>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
-                {p.countries.map((c) => getCountry(c).flag).join(" ")} · {p.keywordCount} keywords · created {timeAgo(p.createdAt, now)}
+                <CountryFlags codes={p.countries} /> · {p.keywordCount} keywords · created {timeAgo(p.createdAt, now)}
               </p>
             </li>
           ))}

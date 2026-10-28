@@ -1,6 +1,7 @@
 "use client";
 
 import { COUNTRIES, type CountryCode } from "@/lib/countries";
+import { CountryFlag } from "@/components/country-flag";
 import { cn } from "@/lib/utils";
 
 /** Toggle chips for choosing target countries; at least one stays selected. */
@@ -25,7 +26,7 @@ export function CountryPicker({ value, onChange }: { value: CountryCode[]; onCha
               on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted",
             )}
           >
-            <span>{c.flag}</span>
+            <CountryFlag code={c.code} />
             {c.code}
           </button>
         );

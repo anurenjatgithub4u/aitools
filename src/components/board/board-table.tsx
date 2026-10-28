@@ -13,6 +13,7 @@ import { getCountry } from "@/lib/countries";
 import { compactNumber, timeAgo } from "@/lib/format";
 import { FORMULA_HELP, VERDICT_RULES } from "@/lib/scoring";
 import { cn } from "@/lib/utils";
+import { CountryFlag } from "@/components/country-flag";
 import type { BoardRow, Competitor, Rank } from "@/types";
 
 type SortKey = "keyword" | "country" | "rank" | "volume" | "difficulty" | "verdict" | "checked";
@@ -117,9 +118,7 @@ export function BoardTable(props: {
                   )}
                 </TableCell>
                 <TableCell>
-                  <span title={c.name} className="text-lg leading-none">
-                    {c.flag}
-                  </span>
+                  <CountryFlag code={r.country} className="text-lg" />
                   <span className="ml-1 text-xs text-muted-foreground">{c.code}</span>
                 </TableCell>
                 <TableCell>

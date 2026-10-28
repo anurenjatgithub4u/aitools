@@ -45,3 +45,30 @@ export type RankCheck = {
 
 /** A rank of null means "not in the top 200" (shown as "200+"). */
 export type Rank = number | null;
+
+export type CheckTaskResult = {
+  keywordId: number;
+  country: CountryCode;
+  term: string;
+  /** My app's rank; null = 200+ (or no app id on the project). */
+  rank: Rank;
+  top5: TopApp[];
+  checkedAt: number;
+};
+
+/** Progress of a background rank-check job, as polled by the UI. */
+export type CheckJob = {
+  id: string;
+  appId: number;
+  status: "running" | "done" | "error";
+  total: number;
+  done: number;
+  failed: number;
+  current: { keywordId: number; keyword: string; country: CountryCode } | null;
+  /** Set while backing off, e.g. { until, reason: "rate limited" } → "rate limited, retrying in Ns". */
+  waiting: { until: number; reason: string } | null;
+  results: CheckTaskResult[];
+  errors: { keywordId: number; country: CountryCode; message: string }[];
+  startedAt: number;
+  finishedAt: number | null;
+};

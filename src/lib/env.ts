@@ -8,7 +8,7 @@ const ServerEnv = z.object({
   /** Max iTunes requests per minute across the whole server. */
   ITUNES_RPM: z.coerce.number().int().min(1).max(60).default(15),
   /** How long an iTunes search result is reused before refetching. */
-  ITUNES_CACHE_TTL_MINUTES: z.coerce.number().int().min(0).default(360),
+  ITUNES_CACHE_TTL_MINUTES: z.coerce.number().int().min(0).default(60),
 });
 
 export type ServerEnv = z.infer<typeof ServerEnv>;

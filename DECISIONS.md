@@ -42,3 +42,23 @@ Non-obvious choices, newest last.
   one retry that tells the model what failed. Default model `gpt-5.4-mini` (`OPENAI_MODEL`).
 - **`server-only`** guards every module that touches keys or the DB; vitest aliases it to an empty
   module so those modules stay testable.
+
+## Phase 2–3: rank checks
+
+- **Rank checks are background jobs from the start** (Phase 3's job pattern built into feature 3
+  rather than retrofitted). `POST /api/check` returns `202 { jobId }`; `GET /api/jobs/{id}` returns
+  progress, back-off state and per-task results (my rank + top 5). `GET /api/check?appId=` returns
+  the running job so a reloaded page resumes polling. One running job per project.
+- **Jobs live in memory** (`src/lib/jobs/store.ts`), pruned an hour after finishing. They don't
+  survive a restart and don't work on serverless; results are already in `rank_checks`, so only
+  progress is lost.
+- **Throttle** is one process-wide queue spacing requests 60s/`ITUNES_RPM` apart (default 15/min).
+  Apple signals rate limits with **403** as well as 429; both pause the *whole* queue, not just the
+  failing request. Backoff 5s→10s→20s→40s (cap 60s, 20% jitter, `Retry-After` wins), 4 attempts.
+- **Cache** in SQLite keyed by request URL, default TTL **60 min** (not 6 h as first proposed) so
+  checks don't look stale. Per-row "Check now" sends `force: true` and bypasses it. A cache hit
+  isn't written to history again.
+- **Which phrase is searched:** the localized phrase for that country; English storefronts fall back
+  to the English keyword; other storefronts are skipped (and reported) until localized.
+- **Localization** sends one model call per country per 30 keywords (3 in parallel). US returns
+  the keyword unchanged without a call.

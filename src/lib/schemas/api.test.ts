@@ -30,8 +30,10 @@ describe("LocalizeInput / CheckInput", () => {
   it("accept ids and supported countries only", () => {
     expect(LocalizeInput.safeParse({ appId: 1, countries: ["DE", "JP"] }).success).toBe(true);
     expect(LocalizeInput.safeParse({ appId: 1, countries: ["de"] }).success).toBe(false);
-    expect(CheckInput.safeParse({ appId: 0 }).success).toBe(false);
-    expect(CheckInput.safeParse({ appId: 2, keywordIds: [1.5] }).success).toBe(false);
-    expect(CheckInput.parse({ appId: 2, keywordIds: [3], force: true })).toEqual({ appId: 2, keywordIds: [3], force: true });
+    expect(CheckInput.safeParse({ appId: 0, keywordId: 1, country: "US" }).success).toBe(false);
+    expect(CheckInput.safeParse({ appId: 2, keywordId: 1.5, country: "US" }).success).toBe(false);
+    expect(CheckInput.safeParse({ appId: 2, keywordId: 3 }).success).toBe(false);
+    expect(CheckInput.safeParse({ appId: 2, keywordId: 3, country: "gb" }).success).toBe(false);
+    expect(CheckInput.parse({ appId: 2, keywordId: 3, country: "UK", force: true })).toEqual({ appId: 2, keywordId: 3, country: "UK", force: true });
   });
 });

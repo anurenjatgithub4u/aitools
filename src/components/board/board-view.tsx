@@ -10,7 +10,7 @@ import { BoardTable } from "@/components/board/board-table";
 import { CompetitorsBar } from "@/components/board/competitors-bar";
 import { JobProgress } from "@/components/board/job-progress";
 import { SettingsDialog } from "@/components/board/settings-dialog";
-import { useCheckJob } from "@/components/board/use-check-job";
+import { useCheckRunner } from "@/components/board/use-check-runner";
 import { VERDICTS } from "@/components/board/verdict-badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,7 +26,7 @@ const UNCHECKED = "unchecked";
 export function BoardView({ appId, initialBoard }: { appId: number; initialBoard: Board }) {
   const qc = useQueryClient();
   const board = useQuery({ queryKey: ["board", appId], queryFn: () => api<Board>(`/api/apps/${appId}`), initialData: initialBoard });
-  const { job, running, pending, start } = useCheckJob(appId);
+  const { progress, running, pending, start } = useCheckRunner(appId);
   const [country, setCountry] = useState(ALL);
   const [verdict, setVerdict] = useState(ALL);
 
@@ -46,6 +46,13 @@ export function BoardView({ appId, initialBoard }: { appId: number; initialBoard
     },
     onError: (e) => toast.error(e.message),
   });
+
+  // English storefronts can search the English keyword; others need a localized phrase first
+  const checkAll = (all: BoardRow[]) => {
+    const ready = all.filter((r) => r.phrase || isEnglish(r.country));
+    if (ready.length < all.length) toast.info(`${all.length - ready.length} rows skipped`, { description: "Localize those keywords for their country first." });
+    start(ready);
+  };
 
   if (board.isError && !board.data) return <ErrorState message={board.error.message} onRetry={() => board.refetch()} />;
   if (!board.data) return <BoardSkeleton />;
@@ -82,8 +89,8 @@ export function BoardView({ appId, initialBoard }: { appId: number; initialBoard
             {localize.isPending ? <Loader2Icon className="animate-spin" /> : <LanguagesIcon />}
             {localize.isPending ? "Localizing…" : "Localize"}
           </Button>
-          <Button variant="outline" onClick={() => start.mutate({})} disabled={start.isPending || running || !rows.length}>
-            {start.isPending || running ? <Loader2Icon className="animate-spin" /> : <PlayIcon />} Check all
+          <Button variant="outline" onClick={() => checkAll(rows)} disabled={running || !rows.length}>
+            {running ? <Loader2Icon className="animate-spin" /> : <PlayIcon />} Check all
           </Button>
           <SettingsDialog project={project} />
         </div>
@@ -91,7 +98,7 @@ export function BoardView({ appId, initialBoard }: { appId: number; initialBoard
 
       <CompetitorsBar appId={appId} competitors={competitors} />
 
-      {running && job && <JobProgress job={job} />}
+      {progress && <JobProgress progress={progress} />}
 
       {needsLocalizing && !localize.isPending && (
         <p className="flex items-center gap-2 rounded-lg border border-amber-300/60 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -141,7 +148,7 @@ export function BoardView({ appId, initialBoard }: { appId: number; initialBoard
               competitors={competitors}
               hasApp={project.itunesId !== null}
               pending={pending}
-              onCheck={(r) => start.mutate({ keywordIds: [r.keywordId], countries: [r.country], force: true })}
+              onCheck={(r) => start([r], { force: true })}
               onDelete={(r) => removeKeyword.mutate(r)}
             />
           ) : (

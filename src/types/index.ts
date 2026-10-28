@@ -79,21 +79,12 @@ export type BoardRow = {
 
 export type Board = { project: Project; competitors: Competitor[]; rows: BoardRow[] };
 
-/** Progress of a background rank-check job, as polled by the UI. */
-export type CheckJob = {
-  id: string;
-  appId: number;
-  status: "running" | "done" | "error";
+/** Progress of the rank checks the board is running (one request per check, from the browser). */
+export type CheckProgress = {
   total: number;
   done: number;
   failed: number;
   current: { keywordId: number; keyword: string; country: CountryCode } | null;
-  /** "keywordId:country" of every task not finished yet (including the current one). */
-  pending: string[];
   /** Set while backing off, e.g. { until, reason: "rate limited" } → "rate limited, retrying in Ns". */
   waiting: { until: number; reason: string } | null;
-  results: CheckTaskResult[];
-  errors: { keywordId: number; country: CountryCode; message: string }[];
-  startedAt: number;
-  finishedAt: number | null;
 };

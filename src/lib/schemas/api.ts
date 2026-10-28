@@ -50,12 +50,11 @@ export const LocalizeInput = z.object({
 });
 export type LocalizeInput = z.input<typeof LocalizeInput>;
 
+/** One rank check: a keyword in a country. The browser sends these one at a time. */
 export const CheckInput = z.object({
   appId: z.number().int().positive(),
-  /** Defaults to every keyword in the project. */
-  keywordIds: Ids.optional(),
-  /** Defaults to the project's countries. */
-  countries: Countries.optional(),
+  keywordId: z.number().int().positive(),
+  country: CountryCodeSchema,
   /** Skip the iTunes cache (used by per-row "Check now"). */
   force: z.boolean().optional(),
 });

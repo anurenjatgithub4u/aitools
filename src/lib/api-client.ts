@@ -4,6 +4,8 @@ export class ApiError extends Error {
     public status: number,
     public code: string,
     message: string,
+    /** The server's `details`, e.g. { retryAfterMs } on a 429. */
+    public details?: unknown,
   ) {
     super(message);
   }
@@ -23,6 +25,6 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
   }
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? "error", data?.message ?? `Request failed (${res.status})`);
+  if (!res.ok) throw new ApiError(res.status, data?.error ?? "error", data?.message ?? `Request failed (${res.status})`, data?.details);
   return data as T;
 }

@@ -12,6 +12,8 @@ export class ItunesError extends Error {
   constructor(
     message: string,
     public status?: number,
+    /** Set when rate limited with failFastOnRateLimit: how long to wait before trying again. */
+    public retryAfterMs?: number,
   ) {
     super(message);
   }
@@ -29,6 +31,12 @@ type FetchOpts = {
   onWait?: (w: WaitInfo) => void;
   /** A user is waiting: jump the job queue and give up after one retry instead of three. */
   interactive?: boolean;
+  /**
+   * On a rate limit, throw at once (with `retryAfterMs`) instead of waiting inside the request.
+   * Used when the browser drives checks: it shows the countdown and retries, and no serverless
+   * function sits idle for a minute.
+   */
+  failFastOnRateLimit?: boolean;
 };
 
 /** Search the App Store: up to 200 apps in ranked order for `term` in `country`. */
@@ -82,10 +90,15 @@ async function fetchApps(url: URL, opts: FetchOpts): Promise<SearchResult> {
       if (ttlMs > 0) await itunesCacheRepo.setCached(key, JSON.stringify({ body: parsed.data.results, fetchedAt: fetchedAt.getTime() }));
       return { apps: toApps(parsed.data.results), fetchedAt, cached: false };
     }
-    if (!isRetryable(res.status) || attempt + 1 >= maxAttempts) {
-      throw new ItunesError(res.status === 403 || res.status === 429 ? "Rate limited by Apple; try again in a few minutes" : `iTunes returned ${res.status}`, res.status);
-    }
     const limited = res.status === 403 || res.status === 429;
+    if (limited && opts.failFastOnRateLimit) {
+      const ms = backoffMs(attempt, res.headers.get("retry-after"));
+      limiter().pause(ms);
+      throw new ItunesError("Rate limited by Apple", res.status, ms);
+    }
+    if (!isRetryable(res.status) || attempt + 1 >= maxAttempts) {
+      throw new ItunesError(limited ? "Rate limited by Apple; try again in a few minutes" : `iTunes returned ${res.status}`, res.status);
+    }
     await waitBeforeRetry(attempt, res.headers.get("retry-after"), limited ? "rate limited" : `server error ${res.status}`, opts.onWait, limited);
   }
 }

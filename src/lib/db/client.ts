@@ -8,13 +8,16 @@ import * as schema from "./schema";
 
 export type DB = LibSQLDatabase<typeof schema>;
 
+/** The Turso token. Vercel's Turso integration (with prefix TURSO_DATABASE) names it the long way. */
+export const tursoAuthToken = () => process.env.TURSO_AUTH_TOKEN ?? process.env.TURSO_DATABASE_TURSO_AUTH_TOKEN;
+
 /**
- * Hosted (Vercel): a Turso database via TURSO_DATABASE_URL + TURSO_AUTH_TOKEN, which the Vercel
- * Turso integration sets. Local: a SQLite file, ./data/app.db unless DATABASE_PATH says otherwise.
+ * Hosted (Vercel): a Turso database via TURSO_DATABASE_URL + its token, which the Vercel Turso
+ * integration sets. Local: a SQLite file, ./data/app.db unless DATABASE_PATH says otherwise.
  */
 function connection(): { url: string; authToken?: string } {
   const remote = process.env.TURSO_DATABASE_URL;
-  if (remote) return { url: remote, authToken: process.env.TURSO_AUTH_TOKEN };
+  if (remote) return { url: remote, authToken: tursoAuthToken() };
   const file = process.env.DATABASE_PATH ?? path.join(process.cwd(), "data", "app.db");
   fs.mkdirSync(path.dirname(file), { recursive: true });
   return { url: `file:${file}` };

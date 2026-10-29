@@ -1,23 +1,23 @@
-import { appsRepo, competitorsRepo } from "@/lib/db";
+import { competitorsRepo } from "@/lib/db";
 import { HttpError, parseBody, parseId, route } from "@/lib/http";
 import { resolveApp } from "@/lib/resolve-app";
 import { AddCompetitorInput } from "@/lib/schemas/api";
+import { requireProject } from "@/lib/session";
 
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export const GET = route(async (_req: Request, ctx: Ctx) => {
-  const appId = parseId((await ctx.params).id);
-  return Response.json({ competitors: await competitorsRepo.listCompetitors(appId) });
+  const { project } = await requireProject(parseId((await ctx.params).id));
+  return Response.json({ competitors: await competitorsRepo.listCompetitors(project.id) });
 });
 
 /** Adds a competitor by name, App Store link or id. Ranks come from existing and future checks. */
 export const POST = route(async (req: Request, ctx: Ctx) => {
-  const appId = parseId((await ctx.params).id);
+  const { project } = await requireProject(parseId((await ctx.params).id));
+  const appId = project.id;
   const { query } = await parseBody(req, AddCompetitorInput);
-  const project = await appsRepo.getProject(appId);
-  if (!project) throw new HttpError(404, "not_found", "Project not found");
 
   const { app, alternatives } = await resolveApp(query, project.countries[0]);
   if (app.trackId === project.itunesId) throw new HttpError(400, "is_my_app", "That's this project's own app");

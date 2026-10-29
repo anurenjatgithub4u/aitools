@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FolderSearchIcon, Loader2Icon, Trash2Icon } from "lucide-react";
+import { FolderSearchIcon, Loader2Icon, SparklesIcon, Trash2Icon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -17,7 +17,8 @@ import type { Project } from "@/types";
 
 type ProjectItem = Project & { keywordCount: number };
 
-export function ProjectsView({ initialProjects }: { initialProjects: ProjectItem[] }) {
+/** `quota` is set for Free users: free projects left out of the total. Null = no limit. */
+export function ProjectsView({ initialProjects, quota }: { initialProjects: ProjectItem[]; quota: { left: number; total: number } | null }) {
   const qc = useQueryClient();
   const now = useNow(60_000);
   const [toDelete, setToDelete] = useState<ProjectItem | null>(null);
@@ -44,10 +45,27 @@ export function ProjectsView({ initialProjects }: { initialProjects: ProjectItem
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
-          <p className="text-sm text-muted-foreground">Apps and niche ideas you&apos;re researching keywords for.</p>
+          <p className="text-sm text-muted-foreground">
+            Apps and niche ideas you&apos;re researching keywords for.
+            {quota && quota.left > 0 && (
+              <span className="ml-1 font-medium text-foreground">
+                {quota.left} of {quota.total} free projects left.
+              </span>
+            )}
+          </p>
         </div>
-        <NewProjectDialog />
+        {quota?.left === 0 ? null : <NewProjectDialog />}
       </div>
+
+      {quota?.left === 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+          <SparklesIcon className="size-5 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium">You&apos;ve used your {quota.total} free projects</p>
+            <p className="text-muted-foreground">Premium unlocks unlimited projects. Payments are coming soon.</p>
+          </div>
+        </div>
+      )}
 
       {projects.isError && <p className="text-sm text-destructive">Couldn&apos;t refresh projects: {projects.error.message}</p>}
 

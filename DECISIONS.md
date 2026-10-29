@@ -122,3 +122,23 @@ three changes:
   401. Without it, anyone with the URL could spend the OpenAI key. Unset locally = no login.
 - Apple rate-limits per IP, and Vercel's outbound IPs are shared with other sites, so 429s may
   be more frequent there than locally; the retry countdown covers it.
+
+## Accounts and the free plan (2026-10-29)
+
+The site is public freemium: 2 free projects per person, then Premium (payments not built yet).
+
+- **Firebase Auth** for sign-up/sign-in (Google + email/password, password reset). The browser
+  signs in with Firebase, sends the ID token to `POST /api/session`, and the server (Firebase
+  Admin) turns it into a 14-day http-only session cookie. Firebase in the browser keeps nothing
+  (in-memory persistence); the cookie is the source of truth. This replaces the `APP_PASSWORD`
+  gate, which is removed.
+- **Data stays in Turso.** A `users` table keyed by Firebase uid holds `plan` and
+  `projects_created`. Every project has an `owner_id`; every repository call takes the owner, and
+  someone else's project behaves exactly like a missing one (404), so ids can't be probed.
+- **Free limit = projects ever created** (`lib/plans.ts`), so deleting doesn't refill it. Taken
+  with one conditional `UPDATE … WHERE projects_created < limit`, so parallel requests can't both
+  get the last slot; given back if the insert fails. Over the limit: 402 `upgrade_required`.
+- **Local mode:** with no `NEXT_PUBLIC_FIREBASE_*` set, sign-in is off and everything belongs to
+  a single unlimited "local" user, which is what existing local projects were migrated to.
+- Not yet limited per project: brainstorm/localize calls inside one project. Worth a cap before
+  heavy public traffic, since each call costs OpenAI money.

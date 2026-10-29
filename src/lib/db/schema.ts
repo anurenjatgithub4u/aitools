@@ -1,24 +1,45 @@
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, unique } from "drizzle-orm/sqlite-core";
-import type { KeywordKind, TopApp } from "@/types";
+import type { KeywordKind, Plan, TopApp } from "@/types";
 
 // SQLite schema. Only the repo layer (./repo) imports this, so a Postgres port means a pg-core
 // copy of this file plus a new client; the repo function signatures stay the same.
 
 const createdAt = () => integer("created_at", { mode: "timestamp_ms" }).notNull().default(sql`(unixepoch() * 1000)`);
 
-/** A project: either a real app (itunes_id set) or just a niche idea. */
-export const apps = sqliteTable("apps", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull(),
-  niche: text("niche"),
-  audience: text("audience"),
-  itunesId: integer("itunes_id"),
-  icon: text("icon"),
-  /** Country codes this project targets (see lib/countries). */
-  countries: text("countries", { mode: "json" }).$type<string[]>().notNull().default(sql`(json_array('US'))`),
+/**
+ * People who signed in. `id` is the Firebase Auth uid; Firebase holds the login itself. "local" is
+ * the single user when sign-in isn't configured (local development).
+ */
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email"),
+  name: text("name"),
+  photo: text("photo"),
+  plan: text("plan").$type<Plan>().notNull().default("free"),
+  /** Projects ever created, including deleted ones, so deleting doesn't refill the free quota. */
+  projectsCreated: integer("projects_created").notNull().default(0),
   createdAt: createdAt(),
 });
+
+/** A project: either a real app (itunes_id set) or just a niche idea. Belongs to one user. */
+export const apps = sqliteTable(
+  "apps",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    /** users.id. Projects made before sign-in existed belong to "local". */
+    ownerId: text("owner_id").notNull().default("local"),
+    name: text("name").notNull(),
+    niche: text("niche"),
+    audience: text("audience"),
+    itunesId: integer("itunes_id"),
+    icon: text("icon"),
+    /** Country codes this project targets (see lib/countries). */
+    countries: text("countries", { mode: "json" }).$type<string[]>().notNull().default(sql`(json_array('US'))`),
+    createdAt: createdAt(),
+  },
+  (t) => [index("apps_owner").on(t.ownerId)],
+);
 
 export const keywords = sqliteTable(
   "keywords",

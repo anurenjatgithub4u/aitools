@@ -1,10 +1,12 @@
 "use client";
 
 import { ArrowRightIcon, LanguagesIcon, RadarIcon, SparklesIcon } from "lucide-react";
+import Link from "next/link";
 import { CountryFlag } from "@/components/country-flag";
 import { useTypewriter } from "@/components/home/typewriter";
 import { NewProjectDialog } from "@/components/projects/new-project-dialog";
 import { Button } from "@/components/ui/button";
+import { PLAN_LIMITS } from "@/lib/plans";
 
 // One keyword, as people really search it in each store (from a real Localize run).
 const SEARCHES = [
@@ -25,7 +27,7 @@ const STEPS = [
 
 const delay = (s: number) => ({ "--d": `${s}s` }) as React.CSSProperties;
 
-export function Hero({ hasProjects }: { hasProjects: boolean }) {
+export function Hero({ signedIn, hasProjects }: { signedIn: boolean; hasProjects: boolean }) {
   const { index, text, typing } = useTypewriter(PHRASES);
 
   return (
@@ -63,15 +65,24 @@ export function Hero({ hasProjects }: { hasProjects: boolean }) {
         </p>
 
         <div style={delay(0.55)} className="fade-up mt-8 flex flex-wrap items-center justify-center gap-3">
-          <NewProjectDialog
-            trigger={
-              <Button size="lg" className="group">
-                {hasProjects ? "New project" : "Start your first project"}
+          {signedIn ? (
+            <NewProjectDialog
+              trigger={
+                <Button size="lg" className="group">
+                  {hasProjects ? "New project" : "Start your first project"}
+                  <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
+                </Button>
+              }
+            />
+          ) : (
+            <Button size="lg" className="group" asChild>
+              <Link href="/login?mode=signup">
+                Get started free
                 <ArrowRightIcon className="transition-transform group-hover:translate-x-0.5" />
-              </Button>
-            }
-          />
-          <span className="text-xs text-muted-foreground">No sign-up · runs on your machine</span>
+              </Link>
+            </Button>
+          )}
+          <span className="text-xs text-muted-foreground">{PLAN_LIMITS.free.projects} projects free · no card needed</span>
         </div>
       </div>
 

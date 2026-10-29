@@ -21,7 +21,7 @@ afterAll(async () => {
 
 describe("repository layer", () => {
   it("stores projects, keywords, localized phrases and returns the latest check per keyword × country", async () => {
-    const p = await repo.appsRepo.createProject({ name: "Habit app", countries: ["US", "DE"] });
+    const p = await repo.appsRepo.createProject("alice", { name: "Habit app", countries: ["US", "DE"] });
     expect(p.countries).toEqual(["US", "DE"]);
 
     const kws = await repo.keywordsRepo.addKeywords(p.id, [
@@ -42,8 +42,34 @@ describe("repository layer", () => {
     expect(latest).toHaveLength(1);
     expect(latest[0].resultIds).toEqual([3]);
 
-    expect((await repo.appsRepo.listProjects())[0].keywordCount).toBe(2);
-    expect(await repo.appsRepo.deleteProject(p.id)).toBe(true);
+    expect((await repo.appsRepo.listProjects("alice"))[0].keywordCount).toBe(2);
+    expect(await repo.appsRepo.deleteProject(p.id, "alice")).toBe(true);
     expect(await repo.rankChecksRepo.latestRankChecks(p.id)).toEqual([]);
+  });
+
+  it("keeps projects private to their owner", async () => {
+    const p = await repo.appsRepo.createProject("alice", { name: "Alice's app" });
+    expect(await repo.appsRepo.getProject(p.id, "alice")).not.toBeNull();
+    // someone else can't see, list, change or delete it
+    expect(await repo.appsRepo.getProject(p.id, "mallory")).toBeNull();
+    expect(await repo.appsRepo.listProjects("mallory")).toEqual([]);
+    expect(await repo.appsRepo.updateProject(p.id, "mallory", { name: "pwned" })).toBeNull();
+    expect(await repo.appsRepo.deleteProject(p.id, "mallory")).toBe(false);
+    expect((await repo.appsRepo.getProject(p.id, "alice"))?.name).toBe("Alice's app");
+  });
+
+  it("enforces the project quota atomically and keeps profile updates from resetting it", async () => {
+    await repo.usersRepo.upsertUser({ id: "bob", email: "bob@example.com" });
+    const tries = await Promise.all([1, 2, 3, 4].map(() => repo.usersRepo.takeProjectSlot("bob", 2)));
+    expect(tries.filter(Boolean)).toHaveLength(2);
+
+    await repo.usersRepo.upsertUser({ id: "bob", email: "bob@new.com", name: "Bob" });
+    const bob = await repo.usersRepo.getUser("bob");
+    expect(bob).toMatchObject({ email: "bob@new.com", name: "Bob", plan: "free", projectsCreated: 2 });
+
+    await repo.usersRepo.returnProjectSlot("bob");
+    expect(await repo.usersRepo.takeProjectSlot("bob", 2)).toBe(true);
+    expect(await repo.usersRepo.takeProjectSlot("nobody", 2)).toBe(false);
+    expect(await repo.usersRepo.takeProjectSlot("bob", Number.POSITIVE_INFINITY)).toBe(true);
   });
 });

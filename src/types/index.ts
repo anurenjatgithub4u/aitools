@@ -1,6 +1,7 @@
 import type { CountryCode } from "@/lib/countries";
 
 export type KeywordKind = "short" | "long";
+export type Plan = "free" | "premium";
 export type Verdict = "Target" | "Push" | "Maybe" | "Swap" | "Dead";
 
 /** One app from an iTunes search result, trimmed to what the board shows and scoring needs. */
@@ -23,6 +24,16 @@ export type Project = {
   countries: CountryCode[];
   /** Epoch ms (a number so server-rendered props and API JSON have the same shape). */
   createdAt: number;
+};
+
+/** A signed-in person (Firebase uid), with their plan and how much of the free quota they used. */
+export type User = {
+  id: string;
+  email: string | null;
+  name: string | null;
+  photo: string | null;
+  plan: Plan;
+  projectsCreated: number;
 };
 
 export type Competitor = { id: number; appId: number; itunesId: number; name: string; icon: string | null };

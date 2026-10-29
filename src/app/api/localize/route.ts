@@ -1,8 +1,9 @@
 import type { CountryCode } from "@/lib/countries";
-import { appsRepo, keywordsRepo } from "@/lib/db";
+import { keywordsRepo } from "@/lib/db";
 import { HttpError, parseBody, route } from "@/lib/http";
 import { localizeKeywords } from "@/lib/openai/localize";
 import { LocalizeInput } from "@/lib/schemas/api";
+import { requireProject } from "@/lib/session";
 import { mapLimit } from "@/lib/async";
 
 export const runtime = "nodejs";
@@ -13,8 +14,7 @@ const BATCH = 30;
 /** Produces the local search phrase for each keyword × country and saves it, linked to the English keyword. */
 export const POST = route(async (req: Request) => {
   const input = await parseBody(req, LocalizeInput);
-  const project = await appsRepo.getProject(input.appId);
-  if (!project) throw new HttpError(404, "not_found", "Project not found");
+  const { project } = await requireProject(input.appId);
 
   const keywords = input.keywordIds
     ? await keywordsRepo.getKeywordsByIds(project.id, input.keywordIds)

@@ -19,7 +19,8 @@ async function load(params: Props["params"]) {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { board } = await load(params);
-  return { title: board ? `${board.project.name} · Keyword Planner` : "Keyword Planner" };
+  // private boards: never in search results
+  return { title: board ? board.project.name : "Project", robots: { index: false, follow: false } };
 }
 
 export default async function BoardPage({ params }: Props) {

@@ -142,3 +142,16 @@ The site is public freemium: 2 free projects per person, then Premium (payments 
   a single unlimited "local" user, which is what existing local projects were migrated to.
 - Not yet limited per project: brainstorm/localize calls inside one project. Worth a cap before
   heavy public traffic, since each call costs OpenAI money.
+
+## SEO and going live (2026-10-30)
+
+- Site identity lives in `src/lib/site.ts` (name, brand, URL, description, keywords, FAQ) so a
+  rename is one edit. `metadataBase` = `NEXT_PUBLIC_SITE_URL` or `https://www.findurai.com`.
+- Root metadata: title template, description, keywords, canonical, Open Graph, Twitter card,
+  robots. Generated `icon`, `apple-icon` and `opengraph-image` (next/og), plus `robots.txt`
+  (hides `/api/` and `/app/`), `sitemap.xml` and a web manifest. Project boards are `noindex`.
+- Home has a short FAQ (crawlable text) and JSON-LD: `WebApplication` with a free `Offer`, and
+  `FAQPage`. The OG image avoids CJK text (Satori has no CJK font) and every multi-child element
+  in it is flex (Satori fails the build otherwise; caught by `next build`, not by `next dev`).
+- **Local mode is blocked on Vercel**: if `NEXT_PUBLIC_FIREBASE_*` is missing there, requests fail
+  with 503 instead of letting every visitor share one unlimited account.

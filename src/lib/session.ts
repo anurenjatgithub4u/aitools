@@ -18,7 +18,12 @@ export const LOCAL_USER: User = { id: "local", email: null, name: "Local", photo
  * session cookie: verified locally against Google's public keys (no network call per request).
  */
 export const getCurrentUser = cache(async (): Promise<User | null> => {
-  if (!authEnabled) return LOCAL_USER;
+  if (!authEnabled) {
+    // Local mode (everyone is one unlimited user) is for a developer's machine only. On Vercel a
+    // missing Firebase config must fail closed, never open the site up.
+    if (process.env.VERCEL) throw new HttpError(503, "auth_not_configured", "Sign-in isn't configured on this deployment (NEXT_PUBLIC_FIREBASE_* missing)");
+    return LOCAL_USER;
+  }
   const cookie = (await cookies()).get(SESSION_COOKIE)?.value;
   if (!cookie) return null;
   try {

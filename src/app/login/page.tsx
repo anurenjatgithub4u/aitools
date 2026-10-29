@@ -7,7 +7,11 @@ import { authEnabled } from "@/lib/firebase/config";
 import { safeNext } from "@/lib/safe-next";
 import { getCurrentUser } from "@/lib/session";
 
-export const metadata: Metadata = { title: "Sign in · Keyword Planner" };
+export const metadata: Metadata = {
+  title: "Sign in or create a free account",
+  description: "Sign in to your App Store keyword research projects, or create a free account with 2 projects included.",
+  alternates: { canonical: "/login" },
+};
 export const dynamic = "force-dynamic";
 
 type Props = { searchParams: Promise<{ next?: string; mode?: string }> };

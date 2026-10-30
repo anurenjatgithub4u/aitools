@@ -44,11 +44,11 @@ export function Hero({ signedIn, hasProjects }: { signedIn: boolean; hasProjects
           AI keyword research for the App Store
         </p>
 
-        <h1 style={delay(0.1)} className="fade-up mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
+        <h1 style={delay(0.1)} className="rise mt-6 text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
           Find the words people <span className="text-shimmer">really search</span>
         </h1>
 
-        <div style={delay(0.25)} className="fade-up mt-6 text-lg text-muted-foreground sm:text-2xl">
+        <div style={delay(0.25)} className="rise mt-6 text-lg text-muted-foreground sm:text-2xl">
           <span className="sr-only">For example: {SEARCHES.map((s) => `${s.phrase} (${s.country})`).join(", ")}</span>
           <div aria-hidden className="flex min-h-[1.6em] flex-wrap items-center justify-center gap-x-3 gap-y-1">
             <span>in every country:</span>
@@ -60,11 +60,11 @@ export function Hero({ signedIn, hasProjects }: { signedIn: boolean; hasProjects
           </div>
         </div>
 
-        <p style={delay(0.4)} className="fade-up mx-auto mt-6 max-w-xl text-pretty text-muted-foreground">
+        <p style={delay(0.4)} className="rise mx-auto mt-6 max-w-xl text-pretty text-muted-foreground">
           Brainstorm keywords for your app or idea, turn them into what locals type in 9 App Stores, and see exactly where you rank and which ones are worth fighting for.
         </p>
 
-        <div style={delay(0.55)} className="fade-up mt-8 flex flex-wrap items-center justify-center gap-3">
+        <div style={delay(0.55)} className="rise mt-8 flex flex-wrap items-center justify-center gap-3">
           {signedIn ? (
             <NewProjectDialog
               trigger={

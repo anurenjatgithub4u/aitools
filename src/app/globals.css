@@ -148,6 +148,13 @@
 }
 
 .fade-up { animation: kp-fade-up 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0s); }
+/* Headline, description and CTA: motion only, never hidden. If a renderer never plays animations
+   (search-engine and link-preview bots, background tabs), the text is still fully visible. */
+@keyframes kp-rise {
+  from { transform: translateY(14px); }
+  to { transform: none; }
+}
+.rise { animation: kp-rise 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: var(--d, 0s); }
 .text-shimmer {
   background: linear-gradient(90deg, #6366f1, #06b6d4, #10b981, #8b5cf6, #6366f1);
   background-size: 200% auto;
@@ -175,5 +182,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fade-up, .text-shimmer, .caret, .flag-pop, .hero-glow { animation: none; }
+  .fade-up, .rise, .text-shimmer, .caret, .flag-pop, .hero-glow { animation: none; }
 }

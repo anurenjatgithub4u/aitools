@@ -9,11 +9,12 @@ import { cn } from "@/lib/utils";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
-const fullTitle = `${SITE.title} | ${SITE.name} by ${SITE.brand}`;
+// Brand first: "Keyword Planner" alone is Google Ads' tool name and can't rank, "FindUrAI" can.
+const fullTitle = `${SITE.brand}: ${SITE.title}`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
-  title: { default: fullTitle, template: `%s · ${SITE.name}` },
+  title: { default: fullTitle, template: `%s | ${SITE.brand}` },
   description: SITE.description,
   keywords: [...SITE.keywords],
   applicationName: SITE.name,
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: "/",
-    siteName: `${SITE.name} by ${SITE.brand}`,
+    siteName: SITE.brand,
     title: fullTitle,
     description: SITE.description,
     locale: "en_US",

@@ -15,7 +15,7 @@ export async function SiteHeader({ children }: { children?: React.ReactNode }) {
           <span className="grid size-7 place-items-center rounded-md bg-primary text-primary-foreground">
             <SearchIcon className="size-4" />
           </span>
-          <span className="hidden sm:inline">Keyword Planner</span>
+          <span className="hidden sm:inline">FindUrAI</span>
         </Link>
         <div className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{children}</div>
         <ThemeToggle />

@@ -155,3 +155,12 @@ The site is public freemium: 2 free projects per person, then Premium (payments 
   in it is flex (Satori fails the build otherwise; caught by `next build`, not by `next dev`).
 - **Local mode is blocked on Vercel**: if `NEXT_PUBLIC_FIREBASE_*` is missing there, requests fail
   with 503 instead of letting every visitor share one unlimited account.
+
+## SEO: low-competition keywords first (2026-11-03)
+- Titles lead with "FindUrAI". "Keyword Planner" alone is Google Ads' tool name and can't rank; the brand can.
+- Head terms ("ASO tool", "app store optimization") belong to AppTweak, Sensor Tower and others, so the site targets
+  what they don't cover: per-country keyword research. `/aso` plus one page per storefront (`src/lib/seo/country-pages.ts`),
+  linked from the home page and every footer, listed in the sitemap, with BreadcrumbList JSON-LD.
+- Country pages use real, local wording examples and the measured storefront size (`ratingShare`) as unique content.
+  Examples are wording, not volume claims. No claims about Apple's matching rules we haven't verified.
+- Next candidates: free no-sign-up tools (keyword field character counter, single rank check), how-to guides.

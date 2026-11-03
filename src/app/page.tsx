@@ -1,12 +1,16 @@
+import Link from "next/link";
+import { CountryFlag } from "@/components/country-flag";
 import { Faq } from "@/components/home/faq";
 import { Hero } from "@/components/home/hero";
 import { HomeJsonLd } from "@/components/seo/json-ld";
-import { SITE } from "@/lib/site";
 import { ProjectsView } from "@/components/projects/projects-view";
+import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { getCountry } from "@/lib/countries";
 import { appsRepo } from "@/lib/db";
 import { authEnabled } from "@/lib/firebase/config";
 import { PLAN_LIMITS, projectsLeft } from "@/lib/plans";
+import { COUNTRY_PAGES, countryPagePath } from "@/lib/seo/country-pages";
 import { getCurrentUser } from "@/lib/session";
 
 // Per-user data on every request (and keeps `next build` from opening the database).
@@ -25,6 +29,7 @@ export default async function Home() {
       <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
         <Hero signedIn={user !== null} hasProjects={projects.length > 0} />
         {user && <ProjectsView initialProjects={projects} quota={quota} />}
+        <CountryGuides />
         <Faq />
       </main>
       <SiteFooter />
@@ -33,15 +38,23 @@ export default async function Home() {
   );
 }
 
-function SiteFooter() {
+function CountryGuides() {
   return (
-    <footer className="mt-12 border-t">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-6 text-xs text-muted-foreground">
-        <span>
-          © {new Date().getFullYear()} {SITE.brand} · {SITE.name}: App Store keyword research and ASO
-        </span>
-        <span>Search data from Apple&apos;s public iTunes Search API. Volume is an estimate.</span>
-      </div>
-    </footer>
+    <section aria-labelledby="by-country" className="mx-auto max-w-3xl">
+      <h2 id="by-country" className="text-2xl font-semibold tracking-tight">
+        Keyword research by country
+      </h2>
+      <p className="mt-2 text-muted-foreground">How people really search the App Store in each country, with local examples and tips.</p>
+      <ul className="mt-4 flex flex-wrap gap-2">
+        {COUNTRY_PAGES.map((p) => (
+          <li key={p.slug}>
+            <Link href={countryPagePath(p)} className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-sm hover:bg-muted">
+              <CountryFlag code={p.code} />
+              {getCountry(p.code).name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

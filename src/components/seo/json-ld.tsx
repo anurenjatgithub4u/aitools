@@ -31,6 +31,24 @@ export function HomeJsonLd() {
       mainEntity: FAQ.map(({ q, a }) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
     },
   ];
+  return <JsonLd data={data} />;
+}
+
+/** Breadcrumb trail below Home, e.g. Home › ASO by country › Germany. */
+export function BreadcrumbJsonLd({ items }: { items: { name: string; path: string }[] }) {
+  const trail = [{ name: "Home", path: "/" }, ...items];
+  return (
+    <JsonLd
+      data={{
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        itemListElement: trail.map((t, i) => ({ "@type": "ListItem", position: i + 1, name: t.name, item: `${SITE.url}${t.path}` })),
+      }}
+    />
+  );
+}
+
+function JsonLd({ data }: { data: unknown }) {
   // "<" escaped so text can never close the script tag
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }} />;
 }

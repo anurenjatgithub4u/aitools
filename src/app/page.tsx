@@ -12,6 +12,7 @@ import { authEnabled } from "@/lib/firebase/config";
 import { PLAN_LIMITS, projectsLeft } from "@/lib/plans";
 import { COUNTRY_PAGES, countryPagePath } from "@/lib/seo/country-pages";
 import { getCurrentUser } from "@/lib/session";
+import { TOOLS, toolPath } from "@/lib/tools/list";
 
 // Per-user data on every request (and keeps `next build` from opening the database).
 export const dynamic = "force-dynamic";
@@ -29,12 +30,33 @@ export default async function Home() {
       <main className="mx-auto max-w-7xl space-y-10 px-4 py-8">
         <Hero signedIn={user !== null} hasProjects={projects.length > 0} />
         {user && <ProjectsView initialProjects={projects} quota={quota} />}
+        <FreeTools />
         <CountryGuides />
         <Faq />
       </main>
       <SiteFooter />
       <HomeJsonLd />
     </>
+  );
+}
+
+function FreeTools() {
+  return (
+    <section aria-labelledby="free-tools" className="mx-auto max-w-3xl">
+      <h2 id="free-tools" className="text-2xl font-semibold tracking-tight">
+        Free tools, no sign-up
+      </h2>
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {TOOLS.map((t) => (
+          <li key={t.slug}>
+            <Link href={toolPath(t.slug)} className="block h-full rounded-2xl border bg-card p-4 transition-colors hover:bg-muted">
+              <span className="font-medium">{t.name}</span>
+              <span className="mt-1 block text-sm text-muted-foreground">{t.blurb}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

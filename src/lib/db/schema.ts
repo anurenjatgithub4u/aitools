@@ -101,3 +101,10 @@ export const itunesCache = sqliteTable("itunes_cache", {
   body: text("body").notNull(),
   fetchedAt: integer("fetched_at", { mode: "timestamp_ms" }).notNull(),
 });
+
+/** Fixed-window request counters for the public tools, keyed by e.g. "rank:<hashed ip>". */
+export const rateLimits = sqliteTable("rate_limits", {
+  key: text("key").primaryKey(),
+  windowStart: integer("window_start", { mode: "timestamp_ms" }).notNull(),
+  count: integer("count").notNull(),
+});

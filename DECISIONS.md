@@ -164,3 +164,10 @@ The site is public freemium: 2 free projects per person, then Premium (payments 
 - Country pages use real, local wording examples and the measured storefront size (`ratingShare`) as unique content.
   Examples are wording, not volume claims. No claims about Apple's matching rules we haven't verified.
 - Next candidates: free no-sign-up tools (keyword field character counter, single rank check), how-to guides.
+
+## Free tools (2026-11-03)
+- `/tools/keyword-field-counter` runs entirely in the browser (`src/lib/tools/keyword-field.ts`, pure and tested).
+- `/tools/rank-checker` needs no account, so it's limited to 10 checks per visitor per hour. The counter lives in the
+  database (`rate_limits`, one atomic upsert), not in memory, because serverless instances don't share memory.
+  Visitors are keyed by a SHA-256 of their IP; the IP itself is never stored. Searches go through the shared iTunes
+  cache and limiter, so repeat checks don't cost Apple requests.

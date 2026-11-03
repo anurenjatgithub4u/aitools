@@ -2,8 +2,9 @@ import Link from "next/link";
 import { getCountry } from "@/lib/countries";
 import { COUNTRY_PAGES, countryPagePath } from "@/lib/seo/country-pages";
 import { SITE } from "@/lib/site";
+import { TOOLS, toolPath } from "@/lib/tools/list";
 
-/** Footer with links to every country guide, so each one is reachable from every public page. */
+/** Footer with links to every country guide and free tool, so each one is reachable from every public page. */
 export function SiteFooter() {
   return (
     <footer className="mt-12 border-t">
@@ -15,6 +16,16 @@ export function SiteFooter() {
           {COUNTRY_PAGES.map((p) => (
             <Link key={p.slug} href={countryPagePath(p)} className="hover:underline">
               {getCountry(p.code).name}
+            </Link>
+          ))}
+        </nav>
+        <nav aria-label="Free tools" className="flex flex-wrap gap-x-4 gap-y-1">
+          <Link href="/tools" className="font-medium text-foreground hover:underline">
+            Free tools
+          </Link>
+          {TOOLS.map((t) => (
+            <Link key={t.slug} href={toolPath(t.slug)} className="hover:underline">
+              {t.name}
             </Link>
           ))}
         </nav>

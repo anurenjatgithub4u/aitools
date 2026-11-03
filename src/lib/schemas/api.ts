@@ -60,6 +60,14 @@ export const CheckInput = z.object({
 });
 export type CheckInput = z.input<typeof CheckInput>;
 
+/** The free rank checker: an app (name, link or id) and one keyword, no account. */
+export const PublicRankInput = z.object({
+  app: z.string().trim().min(1).max(200),
+  keyword: z.string().trim().min(1).max(100),
+  country: CountryCodeSchema,
+});
+export type PublicRankInput = z.input<typeof PublicRankInput>;
+
 export const AddKeywordsInput = z.object({
   /** One keyword per item; also accepts a single comma/newline separated string from a text box. */
   terms: z.union([z.array(text(100)).min(1).max(100), text(5000)]).transform((v) =>

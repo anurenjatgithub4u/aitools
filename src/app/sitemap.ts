@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { COUNTRY_PAGES, countryPagePath } from "@/lib/seo/country-pages";
 import { SITE } from "@/lib/site";
+import { TOOLS, toolPath } from "@/lib/tools/list";
 
 /** Public pages only. Project boards are private and not listed. */
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -8,6 +9,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE.url}/`, changeFrequency: "weekly", priority: 1 },
     { url: `${SITE.url}/aso`, changeFrequency: "monthly", priority: 0.8 },
     ...COUNTRY_PAGES.map((p) => ({ url: `${SITE.url}${countryPagePath(p)}`, changeFrequency: "monthly" as const, priority: 0.7 })),
+    { url: `${SITE.url}/tools`, changeFrequency: "monthly", priority: 0.8 },
+    ...TOOLS.map((t) => ({ url: `${SITE.url}${toolPath(t.slug)}`, changeFrequency: "monthly" as const, priority: 0.8 })),
     { url: `${SITE.url}/login`, changeFrequency: "monthly", priority: 0.3 },
   ];
 }

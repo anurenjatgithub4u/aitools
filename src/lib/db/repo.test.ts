@@ -72,4 +72,12 @@ describe("repository layer", () => {
     expect(await repo.usersRepo.takeProjectSlot("nobody", 2)).toBe(false);
     expect(await repo.usersRepo.takeProjectSlot("bob", Number.POSITIVE_INFINITY)).toBe(true);
   });
+
+  it("counts rate-limit hits per key and starts a new window once the old one expires", async () => {
+    const counts = await Promise.all([1, 2, 3].map(() => repo.rateLimitsRepo.hit("rank:a", 60_000)));
+    expect(counts.map((c) => c.count).sort()).toEqual([1, 2, 3]);
+    expect((await repo.rateLimitsRepo.hit("rank:b", 60_000)).count).toBe(1);
+    // a 0ms window has always expired, so the count restarts
+    expect((await repo.rateLimitsRepo.hit("rank:a", 0)).count).toBe(1);
+  });
 });

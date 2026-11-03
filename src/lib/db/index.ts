@@ -7,3 +7,4 @@ export * as rankChecksRepo from "./repo/rank-checks";
 export * as competitorsRepo from "./repo/competitors";
 export * as itunesCacheRepo from "./repo/itunes-cache";
 export * as usersRepo from "./repo/users";
+export * as rateLimitsRepo from "./repo/rate-limits";
